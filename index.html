@@ -47,7 +47,7 @@
     <main class="flex-1 overflow-y-auto p-4 pb-24 relative" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-f8fafc z-50">
             <div class="loader mb-4"></div>
-            <p class="text-slate-500 font-semibold text-sm animate-pulse">Syncing live schedule...</p>
+            <p class="text-slate-500 font-semibold text-sm animate-pulse" id="loadingText">Syncing live schedule...</p>
         </div>
     </main>
 
@@ -77,8 +77,9 @@
             '23b': "23rd August' 2026 - Day 2 Hall B"
         };
 
-        // App State
+        // App State & Caching Variables
         let appData = {};
+        const CACHE_KEY = 'ifascon_schedule_cache';
         const container = document.getElementById('contentContainer');
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearSearch');
@@ -86,8 +87,46 @@
         const downloadBtn = document.getElementById('downloadBtn');
         let currentTab = 'ao';
 
-        // --- Data Fetching & Parsing Engine ---
-        async function fetchLiveSchedule() {
+        // --- Core Engine & Caching Logic ---
+        
+        // 1. App Startup
+        async function initializeApp() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            
+            if (cachedData) {
+                try {
+                    // Load instantly from device memory
+                    appData = JSON.parse(cachedData);
+                    document.getElementById('loadingState').classList.add('hidden');
+                    enableUI();
+                    showTab(currentTab);
+                    
+                    // Silently fetch in the background to ensure data isn't stale
+                    fetchLiveSchedule(true);
+                } catch (e) {
+                    // Cache corrupted, force hard fetch
+                    fetchLiveSchedule(false);
+                }
+            } else {
+                // First time loading the app, show spinner
+                fetchLiveSchedule(false);
+            }
+        }
+
+        // 2. Enable UI Buttons
+        function enableUI() {
+            searchInput.disabled = false;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            });
+        }
+
+        // 3. Data Fetching
+        async function fetchLiveSchedule(isBackground = false) {
+            let fetchedData = {};
+            let hasErrors = false;
+
             for (const [key, link] of Object.entries(sheetLinks)) {
                 try {
                     const response = await fetch(link);
@@ -95,7 +134,7 @@
                     
                     Papa.parse(csvText, {
                         complete: function(results) {
-                            appData[key] = {
+                            fetchedData[key] = {
                                 title: configTitles[key],
                                 events: parseRawData(results.data, configTitles[key])
                             };
@@ -103,19 +142,27 @@
                     });
                 } catch(err) {
                     console.error("Failed to load: ", key, err);
+                    hasErrors = true;
                 }
             }
             
-            // Enable UI once loaded
-            document.getElementById('loadingState').classList.add('hidden');
-            searchInput.disabled = false;
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50');
-            });
-
-            // Show default tab
-            showTab('ao');
+            // If the fetch was successful, update the app and the cache
+            if (!hasErrors && Object.keys(fetchedData).length > 0) {
+                appData = fetchedData;
+                localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
+                
+                if (!isBackground) {
+                    // Initial load finished
+                    document.getElementById('loadingState').classList.add('hidden');
+                    enableUI();
+                    showTab(currentTab);
+                } else {
+                    // Background load finished - seamlessly update screen if not currently searching
+                    if (!searchInput.value) {
+                        showTab(currentTab);
+                    }
+                }
+            }
         }
 
         function parseRawData(rows, hallTitle) {
@@ -335,7 +382,6 @@
             let eventsHtml = '';
             data.events.forEach(ev => { eventsHtml += renderEvent(ev, false); });
             
-            // If the sheet was completely blocked by the junk filter or is empty
             if (eventsHtml === '') {
                 eventsHtml = `
                     <div class="text-center py-12 px-4">
@@ -442,8 +488,8 @@
             URL.revokeObjectURL(url);
         });
 
-        // Start the engine
-        fetchLiveSchedule();
+        // --- Start the Engine ---
+        initializeApp();
     </script>
 </body>
 </html>
