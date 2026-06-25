@@ -22,7 +22,7 @@
 
     <header class="glass-header z-50 flex-shrink-0 relative">
         <div class="px-4 py-3 flex items-center justify-center h-[72px]">
-            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-28 object-contain" onerror="this.src='https://via.placeholder.com/200x50?text=IFASCON+2026'">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-22 object-contain" onerror="this.src='https://via.placeholder.com/200x50?text=IFASCON+2026'">
         </div>
     </header>
 
@@ -161,23 +161,29 @@
                     return;
                 }
 
-                // Check if it is a Q&A or Discussion
+                // Check if it is a Q&A, Discussion, or Plenary
                 let isQA = false;
                 if (col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || 
                     col5.toLowerCase().includes("q&a") || col5.toLowerCase().includes("discussion") ||
                     col3.toLowerCase().includes("q & a") || col5.toLowerCase().includes("q & a")) {
                     isQA = true;
                 }
+                
+                let isPlenary = false;
+                if (col3.toLowerCase().includes("plenary") || col5.toLowerCase().includes("plenary") || 
+                    col3.toLowerCase().includes("oration") || col5.toLowerCase().includes("oration")) {
+                    isPlenary = true;
+                }
 
                 // --- ROBUST SESSION HEADING DETECTION ---
                 let isSession = false;
                 
-                // Q&A and Discussions are NEVER headings, they are part of the session
-                if (!isQA) {
+                // Q&A, Discussions, and Plenaries are NEVER headings, they are part of the session
+                if (!isQA && !isPlenary) {
                     if (!col1 && !col2) isSession = true; 
                     else if (!col0 && col1 && col2 && !col5) isSession = true; 
                     else if (col3 && !col5 && !col6) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('plenary') || row_text.includes('oration') || row_text.includes('session')) {
+                    else if (row_text.includes('symposium') || row_text.includes('session')) {
                         isSession = true;
                     }
                 }
@@ -194,15 +200,15 @@
                     return;
                 }
 
-                // Identify Standard Presentations / Q&A
-                if (col1 || col5 || isQA) {
+                // Identify Standard Presentations / Q&A / Plenary
+                if (col1 || col5 || isQA || isPlenary) {
                     let speaker = col6;
                     if (["nan", "tbd"].includes(speaker.toLowerCase())) speaker = "";
                     
                     let time_display = col1;
                     if (col2) time_display += ` - ${col2}`;
                     if (col0 && !time_display.includes(col0)) time_display += ` (${col0}m)`;
-                    if (!time_display && isQA) time_display = col0; // Fallback for Q&A if only duration is present
+                    if (!time_display && (isQA || isPlenary)) time_display = col0; // Fallback for duration only
 
                     let displayTitle = col5;
                     let displayTag = col3;
@@ -211,6 +217,11 @@
                     if (isQA && !displayTitle) {
                         displayTitle = col3;
                         displayTag = "Discussion";
+                    }
+                    
+                    // Formatting clean-up for Plenary/Oration if title is missing
+                    if (isPlenary && !displayTitle) {
+                        displayTitle = col3;
                     }
 
                     events.push({ type: 'presentation', time: time_display, tag: displayTag, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker} ${displayTag}`.toLowerCase(), parent_session: current_session });
@@ -275,11 +286,13 @@
                 `;
             } 
             else {
-                // --- INDIVIDUAL TALK & Q&A DESIGN ---
+                // --- INDIVIDUAL TALK, PLENARY, & Q&A DESIGN ---
                 let tagClass = "bg-slate-100 text-slate-600 border border-slate-200";
+                
                 if(ev.tag && ev.tag.toLowerCase().includes('lecture')) tagClass = "bg-blue-50 text-blue-600 border border-blue-100";
                 else if(ev.tag && ev.tag.toLowerCase().includes('panel')) tagClass = "bg-purple-50 text-purple-600 border border-purple-100";
                 else if(ev.tag && (ev.tag.toLowerCase().includes('q&a') || ev.tag.toLowerCase().includes('discussion'))) tagClass = "bg-orange-50 text-orange-600 border border-orange-100";
+                else if(ev.tag && (ev.tag.toLowerCase().includes('plenary') || ev.tag.toLowerCase().includes('oration'))) tagClass = "bg-rose-50 text-rose-700 border border-rose-200";
 
                 let tagHtml = ev.tag ? `<span class="px-2 py-1 text-[10px] uppercase tracking-wider font-bold rounded flex-shrink-0 ${tagClass}">${ev.tag}</span>` : '';
                 let speakerHtml = ev.speaker ? `<div class="mt-3 flex items-start bg-slate-50 p-2 rounded-lg border border-slate-100"><i class="fas fa-microphone text-indigo-400 mt-0.5 mr-2 text-sm"></i><span class="text-[13px] font-bold text-indigo-900 leading-snug">${ev.speaker}</span></div>` : '';
