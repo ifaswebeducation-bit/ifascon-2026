@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IFASCON 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .glass-header { background: #ffffff; border-bottom: 1px solid #e2e8f0; backdrop-filter: blur(10px); }
+        .tab-btn.active { color: #4f46e5; border-top-color: #4f46e5; background-color: #f1f5f9; }
+        
+        /* Loading Spinner */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <header class="glass-header z-50 flex-shrink-0 relative">
+        <div class="px-4 py-3 flex items-center justify-center h-[72px]">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-12 object-contain" onerror="this.src='https://via.placeholder.com/200x50?text=IFASCON+2026'">
+        </div>
+    </header>
+
+    <div class="z-40 bg-white/90 backdrop-blur px-4 py-3 border-b border-slate-200 shadow-sm flex-shrink-0">
+        <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+            <input type="text" id="searchInput" placeholder="Search speaker, topic..." 
+                   autocomplete="off" autocorrect="off" spellcheck="false"
+                   class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition shadow-inner" disabled>
+            <button id="clearSearch" class="hidden absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1">
+                <i class="fas fa-times-circle"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div id="downloadContainer" class="hidden bg-white/90 backdrop-blur px-4 pb-3 border-b border-slate-200 shadow-sm flex-shrink-0">
+        <button id="downloadBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-indigo-700 transition flex items-center justify-center">
+            <i class="fas fa-file-download mr-2"></i> Download My Itinerary (.txt)
+        </button>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 pb-24 relative" id="contentContainer">
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-f8fafc z-50">
+            <div class="loader mb-4"></div>
+            <p class="text-slate-500 font-semibold text-sm animate-pulse">Syncing live schedule...</p>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 w-full bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] border-t border-slate-200 flex justify-around z-50 pb-safe">
+        <button onclick="showTab('ao')" id="tab-ao" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>21 Aug<br>AO</button>
+        <button onclick="showTab('22a')" id="tab-22a" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>22 Aug<br>Hall A</button>
+        <button onclick="showTab('22b')" id="tab-22b" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>22 Aug<br>Hall B</button>
+        <button onclick="showTab('23a')" id="tab-23a" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>23 Aug<br>Hall A</button>
+        <button onclick="showTab('23b')" id="tab-23b" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>23 Aug<br>Hall B</button>
+    </nav>
+
+    <script>
+        // Google Sheets Published CSV Links
+        const sheetLinks = {
+            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
+            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
+            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+        };
+
+        const configTitles = {
+            'ao': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
+            '22a': "22nd August' 2026 - Day 1 Hall A",
+            '22b': "22nd August' 2026 - Day 1 Hall B",
+            '23a': "23rd August' 2026 - Day 2 Hall A",
+            '23b': "23rd August' 2026 - Day 2 Hall B"
+        };
+
+        // App State
+        let appData = {};
+        const container = document.getElementById('contentContainer');
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearSearch');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        let currentTab = 'ao';
+
+        // --- Data Fetching & Parsing Engine ---
+        async function fetchLiveSchedule() {
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                try {
+                    const response = await fetch(link);
+                    const csvText = await response.text();
+                    
+                    Papa.parse(csvText, {
+                        complete: function(results) {
+                            appData[key] = {
+                                title: configTitles[key],
+                                events: parseRawData(results.data, configTitles[key])
+                            };
+                        }
+                    });
+                } catch(err) {
+                    console.error("Failed to load: ", key, err);
+                }
+            }
+            
+            // Enable UI once loaded
+            document.getElementById('loadingState').classList.add('hidden');
+            searchInput.disabled = false;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+            });
+
+            // Show default tab
+            showTab('ao');
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [];
+            let current_session = "";
+
+            rows.forEach(r => {
+                while(r.length < 10) r.push("");
+                r = r.map(x => (x || "").trim());
+
+                // Updated Indexing per user request: col5 = r[4], col6 = r[5], etc.
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3], col5 = r[4], col6 = r[5], col7 = r[6], col8 = r[7];
+                let row_text = r.join(" ").toLowerCase();
+
+                // Skip junk rows
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                if (!col0 && !col1 && !col2 && !col3 && !col5) return;
+                if (row_text.includes("ifascon 2026")) return;
+                if ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) return;
+
+                // Identify Breaks / Registration / Valedictory
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium")) {
+                    let text = col5 || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("gbm")) text = "GBM";
+                    else if (row_text.includes("valedictory")) text = "Valedictory";
+                    
+                    let time_str = (col1 && col2) ? `${col1} - ${col2}` : col0;
+                    if (!time_str && col1) time_str = col1;
+                    
+                    events.push({ type: 'break', title: text, time: time_str, speaker: '', hall: hallTitle, searchable: text.toLowerCase(), parent_session: '' });
+                    return;
+                }
+
+                // --- ROBUST SESSION / SYMPOSIUM DETECTION ---
+                let isSession = false;
+                
+                if (!col1 && !col2) isSession = true; // AO Sheet logic (no times)
+                else if (!col0 && col1 && col2 && !col5) isSession = true; // Block times exist, but no duration and no specific talk title
+                else if (col3 && !col5 && !col6) isSession = true; // Has a Theme/Topic, but no talk title and no speaker
+                else if (row_text.includes('symposium') || row_text.includes('plenary') || row_text.includes('oration')) isSession = true;
+
+                if (isSession) {
+                    let topic = col5 || col3 || "Symposium";
+                    let chairsArr = [col6, col7, col8].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons", "tbd", "chair :", "co-chair :"].includes(c.toLowerCase()));
+                    let chairs_str = chairsArr.join(", ");
+                    
+                    let time_str = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+
+                    current_session = topic; // Cache to link subsequent talks
+                    events.push({ type: 'session', time: time_str, title: topic, speaker: chairs_str, hall: hallTitle, searchable: `${topic} ${chairs_str}`.toLowerCase(), parent_session: current_session });
+                    return;
+                }
+
+                // Identify Standard Presentations / Debates
+                if (col1 || col5) {
+                    let speaker = col6;
+                    if (["nan", "tbd"].includes(speaker.toLowerCase())) speaker = "";
+                    
+                    let time_display = col1;
+                    if (col2) time_display += ` - ${col2}`;
+                    if (col0 && !time_display.includes(col0)) time_display += ` (${col0}m)`;
+
+                    events.push({ type: 'presentation', time: time_display, tag: col3, title: col5, speaker: speaker, hall: hallTitle, searchable: `${col5} ${speaker} ${col3}`.toLowerCase(), parent_session: current_session });
+                }
+            });
+
+            return events;
+        }
+
+        // --- Rendering Logic ---
+        function renderEvent(ev, showHall = false) {
+            let hallBadge = showHall ? `<div class="mb-3 inline-block px-2.5 py-1 bg-slate-800 text-white text-[10px] font-bold uppercase rounded tracking-wider shadow-sm">${ev.hall}</div>` : '';
+            
+            // Improved search result display for individual talks
+            let searchContextHtml = (showHall && ev.parent_session && ev.type === 'presentation') ? 
+                `<div class="mb-3 p-2 bg-indigo-50 border-l-2 border-indigo-500 rounded text-xs font-bold text-indigo-800 leading-tight">
+                    <span class="uppercase tracking-wide text-[9px] text-indigo-500 block mb-0.5">Part of Symposium:</span>
+                    ${ev.parent_session}
+                </div>` : '';
+            
+            if (ev.type === 'break') {
+                const icon = ev.title.toLowerCase().includes('coffee') || ev.title.toLowerCase().includes('tea') ? 'fa-coffee' : 
+                             ev.title.toLowerCase().includes('lunch') ? 'fa-utensils' : 
+                             ev.title.toLowerCase().includes('registration') ? 'fa-clipboard-list' : 'fa-star';
+                return `
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 my-4 flex items-center justify-between shadow-sm">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mr-3 flex-shrink-0">
+                                <i class="fas ${icon} text-lg"></i>
+                            </div>
+                            <div>
+                                ${hallBadge}
+                                <h3 class="font-bold text-amber-900 leading-tight">${ev.title}</h3>
+                            </div>
+                        </div>
+                        <span class="text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-md ml-2 whitespace-nowrap">${ev.time}</span>
+                    </div>
+                `;
+            } 
+            else if (ev.type === 'session') {
+                // --- BOLD SYMPOSIUM HEADING DESIGN ---
+                let speakerHtml = ev.speaker ? `
+                    <div class="mt-3 pt-3 border-t border-indigo-200/60 flex items-start">
+                        <i class="fas fa-users mt-1 mr-2 text-indigo-500 text-sm"></i> 
+                        <div>
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-indigo-500 mb-0.5">Chairpersons / Moderators</span>
+                            <span class="text-sm font-bold text-indigo-900 leading-snug">${ev.speaker}</span>
+                        </div>
+                    </div>` : '';
+                    
+                return `
+                    <div class="mt-8 mb-4 border-l-4 border-indigo-600 bg-gradient-to-r from-indigo-50 to-white p-4 rounded-r-xl shadow-sm ring-1 ring-slate-200/50">
+                        ${hallBadge}
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center text-xs font-bold bg-indigo-600 text-white px-2.5 py-1 rounded shadow-sm">
+                                <i class="far fa-clock mr-1.5"></i> ${ev.time}
+                            </span>
+                        </div>
+                        <h2 class="text-[19px] font-black text-slate-900 tracking-tight leading-snug uppercase">${ev.title}</h2>
+                        ${speakerHtml}
+                    </div>
+                `;
+            } 
+            else {
+                // --- INDIVIDUAL TALK DESIGN ---
+                let tagClass = "bg-slate-100 text-slate-600 border border-slate-200";
+                if(ev.tag && ev.tag.toLowerCase().includes('lecture')) tagClass = "bg-blue-50 text-blue-600 border border-blue-100";
+                else if(ev.tag && ev.tag.toLowerCase().includes('panel')) tagClass = "bg-purple-50 text-purple-600 border border-purple-100";
+                else if(ev.tag && ev.tag.toLowerCase().includes('q&a') || ev.tag.toLowerCase().includes('discussion')) tagClass = "bg-orange-50 text-orange-600 border border-orange-100";
+
+                let tagHtml = ev.tag ? `<span class="px-2 py-1 text-[10px] uppercase tracking-wider font-bold rounded flex-shrink-0 ${tagClass}">${ev.tag}</span>` : '';
+                let speakerHtml = ev.speaker ? `<div class="mt-3 flex items-start bg-slate-50 p-2 rounded-lg border border-slate-100"><i class="fas fa-microphone text-indigo-400 mt-0.5 mr-2 text-sm"></i><span class="text-[13px] font-bold text-indigo-900 leading-snug">${ev.speaker}</span></div>` : '';
+                
+                return `
+                    <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 mb-3 ml-0 sm:ml-4 relative overflow-hidden transition-all hover:shadow-md">
+                        ${hallBadge}
+                        ${searchContextHtml}
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <div class="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 inline-flex items-center whitespace-nowrap">
+                                <i class="far fa-clock mr-1.5 text-slate-400"></i> ${ev.time}
+                            </div>
+                            ${tagHtml}
+                        </div>
+                        <h3 class="text-[15px] font-semibold text-slate-800 leading-snug mt-1">${ev.title}</h3>
+                        ${speakerHtml}
+                    </div>
+                `;
+            }
+        }
+
+        // --- Interaction Logic ---
+        function showTab(tabKey) {
+            currentTab = tabKey;
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+            downloadContainer.classList.add('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabKey).classList.add('active');
+            
+            const data = appData[tabKey];
+            container.innerHTML = `
+                <div class="mb-5 flex items-center justify-between pb-2 border-b border-slate-200">
+                    <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">${data.title.split(' - ')[0]}</h2>
+                    <span class="text-[10px] font-bold bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full uppercase tracking-widest leading-tight text-right max-w-[50%] shadow-sm">${data.title.split(' - ')[1]}</span>
+                </div>
+            `;
+            
+            let eventsHtml = '';
+            data.events.forEach(ev => { eventsHtml += renderEvent(ev, false); });
+            container.innerHTML += eventsHtml;
+            container.scrollTop = 0;
+        }
+
+        function performSearch(query) {
+            if (!query) {
+                downloadContainer.classList.add('hidden');
+                showTab(currentTab);
+                return;
+            }
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            container.innerHTML = `
+                <div class="mb-5 pb-2 border-b border-slate-200">
+                    <h2 class="text-xl font-extrabold text-slate-800 tracking-tight">Search Results</h2>
+                    <p class="text-sm text-slate-500 mt-1">Showing all commitments for "<span class="font-bold text-indigo-600">${query}</span>"</p>
+                </div>
+            `;
+            
+            let foundCount = 0;
+            let resultsHtml = '';
+            
+            for (const [key, data] of Object.entries(appData)) {
+                data.events.forEach(ev => {
+                    if (ev.searchable.includes(query)) {
+                        resultsHtml += renderEvent(ev, true);
+                        foundCount++;
+                    }
+                });
+            }
+            
+            if (foundCount === 0) {
+                downloadContainer.classList.add('hidden');
+                container.innerHTML += `
+                    <div class="text-center py-12 px-4">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                            <i class="fas fa-search text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-700">No results found</h3>
+                        <p class="text-slate-500 text-sm mt-1">Check the spelling and try again.</p>
+                    </div>
+                `;
+            } else {
+                downloadContainer.classList.remove('hidden');
+                container.innerHTML += resultsHtml;
+            }
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (query.length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+            performSearch(query);
+        });
+
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+            downloadContainer.classList.add('hidden');
+            showTab(currentTab);
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const query = searchInput.value.trim();
+            if (!query) return;
+
+            let textContent = `IFASCON 2026 - Itinerary for: "${query}"\n`;
+            textContent += `==========================================================\n\n`;
+
+            for (const [key, data] of Object.entries(appData)) {
+                data.events.forEach(ev => {
+                    if (ev.searchable.includes(query.toLowerCase())) {
+                        textContent += `Date / Location : ${data.title}\n`;
+                        if (ev.parent_session) textContent += `Symposium     : ${ev.parent_session}\n`;
+                        if (ev.time) textContent += `Time          : ${ev.time}\n`;
+                        if (ev.title) textContent += `Topic         : ${ev.title}\n`;
+                        if (ev.speaker) textContent += `Speaker/Chair : ${ev.speaker}\n`;
+                        textContent += `----------------------------------------------------------\n\n`;
+                    }
+                });
+            }
+
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `IFASCON_Itinerary_${query.replace(/\s+/g, '_')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Start the engine
+        fetchLiveSchedule();
+    </script>
+</body>
+</html>
