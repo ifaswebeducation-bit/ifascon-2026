@@ -52,7 +52,7 @@
     </main>
 
     <nav class="fixed bottom-0 w-full bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] border-t border-slate-200 flex justify-around z-50 pb-safe">
-        <button onclick="showTab('ao')" id="tab-ao" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>21 Aug<br>AO Seminar<br>& Workshops</button>
+        <button onclick="showTab('ao')" id="tab-ao" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>21 Aug<br>AO Seminar <br>& Workshops</button>
         <button onclick="showTab('22a')" id="tab-22a" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>22 Aug<br>Hall A</button>
         <button onclick="showTab('22b')" id="tab-22b" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>22 Aug<br>Hall B</button>
         <button onclick="showTab('23a')" id="tab-23a" class="tab-btn flex-1 py-3 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50" disabled>23 Aug<br>Hall A</button>
@@ -77,9 +77,9 @@
             '23b': "23rd August' 2026 - Day 2 Hall B"
         };
 
-        // App State & Caching Variables (v2 forces a fresh cache load)
+        // App State & Caching Variables (Busted to v4 to fix load error)
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v3'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v4'; 
         const container = document.getElementById('contentContainer');
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearSearch');
@@ -138,7 +138,8 @@
                 }
             }
             
-            if (!hasErrors && Object.keys(fetchedData).length > 0) {
+            // Show content if fetch is successful or if we have at least one sheet
+            if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
                 localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
                 
@@ -151,6 +152,9 @@
                         showTab(currentTab);
                     }
                 }
+            } else {
+                // Failsafe in case nothing loads
+                document.getElementById('loadingText').innerText = "Failed to load schedule. Please check connection.";
             }
         }
 
@@ -165,7 +169,6 @@
                 let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
                 
                 // Flexible Column Detection (Bridges the gap between AO and other sheets)
-                // If r[4] has data, use it. If it's empty, shift everything over by one to check r[5].
                 let colTitle = r[4] || r[5] || "";
                 let colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7];
@@ -206,7 +209,7 @@
                     return;
                 }
 
-                // Check if it is a Q&A, Discussion, or Plenary
+                // Check if it is a Q&A, Discussion, or Plenary (Orations removed from this specific lecture check)
                 let isQA = false;
                 if (col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || 
                     colTitle.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion") ||
@@ -214,13 +217,12 @@
                     isQA = true;
                 }
                 
-                                let isPlenary = false;
-                // Removed "oration" from here so it isn't forced as a lecture
+                let isPlenary = false;
                 if (col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary")) {
                     isPlenary = true;
                 }
 
-                                // --- ROBUST SESSION HEADING DETECTION ---
+                // --- ROBUST SESSION & ORATION HEADING DETECTION ---
                 let isSession = false;
                 let isOration = false;
                 
@@ -257,7 +259,7 @@
                     current_session = topic; 
                     events.push({ 
                         type: 'session', 
-                        isOration: isOration, // passing this flag to the renderer
+                        isOration: isOration, 
                         time: time_str, 
                         title: topic, 
                         speaker: chairs_str, 
@@ -266,7 +268,6 @@
                         parent_session: current_session 
                     });
                     return;
-                }
                 }
 
                 // Identify Standard Presentations / Q&A / Plenary
@@ -327,12 +328,11 @@
                     </div>
                 `;
             } 
-                        else if (ev.type === 'session') {
+            else if (ev.type === 'session') {
                 // --- BOLD SYMPOSIUM / ORATION HEADING DESIGN ---
-                let speakerLabel = ev.isOration ? "Speaker / Orator" : "Chairpersons / Moderators";
+                let speakerLabel = ev.isOration ? "Speaker / Orator" : "Chairpersons";
                 let iconClass = ev.isOration ? "fa-microphone" : "fa-users";
                 
-                // Makes Orations stand out with a rose/red color theme instead of indigo
                 let bgStyle = ev.isOration ? "border-rose-500 bg-gradient-to-r from-rose-50 to-white" : "border-indigo-600 bg-gradient-to-r from-indigo-50 to-white";
                 let tagColor = ev.isOration ? "bg-rose-600" : "bg-indigo-600";
                 let textColor = ev.isOration ? "text-rose-600" : "text-indigo-500";
