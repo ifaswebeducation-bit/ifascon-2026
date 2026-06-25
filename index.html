@@ -126,19 +126,27 @@
                 while(r.length < 10) r.push("");
                 r = r.map(x => (x || "").trim());
 
-                // Updated Indexing per user request: col5 = r[4], col6 = r[5], etc.
                 let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3], col5 = r[4], col6 = r[5], col7 = r[6], col8 = r[7];
                 let row_text = r.join(" ").toLowerCase();
 
-                // Skip junk rows
+                // --- STRICT JUNK / ERROR HTML FILTER ---
+                if (row_text.includes("position:absolute") || 
+                    row_text.includes("docs-drivelogo") || 
+                    row_text.includes("background-image") || 
+                    row_text.includes("var(--") || 
+                    row_text.includes("<!doctype html>")) {
+                    return; // Skips Google Sheets HTML error pages silently
+                }
+
+                // Skip junk/header rows
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !col5) return;
                 if (row_text.includes("ifascon 2026")) return;
                 if ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) return;
 
-                // Identify Breaks / Registration / Valedictory
+                // Identify Breaks 
                 const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium")) {
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
                     let text = col5 || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
@@ -153,16 +161,29 @@
                     return;
                 }
 
-                // --- ROBUST SESSION / SYMPOSIUM DETECTION ---
+                // Check if it is a Q&A or Discussion
+                let isQA = false;
+                if (col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || 
+                    col5.toLowerCase().includes("q&a") || col5.toLowerCase().includes("discussion") ||
+                    col3.toLowerCase().includes("q & a") || col5.toLowerCase().includes("q & a")) {
+                    isQA = true;
+                }
+
+                // --- ROBUST SESSION HEADING DETECTION ---
                 let isSession = false;
                 
-                if (!col1 && !col2) isSession = true; // AO Sheet logic (no times)
-                else if (!col0 && col1 && col2 && !col5) isSession = true; // Block times exist, but no duration and no specific talk title
-                else if (col3 && !col5 && !col6) isSession = true; // Has a Theme/Topic, but no talk title and no speaker
-                else if (row_text.includes('symposium') || row_text.includes('plenary') || row_text.includes('oration')) isSession = true;
+                // Q&A and Discussions are NEVER headings, they are part of the session
+                if (!isQA) {
+                    if (!col1 && !col2) isSession = true; 
+                    else if (!col0 && col1 && col2 && !col5) isSession = true; 
+                    else if (col3 && !col5 && !col6) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('plenary') || row_text.includes('oration') || row_text.includes('session')) {
+                        isSession = true;
+                    }
+                }
 
                 if (isSession) {
-                    let topic = col5 || col3 || "Symposium";
+                    let topic = col5 || col3 || "Session";
                     let chairsArr = [col6, col7, col8].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons", "tbd", "chair :", "co-chair :"].includes(c.toLowerCase()));
                     let chairs_str = chairsArr.join(", ");
                     
@@ -173,16 +194,26 @@
                     return;
                 }
 
-                // Identify Standard Presentations / Debates
-                if (col1 || col5) {
+                // Identify Standard Presentations / Q&A
+                if (col1 || col5 || isQA) {
                     let speaker = col6;
                     if (["nan", "tbd"].includes(speaker.toLowerCase())) speaker = "";
                     
                     let time_display = col1;
                     if (col2) time_display += ` - ${col2}`;
                     if (col0 && !time_display.includes(col0)) time_display += ` (${col0}m)`;
+                    if (!time_display && isQA) time_display = col0; // Fallback for Q&A if only duration is present
 
-                    events.push({ type: 'presentation', time: time_display, tag: col3, title: col5, speaker: speaker, hall: hallTitle, searchable: `${col5} ${speaker} ${col3}`.toLowerCase(), parent_session: current_session });
+                    let displayTitle = col5;
+                    let displayTag = col3;
+
+                    // Formatting clean-up if Q&A row is empty on the title side
+                    if (isQA && !displayTitle) {
+                        displayTitle = col3;
+                        displayTag = "Discussion";
+                    }
+
+                    events.push({ type: 'presentation', time: time_display, tag: displayTag, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker} ${displayTag}`.toLowerCase(), parent_session: current_session });
                 }
             });
 
@@ -196,7 +227,7 @@
             // Improved search result display for individual talks
             let searchContextHtml = (showHall && ev.parent_session && ev.type === 'presentation') ? 
                 `<div class="mb-3 p-2 bg-indigo-50 border-l-2 border-indigo-500 rounded text-xs font-bold text-indigo-800 leading-tight">
-                    <span class="uppercase tracking-wide text-[9px] text-indigo-500 block mb-0.5">Part of Symposium:</span>
+                    <span class="uppercase tracking-wide text-[9px] text-indigo-500 block mb-0.5">Part of Session:</span>
                     ${ev.parent_session}
                 </div>` : '';
             
@@ -220,7 +251,7 @@
                 `;
             } 
             else if (ev.type === 'session') {
-                // --- BOLD SYMPOSIUM HEADING DESIGN ---
+                // --- BOLD SYMPOSIUM/SESSION HEADING DESIGN ---
                 let speakerHtml = ev.speaker ? `
                     <div class="mt-3 pt-3 border-t border-indigo-200/60 flex items-start">
                         <i class="fas fa-users mt-1 mr-2 text-indigo-500 text-sm"></i> 
@@ -244,11 +275,11 @@
                 `;
             } 
             else {
-                // --- INDIVIDUAL TALK DESIGN ---
+                // --- INDIVIDUAL TALK & Q&A DESIGN ---
                 let tagClass = "bg-slate-100 text-slate-600 border border-slate-200";
                 if(ev.tag && ev.tag.toLowerCase().includes('lecture')) tagClass = "bg-blue-50 text-blue-600 border border-blue-100";
                 else if(ev.tag && ev.tag.toLowerCase().includes('panel')) tagClass = "bg-purple-50 text-purple-600 border border-purple-100";
-                else if(ev.tag && ev.tag.toLowerCase().includes('q&a') || ev.tag.toLowerCase().includes('discussion')) tagClass = "bg-orange-50 text-orange-600 border border-orange-100";
+                else if(ev.tag && (ev.tag.toLowerCase().includes('q&a') || ev.tag.toLowerCase().includes('discussion'))) tagClass = "bg-orange-50 text-orange-600 border border-orange-100";
 
                 let tagHtml = ev.tag ? `<span class="px-2 py-1 text-[10px] uppercase tracking-wider font-bold rounded flex-shrink-0 ${tagClass}">${ev.tag}</span>` : '';
                 let speakerHtml = ev.speaker ? `<div class="mt-3 flex items-start bg-slate-50 p-2 rounded-lg border border-slate-100"><i class="fas fa-microphone text-indigo-400 mt-0.5 mr-2 text-sm"></i><span class="text-[13px] font-bold text-indigo-900 leading-snug">${ev.speaker}</span></div>` : '';
@@ -290,6 +321,20 @@
             
             let eventsHtml = '';
             data.events.forEach(ev => { eventsHtml += renderEvent(ev, false); });
+            
+            // If the sheet was completely blocked by the junk filter or is empty
+            if (eventsHtml === '') {
+                eventsHtml = `
+                    <div class="text-center py-12 px-4">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                            <i class="fas fa-file-excel text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-700">Data Unavailable</h3>
+                        <p class="text-slate-500 text-sm mt-1">Please ensure this tab is published to the web as a CSV in Google Sheets.</p>
+                    </div>
+                `;
+            }
+
             container.innerHTML += eventsHtml;
             container.scrollTop = 0;
         }
@@ -364,7 +409,7 @@
                 data.events.forEach(ev => {
                     if (ev.searchable.includes(query.toLowerCase())) {
                         textContent += `Date / Location : ${data.title}\n`;
-                        if (ev.parent_session) textContent += `Symposium     : ${ev.parent_session}\n`;
+                        if (ev.parent_session) textContent += `Session       : ${ev.parent_session}\n`;
                         if (ev.time) textContent += `Time          : ${ev.time}\n`;
                         if (ev.title) textContent += `Topic         : ${ev.title}\n`;
                         if (ev.speaker) textContent += `Speaker/Chair : ${ev.speaker}\n`;
