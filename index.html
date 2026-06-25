@@ -214,9 +214,9 @@
                     isQA = true;
                 }
                 
-                let isPlenary = false;
-                if (col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary") || 
-                    col3.toLowerCase().includes("oration") || colTitle.toLowerCase().includes("oration")) {
+                                let isPlenary = false;
+                // Removed "oration" from here so it isn't forced as a lecture
+                if (col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary")) {
                     isPlenary = true;
                 }
 
@@ -227,7 +227,8 @@
                     if (!col1 && !col2) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session')) {
+                    // Added "oration" here so it triggers the bold Session heading
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('oration')) {
                         isSession = true;
                     }
                 }
