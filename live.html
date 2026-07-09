@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IFASCON 2026 - Live Digital Signage</title>
+    <title>IFASCON 2026 - AV Broadcaster</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
@@ -35,8 +38,8 @@
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
                 <button onclick="switchHallFeed('ao_seminar')" id="feed-ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: AO Seminar</button>
-                <button onclick="switchHallFeed('workshop_diabetic')" id="feed-workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: Diabetic Foot Workshop</button>
-                <button onclick="switchHallFeed('workshop_mis')" id="feed-workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: MIS Workshop</button>
+                <button onclick="switchHallFeed('workshop_diabetic')" id="feed-workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: Diabetic Foot</button>
+                <button onclick="switchHallFeed('workshop_mis')" id="feed-workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: MIS</button>
                 <button onclick="switchHallFeed('22a')" id="feed-22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall A</button>
                 <button onclick="switchHallFeed('22b')" id="feed-22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
                 <button onclick="switchHallFeed('23a')" id="feed-23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
@@ -53,9 +56,11 @@
     </main>
 
     <script>
+        // --- SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
         const sheetLinks = {
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
@@ -75,13 +80,13 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v13'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v15'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
         let liveHall = urlParams.get('hall') || 'ao_seminar';
         if (liveHall === 'ao') liveHall = 'ao_seminar';
-        if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic'; // Backward compatibility fallback
+        if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic';
         
         let manualOverrideIndex = null;
         let liveUpdateTimer = null;
@@ -115,28 +120,16 @@
 
                                 allAoEvents.forEach(ev => {
                                     const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                                    
-                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) {
-                                        isWorkshopSection = true;
-                                    }
+                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
 
                                     if (isWorkshopSection) {
-                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) {
-                                            currentTrack = 'diabetic';
-                                        } else if (matchString.includes('mis') || matchString.includes('arthrex')) {
-                                            currentTrack = 'mis';
-                                        }
+                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
+                                        else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
                                         
-                                        if (currentTrack === 'diabetic') {
-                                            ev.hall = "Diabetic Foot Hall";
-                                            diabeticEvents.push(ev);
-                                        } else {
-                                            ev.hall = "MIS Hall";
-                                            misEvents.push(ev);
-                                        }
+                                        if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
+                                        else { ev.hall = "MIS Hall"; misEvents.push(ev); }
                                     } else {
-                                        ev.hall = "AO Seminar Hall";
-                                        seminarEvents.push(ev);
+                                        ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
                                     }
                                 });
 
@@ -148,7 +141,7 @@
                             }
                         }
                     });
-                } catch(err) { console.error("Failed to load: ", key, err); }
+                } catch(err) {}
             }
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
@@ -157,7 +150,7 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveKiosk(liveHall);
                 } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
-            } else { document.getElementById('loadingText').innerText = "Failed to load schedule. Please check connection."; }
+            }
         }
 
         function parseRawData(rows, hallTitle) {
@@ -170,7 +163,7 @@
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
                 let row_text = r.join(" ").toLowerCase();
 
-                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("background-image") || row_text.includes("var(--") || row_text.includes("<!doctype html>")) return; 
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
                 if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
@@ -180,14 +173,11 @@
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
-                    else if (row_text.includes("gbm")) text = "GBM";
-                    else if (row_text.includes("valedictory")) text = "Valedictory";
-                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, searchable: text.toLowerCase(), parent_session: '' });
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '' });
                     return;
                 }
 
-                let isQA = col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || colTitle.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion") || col3.toLowerCase().includes("q & a") || colTitle.toLowerCase().includes("q & a");
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
                 if (!isQA && !isPlenary) {
@@ -200,9 +190,9 @@
 
                 if (isSession) {
                     let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons", "tbd", "chair :", "co-chair :"].includes(c.toLowerCase()));
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
-                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, searchable: `${topic} ${colSpeaker}`.toLowerCase(), parent_session: current_session });
+                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
                 }
 
@@ -214,7 +204,7 @@
                         time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
                     }
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker}`.toLowerCase(), parent_session: current_session });
+                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
             });
             return events;
@@ -269,22 +259,37 @@
             panelTimeout = setTimeout(() => { minimizePanel(); }, 4000);
         }
 
-        function manualShift(step) {
+        // --- SUPABASE: SEND AV COMMANDS TO DB ---
+        async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break');
+            
             if (manualOverrideIndex === null) {
                 const { currentEvent } = getLiveStatus(data.events);
                 manualOverrideIndex = playableEvents.indexOf(currentEvent);
                 if (manualOverrideIndex === -1) manualOverrideIndex = 0;
             }
-            manualOverrideIndex += step;
-            if (manualOverrideIndex < 0) manualOverrideIndex = 0;
-            if (manualOverrideIndex >= playableEvents.length) manualOverrideIndex = playableEvents.length - 1;
+            
+            let newIndex = manualOverrideIndex + step;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
+            
+            manualOverrideIndex = newIndex;
             document.getElementById('manualOverridePanel').classList.remove('hidden');
-            updateLiveDisplay(); resetPanelTimer();
+            
+            updateLiveDisplay(); 
+            resetPanelTimer();
+
+            await supabase.from('hall_states').update({ override_index: newIndex }).eq('hall_id', liveHall);
         }
 
-        function resumeAutoSync() { manualOverrideIndex = null; minimizePanel(); updateLiveDisplay(); }
+        async function resumeAutoSync() { 
+            manualOverrideIndex = null; 
+            minimizePanel(); 
+            updateLiveDisplay(); 
+            
+            await supabase.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
+        }
 
         function switchHallFeed(newHall) {
             liveHall = newHall;
@@ -318,7 +323,7 @@
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             if (currentEvent) {
                 let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; // Distinct rose theme for workshop feeds
+                if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
                 
                 nowPlayingHtml = `
                     <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
@@ -343,39 +348,28 @@
                     </div>`;
             }
 
-            // --- PROMINENT CENTERED LOGO & HEADER ---
-            // --- PROMINENT 3-COLUMN HEADER ---
+            // 3-COLUMN HEADER WITH CENTER LOGO
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
-                    
-                    <!-- HEADER ROW: Text (Left) | Logo (Center) | Clock (Right) -->
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
-                        
-                        <!-- LEFT: Date & Hall -->
                         <div class="flex-1 w-full sm:w-auto text-left">
                             <div class="flex items-center gap-3 mb-1">
                                 <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
                             </div>
                             <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
-                        
-                        <!-- CENTER: Logo -->
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
                             <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
                                 <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 md:h-40 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
                             </div>
                         </div>
-                        
-                        <!-- RIGHT: Clock / Control Panel Toggle -->
                         <div class="flex-1 w-full sm:w-auto flex justify-end">
                             <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto" title="Click for AV Controls">
                                 <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
                                 <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
                             </div>
                         </div>
-
                     </div>
-                    
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
