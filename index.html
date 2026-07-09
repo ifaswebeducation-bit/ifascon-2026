@@ -499,14 +499,16 @@
                 </div>`;
 
             if (currentEvent) {
+                // ALWAYS keep the standard theme colors (Rose for Orations, Indigo for normal talks)
                 let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                let badgeText = manualOverrideIndex !== null ? "MANUAL OVERRIDE VIEW" : "LIVE NOW";
-                if (manualOverrideIndex !== null) badgeStyle = "bg-amber-600 text-slate-950";
+                
+                // ALWAYS display "LIVE NOW", completely hiding manual mode from the audience
+                let badgeText = "LIVE NOW";
 
                 nowPlayingHtml = `
                     <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
                         <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                            <span class="${manualOverrideIndex === null ? 'animate-live' : ''} ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
+                            <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
                                 <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> ${badgeText}
                             </span>
                             <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50">
@@ -529,7 +531,6 @@
                         </div>` : ''}
                     </div>`;
             }
-
             let upNextHtml = '';
             if (nextEvent) {
                 upNextHtml = `
