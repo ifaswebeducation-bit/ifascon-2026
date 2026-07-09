@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -31,10 +32,10 @@
     </main>
 
     <script>
-        // --- SUPABASE INITIALIZATION ---
+        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
-        const supabaseKey = 'eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let remoteOverrideIndex = null;
         let currentSubscription = null;
@@ -58,7 +59,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v2'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v4'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -85,33 +86,35 @@
                     const csvText = await response.text();
                     Papa.parse(csvText, {
                         complete: function(results) {
-                            if (key === 'ao') {
-                                const allAoEvents = parseRawData(results.data, "21 Aug");
-                                let seminarEvents = [], diabeticEvents = [], misEvents = [];
-                                let isWorkshopSection = false;
-                                let currentTrack = 'diabetic';
+                            try {
+                                if (key === 'ao') {
+                                    const allAoEvents = parseRawData(results.data, "21 Aug");
+                                    let seminarEvents = [], diabeticEvents = [], misEvents = [];
+                                    let isWorkshopSection = false;
+                                    let currentTrack = 'diabetic';
 
-                                allAoEvents.forEach(ev => {
-                                    const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
-                                    
-                                    if (isWorkshopSection) {
-                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
-                                        else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
+                                    allAoEvents.forEach(ev => {
+                                        const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                                        if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
                                         
-                                        if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
-                                        else { ev.hall = "MIS Hall"; misEvents.push(ev); }
-                                    } else {
-                                        ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
-                                    }
-                                });
+                                        if (isWorkshopSection) {
+                                            if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
+                                            else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
+                                            
+                                            if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
+                                            else { ev.hall = "MIS Hall"; misEvents.push(ev); }
+                                        } else {
+                                            ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
+                                        }
+                                    });
 
-                                fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
-                                fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
-                                fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
-                            } else {
-                                fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
-                            }
+                                    fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
+                                    fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
+                                    fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
+                                } else {
+                                    fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
+                                }
+                            } catch(e) {}
                         }
                     });
                 } catch(err) {}
@@ -123,6 +126,8 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveDashboard(liveHall);
                 } else { updateLiveDisplay(); }
+            } else {
+                document.getElementById('loadingText').innerText = "Network Error: Failed to load schedule data.";
             }
         }
 
@@ -196,14 +201,13 @@
             return now.getHours() * 60 + now.getMinutes();
         }
 
-        // --- SUPABASE: LISTENER & SYNC LOGIC ---
+        // --- SUPABASE: LISTENER SYNC LOGIC ---
         function subscribeToHall(hall_id) {
             if (currentSubscription) {
-                supabase.removeChannel(currentSubscription);
+                supabaseClient.removeChannel(currentSubscription);
             }
             
-            // Get initial state
-            supabase.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
+            supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
                 .then(({ data }) => {
                     if (data) {
                         remoteOverrideIndex = data.override_index;
@@ -211,8 +215,7 @@
                     }
                 });
 
-            // Listen for AV Tech updates
-            currentSubscription = supabase.channel('custom-all-channel')
+            currentSubscription = supabaseClient.channel('custom-all-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => {
                         remoteOverrideIndex = payload.new.override_index;
@@ -224,12 +227,10 @@
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
             
-            // 1. OBEY THE AV TECH'S REMOTE COMMAND
             if (remoteOverrideIndex !== null) {
                 return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
             }
             
-            // 2. RUN OFF THE CLOCK
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
@@ -251,7 +252,7 @@
             newUrl.searchParams.set('hall', newHall);
             window.history.pushState({}, '', newUrl);
             
-            subscribeToHall(newHall); // Sync to new hall
+            subscribeToHall(newHall); 
             updateLiveDisplay();
         }
 
