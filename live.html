@@ -340,26 +340,32 @@
                     </div>`;
             }
 
-            // --- PROMINENT TOP HEADER WITH HIGH-CONTRAST LOGO CARD ---
+            // --- PROMINENT CENTERED LOGO & HEADER ---
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto pt-2">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 mb-4 border-b border-slate-800 gap-6">
-                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6 w-full sm:w-auto">
-                            <div class="bg-white/95 p-3 sm:p-4 rounded-2xl shadow-xl flex-shrink-0 ring-1 ring-white/10">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-20 sm:h-28 md:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-3 mb-1">
-                                    <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
-                                </div>
-                                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">${data.title.split(' - ')[1] || data.title}</h2>
-                            </div>
+                    <!-- CENTERED LOGO ROW -->
+                    <div class="flex justify-center mb-6">
+                        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-xl ring-1 ring-white/10 inline-block">
+                            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-20 sm:h-28 md:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
                         </div>
+                    </div>
+
+                    <!-- HALL TITLE & CLOCK ROW -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 mb-4 border-b border-slate-800 gap-6">
+                        <div>
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Digital Signage</span>
+                                <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
+                            </div>
+                            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">${data.title.split(' - ')[1] || data.title}</h2>
+                        </div>
+                        
                         <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-6 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto sm:ml-0 flex-shrink-0" title="Click to manually change talk if running late">
                             <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
                             <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
                         </div>
                     </div>
+                    
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
