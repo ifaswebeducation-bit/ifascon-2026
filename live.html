@@ -341,28 +341,36 @@
             }
 
             // --- PROMINENT CENTERED LOGO & HEADER ---
+            // --- PROMINENT 3-COLUMN HEADER ---
             container.innerHTML = `
-                <div class="max-w-6xl mx-auto pt-2">
-                    <!-- CENTERED LOGO ROW -->
-                    <div class="flex justify-center mb-6">
-                        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-xl ring-1 ring-white/10 inline-block">
-                            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-20 sm:h-28 md:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
-                        </div>
-                    </div>
-
-                    <!-- HALL TITLE & CLOCK ROW -->
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 mb-4 border-b border-slate-800 gap-6">
-                        <div>
+                <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
+                    
+                    <!-- HEADER ROW: Text (Left) | Logo (Center) | Clock (Right) -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+                        
+                        <!-- LEFT: Date & Hall -->
+                        <div class="flex-1 w-full sm:w-auto text-left">
                             <div class="flex items-center gap-3 mb-1">
                                 <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
                             </div>
-                            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-none">${data.title.split(' - ')[1] || data.title}</h2>
+                            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
                         
-                        <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-6 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto sm:ml-0 flex-shrink-0" title="Click to manually change talk if running late">
-                            <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
-                            <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
+                        <!-- CENTER: Logo -->
+                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
+                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 sm:h-20 md:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
+                            </div>
                         </div>
+                        
+                        <!-- RIGHT: Clock / Control Panel Toggle -->
+                        <div class="flex-1 w-full sm:w-auto flex justify-end">
+                            <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto" title="Click for AV Controls">
+                                <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
+                                <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
+                            </div>
+                        </div>
+
                     </div>
                     
                     ${nowPlayingHtml}
