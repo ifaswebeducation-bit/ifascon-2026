@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IFASCON 2026 - Live Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
+        .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
+        
+        /* Hide scrollbar for mobile swipe menu */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
+            <div class="loader mb-4"></div>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Live Dashboard...</p>
+        </div>
+    </main>
+
+    <script>
+        const sheetLinks = {
+            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
+            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
+            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+        };
+
+        const configTitles = {
+            'ao_seminar': "21 Aug - AO Seminar",
+            'workshop_diabetic': "21 Aug - Diabetic WS",
+            'workshop_mis': "21 Aug - MIS WS",
+            '22a': "22 Aug - Hall A",
+            '22b': "22 Aug - Hall B",
+            '23a': "23 Aug - Hall A",
+            '23b': "23 Aug - Hall B"
+        };
+
+        let appData = {};
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v1'; 
+        const container = document.getElementById('contentContainer');
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        let liveHall = urlParams.get('hall') || '22a'; // Default to main conference start
+        let liveUpdateTimer = null;
+
+        async function initializeApp() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    appData = JSON.parse(cachedData);
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveDashboard(liveHall);
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
+        }
+
+        async function fetchLiveSchedule(isBackground = false) {
+            let fetchedData = {};
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                try {
+                    const response = await fetch(link);
+                    const csvText = await response.text();
+                    Papa.parse(csvText, {
+                        complete: function(results) {
+                            if (key === 'ao') {
+                                const allAoEvents = parseRawData(results.data, "21 Aug");
+                                let seminarEvents = [], diabeticEvents = [], misEvents = [];
+                                let isWorkshopSection = false;
+                                let currentTrack = 'diabetic';
+
+                                allAoEvents.forEach(ev => {
+                                    const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) {
+                                        isWorkshopSection = true;
+                                    }
+                                    if (isWorkshopSection) {
+                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
+                                        else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
+                                        
+                                        if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
+                                        else { ev.hall = "MIS Hall"; misEvents.push(ev); }
+                                    } else {
+                                        ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
+                                    }
+                                });
+
+                                fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
+                                fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
+                                fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
+                            } else {
+                                fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
+                            }
+                        }
+                    });
+                } catch(err) { console.error("Failed to load: ", key, err); }
+            }
+            if (Object.keys(fetchedData).length > 0) {
+                appData = fetchedData;
+                localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
+                if (!isBackground) {
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveDashboard(liveHall);
+                } else { updateLiveDisplay(); }
+            } else { document.getElementById('loadingText').innerText = "Failed to load schedule. Please check connection."; }
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [], current_session = "";
+            rows.forEach(r => {
+                while(r.length < 12) r.push("");
+                r = r.map(x => (x || "").trim());
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let row_text = r.join(" ").toLowerCase();
+
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+                if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
+
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                    let text = colTitle || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '' });
+                    return;
+                }
+
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                let isSession = false, isOration = false;
+                if (!isQA && !isPlenary) {
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (row_text.includes('oration')) { isSession = true; isOration = true; }
+                }
+
+                if (isSession) {
+                    let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    current_session = topic; 
+                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
+                    return;
+                }
+
+                if (col1 || colTitle || isQA || isPlenary) {
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
+                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0) {
+                        let cleanDur = col0.replace(/[^0-9]/g, ''); 
+                        time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
+                    }
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+                }
+            });
+            return events;
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            const hours = parseInt(parts[0], 10), mins = parseInt(parts[1], 10);
+            return (isNaN(hours) || isNaN(mins)) ? null : hours * 60 + mins;
+        }
+
+        function getCurrentMinutes() {
+            const now = new Date();
+            return now.getHours() * 60 + now.getMinutes();
+        }
+
+        function getLiveStatus(events) {
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
+            
+            // STRICTLY READ REAL TIME (No Manual Overrides)
+            const currentMins = getCurrentMinutes();
+            let currentEvent = null, nextEvent = null;
+            for (let i = 0; i < playableEvents.length; i++) {
+                const ev = playableEvents[i];
+                const evStart = parseTimeToMinutes(ev.time);
+                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                if (evStart !== null && evEnd !== null) {
+                    if (currentMins >= evStart && currentMins < evEnd) {
+                        currentEvent = ev; if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
+                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
+                }
+            }
+            return { currentEvent, nextEvent };
+        }
+
+        function switchDelegateHall(newHall) {
+            liveHall = newHall;
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('hall', newHall);
+            window.history.pushState({}, '', newUrl);
+            updateLiveDisplay();
+        }
+
+        function updateLiveDisplay() {
+            const data = appData[liveHall]; if (!data) return;
+            const { currentEvent, nextEvent } = getLiveStatus(data.events);
+            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Generate pill buttons for Hall Selection
+            let hallSelectorHtml = `<div class="flex overflow-x-auto gap-2 mb-8 pb-2 hide-scrollbar items-center border-b border-slate-800">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2 flex-shrink-0">Select Hall:</span>`;
+            
+            for (const [key, title] of Object.entries(configTitles)) {
+                let isActive = key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
+                hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${isActive}">${title}</button>`;
+            }
+            hallSelectorHtml += `</div>`;
+
+            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-base text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
+            if (currentEvent) {
+                let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
+                
+                nowPlayingHtml = `
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                            <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg">
+                                <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
+                            </span>
+                            <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
+                        </div>
+                        ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                        ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker / Faculty</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                    </div>`;
+            }
+
+            let upNextHtml = '';
+            if (nextEvent) {
+                upNextHtml = `
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm mt-1.5 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-[10px] sm:text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Presentation'}</span></div>
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                <div class="max-w-4xl mx-auto pt-2">
+                    
+                    ${hallSelectorHtml}
+
+                    <!-- PROMINENT 3-COLUMN HEADER -->
+                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
+                        <div class="flex-1 w-full sm:w-auto text-left">
+                            <div class="flex items-center gap-3 mb-1">
+                                <span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Live Status</span>
+                            </div>
+                            <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                        </div>
+                        
+                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
+                            <div class="bg-white/95 p-2 sm:p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-12 sm:h-16 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
+                            </div>
+                        </div>
+                        
+                        <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
+                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3">
+                                <i class="far fa-clock text-slate-500"></i>
+                                <div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${nowPlayingHtml}
+                    ${upNextHtml}
+                </div>`;
+        }
+
+        function initLiveDashboard(hallKey) {
+            if (!appData[hallKey]) { container.innerHTML = `<div class="text-center py-20 text-white"><h2 class="text-2xl font-bold">Hall ID Not Found.</h2></div>`; return; }
+            updateLiveDisplay();
+            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+            liveUpdateTimer = setInterval(updateLiveDisplay, 30000); // Check clock every 30 seconds
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
