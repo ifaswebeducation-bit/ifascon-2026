@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -21,6 +22,7 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
+    <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -34,6 +36,7 @@
                 <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
             </div>
         </div>
+        <!-- Feed Switcher -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -56,10 +59,10 @@
     </main>
 
     <script>
-        // --- SUPABASE INITIALIZATION ---
+        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
-        const supabaseKey = 'eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
@@ -80,7 +83,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v15'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v16'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -112,36 +115,38 @@
                     const csvText = await response.text();
                     Papa.parse(csvText, {
                         complete: function(results) {
-                            if (key === 'ao') {
-                                const allAoEvents = parseRawData(results.data, "21 Aug");
-                                let seminarEvents = [], diabeticEvents = [], misEvents = [];
-                                let isWorkshopSection = false;
-                                let currentTrack = 'diabetic';
+                            try {
+                                if (key === 'ao') {
+                                    const allAoEvents = parseRawData(results.data, "21 Aug");
+                                    let seminarEvents = [], diabeticEvents = [], misEvents = [];
+                                    let isWorkshopSection = false;
+                                    let currentTrack = 'diabetic';
 
-                                allAoEvents.forEach(ev => {
-                                    const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
+                                    allAoEvents.forEach(ev => {
+                                        const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                                        if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
 
-                                    if (isWorkshopSection) {
-                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
-                                        else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
-                                        
-                                        if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
-                                        else { ev.hall = "MIS Hall"; misEvents.push(ev); }
-                                    } else {
-                                        ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
-                                    }
-                                });
+                                        if (isWorkshopSection) {
+                                            if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
+                                            else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
+                                            
+                                            if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
+                                            else { ev.hall = "MIS Hall"; misEvents.push(ev); }
+                                        } else {
+                                            ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
+                                        }
+                                    });
 
-                                fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
-                                fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
-                                fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
-                            } else {
-                                fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
-                            }
+                                    fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
+                                    fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
+                                    fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
+                                } else {
+                                    fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
+                                }
+                            } catch(e) { console.error(e); }
                         }
                     });
-                } catch(err) {}
+                } catch(err) { console.error(err); }
             }
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
@@ -150,6 +155,8 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveKiosk(liveHall);
                 } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
+            } else {
+                document.getElementById('loadingText').innerText = "Network Error: Failed to load schedule data.";
             }
         }
 
@@ -259,7 +266,6 @@
             panelTimeout = setTimeout(() => { minimizePanel(); }, 4000);
         }
 
-        // --- SUPABASE: SEND AV COMMANDS TO DB ---
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break');
@@ -280,7 +286,9 @@
             updateLiveDisplay(); 
             resetPanelTimer();
 
-            await supabase.from('hall_states').update({ override_index: newIndex }).eq('hall_id', liveHall);
+            try {
+                await supabaseClient.from('hall_states').update({ override_index: newIndex }).eq('hall_id', liveHall);
+            } catch(e) { console.error("Database update failed"); }
         }
 
         async function resumeAutoSync() { 
@@ -288,7 +296,9 @@
             minimizePanel(); 
             updateLiveDisplay(); 
             
-            await supabase.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
+            try {
+                await supabaseClient.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
+            } catch(e) { console.error("Database reset failed"); }
         }
 
         function switchHallFeed(newHall) {
@@ -348,7 +358,6 @@
                     </div>`;
             }
 
-            // 3-COLUMN HEADER WITH CENTER LOGO
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
