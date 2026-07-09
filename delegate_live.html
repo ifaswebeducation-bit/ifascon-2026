@@ -8,14 +8,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
         .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
-        
-        /* Hide scrollbar for mobile swipe menu */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -30,13 +31,14 @@
     </main>
 
     <script>
+        // --- SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Global variable to hold the AV tech's remote command
         let remoteOverrideIndex = null;
         let currentSubscription = null;
+
         const sheetLinks = {
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
@@ -56,11 +58,11 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v1'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v2'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
-        let liveHall = urlParams.get('hall') || '22a'; // Default to main conference start
+        let liveHall = urlParams.get('hall') || '22a'; 
         let liveUpdateTimer = null;
 
         async function initializeApp() {
@@ -91,9 +93,8 @@
 
                                 allAoEvents.forEach(ev => {
                                     const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) {
-                                        isWorkshopSection = true;
-                                    }
+                                    if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
+                                    
                                     if (isWorkshopSection) {
                                         if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
                                         else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
@@ -113,7 +114,7 @@
                             }
                         }
                     });
-                } catch(err) { console.error("Failed to load: ", key, err); }
+                } catch(err) {}
             }
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
@@ -122,7 +123,7 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveDashboard(liveHall);
                 } else { updateLiveDisplay(); }
-            } else { document.getElementById('loadingText').innerText = "Failed to load schedule. Please check connection."; }
+            }
         }
 
         function parseRawData(rows, hallTitle) {
@@ -145,7 +146,6 @@
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
                     events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '' });
                     return;
                 }
@@ -196,10 +196,40 @@
             return now.getHours() * 60 + now.getMinutes();
         }
 
+        // --- SUPABASE: LISTENER & SYNC LOGIC ---
+        function subscribeToHall(hall_id) {
+            if (currentSubscription) {
+                supabase.removeChannel(currentSubscription);
+            }
+            
+            // Get initial state
+            supabase.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
+                .then(({ data }) => {
+                    if (data) {
+                        remoteOverrideIndex = data.override_index;
+                        updateLiveDisplay();
+                    }
+                });
+
+            // Listen for AV Tech updates
+            currentSubscription = supabase.channel('custom-all-channel')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
+                    (payload) => {
+                        remoteOverrideIndex = payload.new.override_index;
+                        updateLiveDisplay();
+                    }
+                ).subscribe();
+        }
+
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
             
-            // STRICTLY READ REAL TIME (No Manual Overrides)
+            // 1. OBEY THE AV TECH'S REMOTE COMMAND
+            if (remoteOverrideIndex !== null) {
+                return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
+            }
+            
+            // 2. RUN OFF THE CLOCK
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
@@ -220,6 +250,8 @@
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('hall', newHall);
             window.history.pushState({}, '', newUrl);
+            
+            subscribeToHall(newHall); // Sync to new hall
             updateLiveDisplay();
         }
 
@@ -228,10 +260,7 @@
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Generate pill buttons for Hall Selection
-            let hallSelectorHtml = `<div class="flex overflow-x-auto gap-2 mb-8 pb-2 hide-scrollbar items-center border-b border-slate-800">
-                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2 flex-shrink-0">Select Hall:</span>`;
-            
+            let hallSelectorHtml = `<div class="flex overflow-x-auto gap-2 mb-8 pb-2 hide-scrollbar items-center border-b border-slate-800"><span class="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2 flex-shrink-0">Select Hall:</span>`;
             for (const [key, title] of Object.entries(configTitles)) {
                 let isActive = key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
                 hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${isActive}">${title}</button>`;
@@ -268,32 +297,21 @@
 
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
-                    
                     ${hallSelectorHtml}
-
-                    <!-- PROMINENT 3-COLUMN HEADER -->
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
-                            <div class="flex items-center gap-3 mb-1">
-                                <span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Live Status</span>
-                            </div>
+                            <div class="flex items-center gap-3 mb-1"><span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Live Status</span></div>
                             <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
-                        
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
                             <div class="bg-white/95 p-2 sm:p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-12 sm:h-16 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
                             </div>
                         </div>
-                        
                         <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
-                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3">
-                                <i class="far fa-clock text-slate-500"></i>
-                                <div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div>
-                            </div>
+                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
                         </div>
                     </div>
-                    
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
@@ -301,9 +319,10 @@
 
         function initLiveDashboard(hallKey) {
             if (!appData[hallKey]) { container.innerHTML = `<div class="text-center py-20 text-white"><h2 class="text-2xl font-bold">Hall ID Not Found.</h2></div>`; return; }
+            subscribeToHall(hallKey);
             updateLiveDisplay();
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            liveUpdateTimer = setInterval(updateLiveDisplay, 30000); // Check clock every 30 seconds
+            liveUpdateTimer = setInterval(updateLiveDisplay, 30000); 
         }
 
         initializeApp();
