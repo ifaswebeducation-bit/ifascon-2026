@@ -18,8 +18,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
         .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -48,18 +46,30 @@
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
         };
 
+        // Used for the big, beautiful Header
         const configTitles = {
-            'ao_seminar': "21 Aug - AO Seminar",
-            'workshop_diabetic': "Diabetic Foot Workshop",
-            'workshop_mis': "MIS Workshop",
-            '22a': "22 Aug - Hall A",
-            '22b': "22 Aug - Hall B",
-            '23a': "23 Aug - Hall A",
-            '23b': "23 Aug - Hall B"
+            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
+            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop (by Nebula)",
+            'workshop_mis': "21st August' 2026 - MIS Workshop (by Arthrex)",
+            '22a': "22nd August' 2026 - Day 1 Hall A",
+            '22b': "22nd August' 2026 - Day 1 Hall B",
+            '23a': "23rd August' 2026 - Day 2 Hall A",
+            '23b': "23rd August' 2026 - Day 2 Hall B"
+        };
+
+        // Used for the Delegate Selection Buttons (Matches the AV Screen)
+        const buttonLabels = {
+            'ao_seminar': "21 Aug: AO Seminar",
+            'workshop_diabetic': "21 Aug: Diabetic Foot",
+            'workshop_mis': "21 Aug: MIS",
+            '22a': "22 Aug: Hall A",
+            '22b': "22 Aug: Hall B",
+            '23a': "23 Aug: Hall A",
+            '23b': "23 Aug: Hall B"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v4'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v5'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -261,12 +271,17 @@
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            let hallSelectorHtml = `<div class="flex overflow-x-auto gap-2 mb-8 pb-2 hide-scrollbar items-center border-b border-slate-800"><span class="text-xs font-bold text-slate-500 uppercase tracking-widest mr-2 flex-shrink-0">Select Hall:</span>`;
-            for (const [key, title] of Object.entries(configTitles)) {
+            // WRAPPING HALL SELECTOR MENU
+            let hallSelectorHtml = `
+                <div class="mb-6 pb-4 border-b border-slate-800">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
+                    <div class="flex flex-wrap items-center gap-2">`;
+            
+            for (const [key, label] of Object.entries(buttonLabels)) {
                 let isActive = key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
-                hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-4 py-2 rounded-full text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${isActive}">${title}</button>`;
+                hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${isActive}">${label}</button>`;
             }
-            hallSelectorHtml += `</div>`;
+            hallSelectorHtml += `</div></div>`;
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-base text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             if (currentEvent) {
@@ -296,23 +311,29 @@
                     </div>`;
             }
 
+            // 3-COLUMN HEADER WITH LOGO CENTERED
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
+                    
                     ${hallSelectorHtml}
+
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
                             <div class="flex items-center gap-3 mb-1"><span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Live Status</span></div>
                             <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
+                        
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
                             <div class="bg-white/95 p-2 sm:p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
                                 <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
                             </div>
                         </div>
+                        
                         <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
                             <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
                         </div>
                     </div>
+                    
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
