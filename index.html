@@ -270,7 +270,7 @@
                 return `<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 my-4 flex items-center justify-between shadow-sm"><div class="flex items-center"><div class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mr-3 flex-shrink-0"><i class="fas ${icon} text-lg"></i></div><div>${hallBadge}<h3 class="font-bold text-amber-900 leading-tight">${ev.title}</h3></div></div>${timeBadgeHtml}</div>`;
             } 
             else if (ev.type === 'session') {
-                let speakerLabel = ev.isOration ? "Speaker / Orator" : "Chairpersons / Faculty";
+                let speakerLabel = ev.isOration ? "Speaker / Orator" : "Chairpersons";
                 let iconClass = ev.isOration ? "fa-microphone" : "fa-users";
                 let bgStyle = ev.isOration ? "border-rose-500 bg-gradient-to-r from-rose-50 to-white" : "border-indigo-600 bg-gradient-to-r from-indigo-50 to-white";
                 let tagColor = ev.isOration ? "bg-rose-600" : "bg-indigo-600";
