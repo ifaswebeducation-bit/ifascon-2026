@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IFASCON 2026 - Live Digital Signage</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
+        .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-4 text-white transition-all duration-300">
+        <div class="flex items-center gap-3">
+            <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">Manual Override Active</span>
+            <span class="text-sm text-slate-300">TV is unlinked from real clock. Panel auto-hides in 4s.</span>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+            <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg font-bold border border-slate-600 active:scale-95 transition flex-1 sm:flex-none">⬅ Prev Talk</button>
+            <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg font-bold shadow active:scale-95 transition flex-1 sm:flex-none">Next Talk ➔</button>
+            <button onclick="resumeAutoSync()" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 px-3 py-2 rounded-lg font-bold border border-rose-500/30 ml-2 active:scale-95 transition text-sm">Resume Auto</button>
+            <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-3 py-2 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
+            <div class="loader mb-4"></div>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Connecting to Live Hall Feed...</p>
+        </div>
+    </main>
+
+    <script>
+        const sheetLinks = {
+            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
+            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
+            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+        };
+
+        const configTitles = {
+            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
+            'ao_workshops': "21st August' 2026 - Concurrent Workshops (16:15 - 18:00)",
+            '22a': "22nd August' 2026 - Day 1 Hall A",
+            '22b': "22nd August' 2026 - Day 1 Hall B",
+            '23a': "23rd August' 2026 - Day 2 Hall A",
+            '23b': "23rd August' 2026 - Day 2 Hall B"
+        };
+
+        let appData = {};
+        const CACHE_KEY = 'ifascon_schedule_cache_v11'; 
+        const container = document.getElementById('contentContainer');
+        const urlParams = new URLSearchParams(window.location.search);
+        const liveHall = urlParams.get('hall') || '22a';
+        let manualOverrideIndex = null;
+        let liveUpdateTimer = null;
+        let panelTimeout = null;
+
+        async function initializeApp() {
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    appData = JSON.parse(cachedData);
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveKiosk(liveHall);
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
+        }
+
+        async function fetchLiveSchedule(isBackground = false) {
+            let fetchedData = {};
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                try {
+                    const response = await fetch(link);
+                    const csvText = await response.text();
+                    Papa.parse(csvText, {
+                        complete: function(results) {
+                            if (key === 'ao') {
+                                const allAoEvents = parseRawData(results.data, "21 Aug");
+                                let seminarEvents = [], workshopEvents = [];
+                                let isWorkshopSection = false;
+                                allAoEvents.forEach(ev => {
+                                    if (/\b(workshop|16:15|16\.15)\b/i.test(`${ev.title} ${ev.time}`.toLowerCase()) || ev.title.includes('16:15')) isWorkshopSection = true;
+                                    if (isWorkshopSection) { ev.hall = "Workshops"; workshopEvents.push(ev); } 
+                                    else { ev.hall = "AO Seminar"; seminarEvents.push(ev); }
+                                });
+                                fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
+                                fetchedData['ao_workshops'] = { title: configTitles['ao_workshops'], events: workshopEvents };
+                            } else {
+                                fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
+                            }
+                        }
+                    });
+                } catch(err) { console.error("Failed to load: ", key, err); }
+            }
+            if (Object.keys(fetchedData).length > 0) {
+                appData = fetchedData;
+                localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
+                if (!isBackground) {
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveKiosk(liveHall);
+                } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
+            } else { document.getElementById('loadingText').innerText = "Failed to load schedule. Please check connection."; }
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [], current_session = "";
+            rows.forEach(r => {
+                while(r.length < 12) r.push("");
+                r = r.map(x => (x || "").trim());
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let row_text = r.join(" ").toLowerCase();
+
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("background-image") || row_text.includes("var(--") || row_text.includes("<!doctype html>")) return; 
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+                if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
+
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                    let text = colTitle || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("gbm")) text = "GBM";
+                    else if (row_text.includes("valedictory")) text = "Valedictory";
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, searchable: text.toLowerCase(), parent_session: '' });
+                    return;
+                }
+
+                let isQA = col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || colTitle.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion") || col3.toLowerCase().includes("q & a") || colTitle.toLowerCase().includes("q & a");
+                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                let isSession = false, isOration = false;
+                if (!isQA && !isPlenary) {
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (row_text.includes('oration')) { isSession = true; isOration = true; }
+                }
+
+                if (isSession) {
+                    let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons", "tbd", "chair :", "co-chair :"].includes(c.toLowerCase()));
+                    current_session = topic; 
+                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, searchable: `${topic} ${colSpeaker}`.toLowerCase(), parent_session: current_session });
+                    return;
+                }
+
+                if (col1 || colTitle || isQA || isPlenary) {
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
+                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0) {
+                        let cleanDur = col0.replace(/[^0-9]/g, ''); 
+                        time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
+                    }
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker}`.toLowerCase(), parent_session: current_session });
+                }
+            });
+            return events;
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            const hours = parseInt(parts[0], 10), mins = parseInt(parts[1], 10);
+            return (isNaN(hours) || isNaN(mins)) ? null : hours * 60 + mins;
+        }
+
+        function getCurrentMinutes() {
+            const now = new Date();
+            return now.getHours() * 60 + now.getMinutes();
+        }
+
+        function getLiveStatus(events) {
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
+            if (manualOverrideIndex !== null) {
+                return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
+            }
+            const currentMins = getCurrentMinutes();
+            let currentEvent = null, nextEvent = null;
+            for (let i = 0; i < playableEvents.length; i++) {
+                const ev = playableEvents[i];
+                const evStart = parseTimeToMinutes(ev.time);
+                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                if (evStart !== null && evEnd !== null) {
+                    if (currentMins >= evStart && currentMins < evEnd) {
+                        currentEvent = ev; if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
+                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
+                }
+            }
+            return { currentEvent, nextEvent };
+        }
+
+        function toggleManualPanel() {
+            const panel = document.getElementById('manualOverridePanel');
+            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); resetPanelTimer(); } 
+            else { minimizePanel(); }
+        }
+
+        function minimizePanel() {
+            document.getElementById('manualOverridePanel').classList.add('hidden');
+            if (panelTimeout) clearTimeout(panelTimeout);
+        }
+
+        function resetPanelTimer() {
+            if (panelTimeout) clearTimeout(panelTimeout);
+            panelTimeout = setTimeout(() => { minimizePanel(); }, 4000);
+        }
+
+        function manualShift(step) {
+            const data = appData[liveHall]; if (!data) return;
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break');
+            if (manualOverrideIndex === null) {
+                const { currentEvent } = getLiveStatus(data.events);
+                manualOverrideIndex = playableEvents.indexOf(currentEvent);
+                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
+            }
+            manualOverrideIndex += step;
+            if (manualOverrideIndex < 0) manualOverrideIndex = 0;
+            if (manualOverrideIndex >= playableEvents.length) manualOverrideIndex = playableEvents.length - 1;
+            document.getElementById('manualOverridePanel').classList.remove('hidden');
+            updateLiveDisplay(); resetPanelTimer();
+        }
+
+        function resumeAutoSync() { manualOverrideIndex = null; minimizePanel(); updateLiveDisplay(); }
+
+        function updateLiveDisplay() {
+            const data = appData[liveHall]; if (!data) return;
+            const { currentEvent, nextEvent } = getLiveStatus(data.events);
+            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
+            if (currentEvent) {
+                let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                nowPlayingHtml = `
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
+                        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                            <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
+                                <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
+                            </span>
+                            <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
+                        </div>
+                        ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
+                        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                        ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker / Faculty</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                    </div>`;
+            }
+
+            let upNextHtml = '';
+            if (nextEvent) {
+                upNextHtml = `
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Presentation'}</span></div>
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                <div class="max-w-6xl mx-auto pt-2">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-6 mb-2 border-b border-slate-800 gap-4">
+                        <div>
+                            <div class="flex items-center gap-3"><span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Digital Signage</span><span class="text-slate-400 text-sm font-semibold">${data.title.split(' - ')[0]}</span></div>
+                            <h2 class="text-2xl sm:text-4xl font-black text-white mt-1 tracking-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                        </div>
+                        <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-2.5 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto sm:ml-0" title="Click to manually change talk if running late"><i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition"></i><div class="text-2xl sm:text-3xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
+                    </div>
+                    ${nowPlayingHtml}
+                    ${upNextHtml}
+                </div>`;
+        }
+
+        function initLiveKiosk(hallKey) {
+            if (!appData[hallKey]) { container.innerHTML = `<div class="text-center py-20 text-white"><h2 class="text-2xl font-bold">Hall ID '${hallKey}' Not Found.</h2></div>`; return; }
+            updateLiveDisplay();
+            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+            liveUpdateTimer = setInterval(updateLiveDisplay, 30000);
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
