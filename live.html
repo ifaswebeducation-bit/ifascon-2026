@@ -18,7 +18,16 @@
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
-
+    <div id="avAuthScreen" class="fixed inset-0 bg-slate-950 z-[999] flex flex-col items-center justify-center p-6 transition-opacity duration-500">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center">
+            <i class="fas fa-lock text-5xl text-rose-500 mb-6 animate-pulse"></i>
+            <h2 class="text-2xl font-black text-white mb-2">Restricted Access</h2>
+            <p class="text-slate-400 mb-8 text-sm">Please enter the AV Control password to access the broadcaster dashboard.</p>
+            <input type="password" id="avPasswordInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 tracking-widest outline-none focus:border-rose-500 shadow-inner" placeholder="••••••••">
+            <p id="avAuthError" class="text-rose-500 text-sm font-bold hidden mb-4">Incorrect Password</p>
+            <button onclick="loginAV()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-black py-3.5 rounded-xl transition active:scale-95 shadow-lg">Unlock Dashboard</button>
+        </div>
+    </div>
     <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
@@ -72,7 +81,6 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            // ---> PASTE YOUR QUIZ CSV LINK HERE <---
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
             
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
@@ -103,6 +111,48 @@
         if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic';
         
         let manualOverrideIndex = null;
+        // --- AV AUTHENTICATION LOGIC ---
+        const AV_PASSWORD = "IFASCON2026"; // <-- CHANGE THIS TO YOUR SECRET PASSWORD
+
+        function checkAVAuth() {
+            // Checks if they already logged in during this browser tab session
+            if (sessionStorage.getItem('av_authenticated') === 'true') {
+                document.getElementById('avAuthScreen').classList.add('hidden');
+                initializeApp(); // Boot the app only if authenticated
+            }
+        }
+
+        function loginAV() {
+            const input = document.getElementById('avPasswordInput').value;
+            const errorText = document.getElementById('avAuthError');
+            
+            if (input === AV_PASSWORD) {
+                sessionStorage.setItem('av_authenticated', 'true');
+                errorText.classList.add('hidden');
+                
+                // Smooth fade out
+                const authScreen = document.getElementById('avAuthScreen');
+                authScreen.style.opacity = '0';
+                setTimeout(() => {
+                    authScreen.classList.add('hidden');
+                    initializeApp(); // Boot the app!
+                }, 500);
+            } else {
+                errorText.classList.remove('hidden');
+                document.getElementById('avPasswordInput').value = '';
+            }
+        }
+
+        // Allow pressing "Enter" on the keyboard to submit
+        document.addEventListener('DOMContentLoaded', () => {
+            const pwInput = document.getElementById('avPasswordInput');
+            if(pwInput) {
+                pwInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') loginAV();
+                });
+            }
+        });
+        // --------------------------------
         let quizStartTime = null;
         let liveUpdateTimer = null;
         let panelTimeout = null;
@@ -443,7 +493,8 @@
 
         function initLiveKiosk() { updateLiveDisplay(); if (liveUpdateTimer) clearInterval(liveUpdateTimer); liveUpdateTimer = setInterval(updateLiveDisplay, 30000); }
 
-        initializeApp();
+        // Start by checking the password instead of booting immediately
+        checkAVAuth();
     </script>
 </body>
 </html>
