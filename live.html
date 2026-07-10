@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -21,11 +22,12 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-slate-900">
 
+    <!-- AV Control Panel Overlay -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
                 <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">AV Control Panel</span>
-                <span class="text-xs sm:text-sm text-slate-300">Overriding live timeline state. Select a custom slot or resume automatic tracking.</span>
+                <span class="text-xs sm:text-sm text-slate-300">TV unlinked on manual shift. Auto-hides in 4s.</span>
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
                 <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev Talk</button>
@@ -35,11 +37,13 @@
             </div>
         </div>
         
+        <!-- Secret Quiz Launcher Sub-bar -->
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
             <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>
             <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
 
+        <!-- TV Station Switcher bar -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -54,12 +58,14 @@
         </div>
     </div>
 
+    <!-- Live Leaderboard Overlaid Frame -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Quiz Performers</h2>
         <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
         <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close Leaderboard</button>
     </div>
 
+    <!-- Main Dynamic Workspace View -->
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
@@ -68,13 +74,12 @@
     </main>
 
     <script>
-        // --- SECURE SUPABASE RUNTIME CREDENTIALS ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv', // Sub-sheet connection
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv', 
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -94,7 +99,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_v21'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v22'; 
         const container = document.getElementById('contentContainer');
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
@@ -138,8 +143,8 @@
                             let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                             if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
                             if (isWs) {
-                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
-                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
+                                if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
+                                else if (matchStr.includes('mis') || matchString.includes('arthrex')) track = 'mis';
                                 if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
                                 else { ev.hall = "MIS Hall"; mis.push(ev); }
                             } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
@@ -160,7 +165,7 @@
                 if (!isBackground) {
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveKiosk();
-                } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
+                } else { updateLiveDisplay(); }
             }
         }
 
@@ -192,12 +197,15 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration"];
+                let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
+                
+                // FIXED: Strict RegEx word boundaries to prevent matching "tear" inside an ACL talk!
+                if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
                     
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
@@ -271,15 +279,13 @@
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev; 
-                        // CRITICAL SESSION LINKING LOGIC OVER SHORT BREAKS
+                        // COMPREHENSIVE TIMELINE PROTECTION OVER LUNCH/TEA SESSIONS
                         if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') {
                             currentEvent = playableEvents[i-1];
                         }
                         if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; 
                         break;
-                    } else if (currentMins < evStart && !nextEvent) { 
-                        nextEvent = ev; 
-                    }
+                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
                 }
             }
             return { currentEvent, nextEvent };
@@ -306,6 +312,7 @@
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
         }
 
+        // FIXED: Real-time broadcast engine hook for launching quizzes instantly
         async function launchQuiz(idx) {
             manualOverrideIndex = -(idx + 1);
             updateLiveDisplay();
@@ -327,11 +334,10 @@
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
             
-            // Build dynamic quiz launcher bar controls inside dashboard
             let quizBtnContainer = document.getElementById('quizButtonsContainer');
             if (globalQuizzes.length > 0 && quizBtnContainer) {
                 quizBtnContainer.innerHTML = globalQuizzes.map((q, idx) => 
-                    `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}</button>`
+                    `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0,12)}...</button>`
                 ).join('');
             }
 
@@ -351,7 +357,7 @@
                             <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse mb-6 inline-block shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Audience Quiz</span>
                             <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-10">${currentEvent.title}</h1>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                                ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(64+i+1)}</span> ${opt}</div>`).join('')}
+                                ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
                             </div>
                             <div class="flex justify-between items-center mt-8 pt-8 border-t border-slate-700/50">
                                 <p class="text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your mobile phone to participate!</p>
@@ -363,18 +369,19 @@
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 point-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
                             if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`; }
 
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
-                        if (currentEvent.title.toLowerCase().includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
-                        else if (currentEvent.title.toLowerCase().includes('banquet')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
-                        else if (currentEvent.title.toLowerCase().includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+                        const lowTitle = currentEvent.title.toLowerCase();
+                        if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
+                        else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
+                        else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.time}</p></div>`;
                     }
@@ -386,7 +393,7 @@
                                 <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
                                 <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time}</span>
                             </div>
-                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
                             <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
@@ -436,7 +443,7 @@
                 let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
                 
                 if (sorted.length === 0) {
-                    document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No scores submitted yet.</div>';
+                    document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No correct answers logged yet.</div>';
                     return;
                 }
                 document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
