@@ -454,7 +454,7 @@
             const timerEl = document.getElementById('avQuizTimer');
             if (timerEl && quizStartTime) {
                 let elapsed = Math.floor((Date.now() - new Date(quizStartTime).getTime()) / 1000);
-                let left = 120 - elapsed;
+                let left = 45 - elapsed;
                 if (left < 0) left = 0;
                 timerEl.innerText = left + "s";
                 if (left <= 0) timerEl.classList.replace('text-amber-400', 'text-red-500');
