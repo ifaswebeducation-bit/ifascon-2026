@@ -8,13 +8,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animate-live { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100__ { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -67,7 +69,7 @@
             '22a': "22 Aug - Hall A", '22b': "22 Aug - Hall B", '23a': "23 Aug - Hall A", '23b': "23 Aug - Hall B"
         };
 
-        // FIXED: Re-instated explicit configuration bindings for hall selections mapping array loops correctly
+        // FIXED: Declared explicit button dictionary references inside local state to recover broken map pointers
         const buttonLabels = {
             'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS",
             '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B"
@@ -75,23 +77,9 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v13'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v26'; 
         const container = document.getElementById('contentContainer');
-        
-        async function initializeApp() {
-            refreshIdentityStateUI();
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                try {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    initLiveDashboard();
-                    fetchLiveSchedule(true);
-                } catch (e) { fetchLiveSchedule(false); }
-            } else { fetchLiveSchedule(false); }
-        }
+        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
         function refreshIdentityStateUI() {
             let num = localStorage.getItem('delegate_phone');
@@ -121,6 +109,21 @@
             refreshIdentityStateUI();
             updateLiveDisplay();
         };
+
+        async function initializeApp() {
+            refreshIdentityStateUI();
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    let parsed = JSON.parse(cachedData);
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveDashboard();
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
+        }
 
         async function fetchLiveSchedule(isBackground = false) {
             let fetchedData = {};
@@ -304,6 +307,12 @@
             return { currentEvent, nextEvent };
         }
 
+        function switchDelegateHall(newHall) {
+            liveHall = newHall;
+            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
+            subscribeToHall(newHall); updateLiveDisplay();
+        }
+
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
             let phone = localStorage.getItem('delegate_phone');
             let cleanKey = questionText.replace(/\W/g, '');
@@ -338,7 +347,6 @@
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // FIXED: Injected explicit array button iterations using buttonLabels configuration mapping
             let hallSelectorHtml = `<div class="mb-6 pb-4 border-b border-slate-800"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span><div class="flex flex-wrap items-center gap-2">`;
             for (const [key, label] of Object.entries(buttonLabels)) {
                 hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">${label}</button>`;
@@ -370,7 +378,7 @@
                                 <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box below to instantly unlock the running conference question module.</p>
                                 <div class="max-w-xs mx-auto">
                                     <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('quizPhoneInput').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); updateLiveDisplay(); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Submit & Join</button>
+                                    <button onclick="let v = document.getElementById('quizPhoneInput').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); updateLiveDisplay(); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg w-full">Submit & Join</button>
                                 </div>
                             </div>`;
                     } 
@@ -437,7 +445,8 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`;
+                            // FIXED: Resolved evaluation layout break parsing bug
+                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`; }
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
@@ -446,6 +455,7 @@
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.time}</p></div>`;
                     }
                 } else {
