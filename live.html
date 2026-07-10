@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -19,9 +20,10 @@
         .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden relative">
 
-    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
+    <!-- AV Control Panel -->
+    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-[200] shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
                 <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">AV Control Panel</span>
@@ -34,6 +36,7 @@
                 <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
             </div>
         </div>
+        <!-- Feed Switcher -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -44,17 +47,23 @@
                 <button onclick="switchHallFeed('22b')" id="feed-22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
                 <button onclick="switchHallFeed('23a')" id="feed-23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
                 <button onclick="switchHallFeed('23b')" id="feed-23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
-                <button onclick="switchHallFeed('quizzes')" id="feed-quizzes" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Quizzes</button>
+                <button onclick="switchHallFeed('quizzes')" id="feed-quizzes" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Live Quizzes</button>
             </div>
         </div>
     </div>
 
-    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+    <!-- Container for dynamic content -->
+    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full z-10" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
-            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Connecting to Live Hall Feed...</p>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Connecting to Live Feed...</p>
         </div>
     </main>
+    
+    <!-- Full Screen Quiz Overlay -->
+    <div id="quizOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950 flex-col items-center justify-center p-6 overflow-y-auto">
+        <!-- Injected dynamically -->
+    </div>
 
     <script>
         // --- SAFE SUPABASE INITIALIZATION ---
@@ -79,12 +88,13 @@
             '22b': "22nd August' 2026 - Day 1 Hall B",
             '23a': "23rd August' 2026 - Day 2 Hall A",
             '23b': "23rd August' 2026 - Day 2 Hall B",
-            'quizzes': "IFASCON 2026 - Quizzes"
+            'quizzes': "Global Control - Live Quizzes"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v20'; 
+        const CACHE_KEY = 'ifascon_av_cache_v22'; 
         const container = document.getElementById('contentContainer');
+        const overlay = document.getElementById('quizOverlay');
         const urlParams = new URLSearchParams(window.location.search);
         
         let liveHall = urlParams.get('hall') || 'ao_seminar';
@@ -92,8 +102,10 @@
         if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic';
         
         let manualOverrideIndex = null;
+        let globalQuizIndex = null; // Listens to global_quiz state
         let liveUpdateTimer = null;
         let panelTimeout = null;
+        let currentSubscription = null;
 
         async function initializeApp() {
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -105,6 +117,30 @@
                     fetchLiveSchedule(true);
                 } catch (e) { fetchLiveSchedule(false); }
             } else { fetchLiveSchedule(false); }
+            
+            setupSupabaseListener();
+        }
+        
+        function setupSupabaseListener() {
+            // Fetch initial global quiz state
+            supabaseClient.from('hall_states').select('override_index').eq('hall_id', 'global_quiz').single()
+                .then(({ data }) => {
+                    if (data) {
+                        globalQuizIndex = data.override_index;
+                        updateLiveDisplay();
+                    }
+                });
+
+            // Listen for any updates in realtime
+            currentSubscription = supabaseClient.channel('av-all-channels')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' },
+                    (payload) => {
+                        if (payload.new.hall_id === 'global_quiz') {
+                            globalQuizIndex = payload.new.override_index;
+                            updateLiveDisplay();
+                        }
+                    }
+                ).subscribe();
         }
 
         async function fetchLiveSchedule(isBackground = false) {
@@ -116,7 +152,10 @@
                     Papa.parse(csvText, {
                         complete: function(results) {
                             try {
-                                if (key === 'ao') {
+                                if (key === 'quizzes') {
+                                    fetchedData['quizzes'] = { title: configTitles['quizzes'], events: parseQuizData(results.data) };
+                                }
+                                else if (key === 'ao') {
                                     const allAoEvents = parseRawData(results.data, "21 Aug");
                                     let seminarEvents = [], diabeticEvents = [], misEvents = [];
                                     let isWorkshopSection = false;
@@ -155,9 +194,25 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     initLiveKiosk(liveHall);
                 } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
-            } else {
-                document.getElementById('loadingText').innerText = "Network Error: Failed to load schedule data.";
             }
+        }
+
+        // --- NEW QUIZ PARSING LOGIC ---
+        function parseQuizData(rows) {
+            let qs = [];
+            rows.forEach((r, idx) => {
+                if (r.length === 0 || !r[0]) return;
+                // Skip header row if it exists
+                if (idx === 0 && r[0].toLowerCase().includes("question")) return;
+                
+                qs.push({
+                    index: qs.length,
+                    question: r[0].trim(),
+                    // Pull options from following columns, ignoring empty ones
+                    options: r.slice(1, 5).map(o => o ? o.trim() : "").filter(o => o !== "")
+                });
+            });
+            return qs;
         }
 
         function parseRawData(rows, hallTitle) {
@@ -175,7 +230,6 @@
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
                 if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
 
-                // FIXED: Use regular expressions with word boundaries (\b) so "Tejas" doesn't trigger "tea"
                 const breakRegex = /\b(break|lunch|tea|coffee|registration|inauguration|banquet|gbm|valedictory)\b/i;
                 if (breakRegex.test(row_text) && !/\b(symposium|session)\b/i.test(row_text)) {
                     let text = colTitle || col3 || col0;
@@ -186,20 +240,11 @@
                     let adLink = "";
                     for(let cell of r) {
                         if(cell.toLowerCase().includes('http')) {
-                            adLink = cell;
-                            break;
+                            adLink = cell; break;
                         }
                     }
 
-                    events.push({ 
-                        type: 'break', 
-                        title: text, 
-                        time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '',
-                        adLink: adLink 
-                    });
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
 
@@ -207,10 +252,8 @@
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
                 
-                // FIXED: Detect Oration strictly with word boundaries to avoid catching "exploration" or "perforation"
                 if (/\boration\b/i.test(row_text)) {
-                    isSession = true; 
-                    isOration = true;
+                    isSession = true; isOration = true;
                 } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
@@ -225,7 +268,6 @@
                         else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
                         else topic = col3 + ": " + colTitle;
                     }
-
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
@@ -246,6 +288,44 @@
             return events;
         }
 
+        // --- GLOBAL QUIZ CONTROLS ---
+        async function broadcastQuiz(index) {
+            try {
+                // Upsert ensures the row is created if it doesn't exist yet
+                await supabaseClient.from('hall_states').upsert({ hall_id: 'global_quiz', override_index: index });
+            } catch(e) { console.error("Database quiz start failed", e); }
+        }
+
+        async function stopGlobalQuiz() {
+            try {
+                await supabaseClient.from('hall_states').upsert({ hall_id: 'global_quiz', override_index: null });
+            } catch(e) { console.error("Database quiz stop failed", e); }
+        }
+
+        function renderQuizOverlayHtml(quizEvent) {
+            let optionsHtml = '';
+            const labels = ['A', 'B', 'C', 'D', 'E'];
+            quizEvent.options.forEach((opt, i) => {
+                optionsHtml += `
+                <div class="bg-slate-800/80 border-2 border-indigo-500/50 p-6 sm:p-8 rounded-2xl text-left shadow-lg flex items-center gap-6">
+                    <div class="bg-indigo-600 text-white w-12 h-12 sm:w-16 sm:h-16 rounded-xl font-black text-2xl flex items-center justify-center flex-shrink-0">${labels[i]}</div>
+                    <div class="text-2xl sm:text-4xl text-white font-bold leading-tight">${opt}</div>
+                </div>`;
+            });
+
+            return `
+            <div class="w-full max-w-7xl mx-auto py-10 flex flex-col items-center">
+                <div class="animate-pulse bg-amber-500 text-slate-900 px-8 py-3 rounded-full text-lg sm:text-2xl font-black uppercase tracking-widest flex items-center shadow-[0_0_30px_rgba(245,158,11,0.6)] mb-10 sm:mb-16">
+                    <i class="fas fa-broadcast-tower mr-4"></i> LIVE INTERACTIVE QUIZ
+                </div>
+                <h1 class="text-4xl sm:text-6xl lg:text-7xl text-white font-black text-center leading-tight mb-16 drop-shadow-2xl w-full">${quizEvent.question}</h1>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10 w-full">
+                    ${optionsHtml}
+                </div>
+            </div>`;
+        }
+
+        // Timing & Logic functions
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
             const parts = timeStr.split('-')[0].trim().split(/[.:]/);
@@ -261,10 +341,8 @@
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            if (manualOverrideIndex !== null) return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             
-            if (manualOverrideIndex !== null) {
-                return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
-            }
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
@@ -293,7 +371,7 @@
 
         function resetPanelTimer() {
             if (panelTimeout) clearTimeout(panelTimeout);
-            panelTimeout = setTimeout(() => { minimizePanel(); }, 4000);
+            panelTimeout = setTimeout(() => { minimizePanel(); }, 5000);
         }
 
         async function manualShift(step) {
@@ -313,33 +391,23 @@
             manualOverrideIndex = newIndex;
             document.getElementById('manualOverridePanel').classList.remove('hidden');
             
-            updateLiveDisplay(); 
-            resetPanelTimer();
-
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: newIndex }).eq('hall_id', liveHall);
-            } catch(e) { console.error("Database update failed"); }
+            updateLiveDisplay(); resetPanelTimer();
+            try { await supabaseClient.from('hall_states').upsert({ hall_id: liveHall, override_index: newIndex }); } 
+            catch(e) {}
         }
 
         async function resumeAutoSync() { 
-            manualOverrideIndex = null; 
-            minimizePanel(); 
-            updateLiveDisplay(); 
-            
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
-            } catch(e) { console.error("Database reset failed"); }
+            manualOverrideIndex = null; minimizePanel(); updateLiveDisplay(); 
+            try { await supabaseClient.from('hall_states').upsert({ hall_id: liveHall, override_index: null }); } 
+            catch(e) {}
         }
 
         function switchHallFeed(newHall) {
-            liveHall = newHall;
-            manualOverrideIndex = null;
+            liveHall = newHall; manualOverrideIndex = null;
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('hall', newHall);
             window.history.pushState({}, '', newUrl);
-            updateFeedButtons();
-            updateLiveDisplay();
-            resetPanelTimer();
+            updateFeedButtons(); updateLiveDisplay(); resetPanelTimer();
         }
 
         function updateFeedButtons() {
@@ -356,9 +424,65 @@
 
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
+            updateFeedButtons();
+
+            // SCENARIO 1: ADMIN QUIZ CONTROL PANEL
+            if (liveHall === 'quizzes') {
+                overlay.classList.add('hidden'); // Ensure overlay is hidden in admin view
+                
+                let quizAdminHtml = `
+                    <div class="max-w-5xl mx-auto pt-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-800/80 p-6 sm:p-8 rounded-3xl mb-8 border border-slate-700 gap-6">
+                            <div>
+                                <h2 class="text-3xl font-black text-white mb-2"><i class="fas fa-satellite-dish text-indigo-400 mr-3"></i>Global Quiz Control</h2>
+                                <p class="text-slate-400 text-lg">Broadcasting a quiz here instantly overrides ALL Delegate screens and TVs globally.</p>
+                            </div>
+                            <button onclick="stopGlobalQuiz()" class="bg-rose-600 hover:bg-rose-500 px-6 py-4 rounded-xl font-black text-white text-lg shadow-xl active:scale-95 transition flex items-center gap-3 w-full sm:w-auto justify-center">
+                                <i class="fas fa-stop-circle text-2xl"></i> Stop Broadcast
+                            </button>
+                        </div>
+                        <div class="flex flex-col gap-5 pb-20">
+                `;
+                
+                data.events.forEach(q => {
+                    let isLive = globalQuizIndex === q.index;
+                    quizAdminHtml += `
+                        <div class="bg-slate-800/50 p-6 sm:p-8 rounded-2xl border ${isLive ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.25)] bg-slate-800' : 'border-slate-700'} flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                            <div class="flex-1">
+                                <span class="text-sm font-bold ${isLive ? 'text-amber-400' : 'text-slate-400'} uppercase tracking-widest mb-3 block">Question ${q.index + 1}</span>
+                                <h3 class="text-2xl text-white font-bold leading-snug">${q.question}</h3>
+                            </div>
+                            <button onclick="broadcastQuiz(${q.index})" class="${isLive ? 'bg-amber-500 text-slate-900 pointer-events-none' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} px-8 py-4 rounded-xl text-lg font-black transition active:scale-95 flex-shrink-0 flex items-center gap-3 shadow-lg w-full md:w-auto justify-center">
+                                ${isLive ? '<i class="fas fa-broadcast-tower animate-pulse"></i> LIVE NOW' : '<i class="fas fa-play"></i> Broadcast to All'}
+                            </button>
+                        </div>
+                    `;
+                });
+                
+                quizAdminHtml += `</div></div>`;
+                container.innerHTML = quizAdminHtml;
+                return; // Stop execution here for the admin panel
+            }
+
+            // SCENARIO 2: A QUIZ IS GLOBALLY ACTIVE (AND WE ARE NOT IN ADMIN VIEW)
+            // Render the quiz override for the TV Display
+            if (globalQuizIndex !== null && appData['quizzes']) {
+                const activeQuiz = appData['quizzes'].events.find(q => q.index === globalQuizIndex);
+                if (activeQuiz) {
+                    overlay.innerHTML = renderQuizOverlayHtml(activeQuiz);
+                    overlay.classList.remove('hidden');
+                    overlay.classList.add('flex');
+                    return; // Stop normal schedule rendering
+                }
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+
+
+            // SCENARIO 3: NORMAL HALL SCHEDULE
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            updateFeedButtons();
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             
