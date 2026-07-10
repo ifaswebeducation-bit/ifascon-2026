@@ -8,51 +8,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
-        .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-live { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Auth Gateway Screen -->
-    <div id="authScreen" class="hidden flex-col items-center justify-center h-screen fixed inset-0 bg-slate-900 z-[200] p-6 text-center">
-        <i class="fas fa-user-circle text-6xl text-indigo-400 mb-6 animate-pulse"></i>
-        <h2 class="text-3xl font-black text-white mb-2">Welcome Delegate</h2>
-        <p class="text-slate-400 mb-8 font-medium">Enter your 10-digit mobile number to access Live Quizzes and the Leaderboard.</p>
-        <input type="tel" id="mobileAuthInput" class="w-full max-w-sm bg-slate-950 border-2 border-slate-700 rounded-2xl px-6 py-4 text-white text-center text-2xl mb-6 tracking-widest outline-none focus:border-indigo-500 font-mono shadow-inner" placeholder="Mobile Number" maxlength="10">
-        <button onclick="loginAuth()" class="w-full max-w-sm bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-xl shadow-xl transition active:scale-95">Enter Dashboard ➔</button>
-    </div>
-
-    <!-- Main Application -->
-    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full hidden" id="mainApp">
+    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
             <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Live Dashboard...</p>
         </div>
-        <div id="contentContainer"></div>
     </main>
 
     <script>
+        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let remoteOverrideIndex = null;
-        let quizStartTime = null;
         let currentSubscription = null;
-        let userMobile = '';
 
         const sheetLinks = {
-            // ---> PASTE YOUR QUIZ CSV LINK HERE <---
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
-            
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -60,54 +46,42 @@
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
         };
 
-        const configTitles = { 'ao_seminar': "21 Aug - AO Seminar", 'workshop_diabetic': "21 Aug - Diabetic WS", 'workshop_mis': "21 Aug - MIS WS", '22a': "22 Aug - Hall A", '22b': "22 Aug - Hall B", '23a': "23 Aug - Hall A", '23b': "23 Aug - Hall B" };
-        const buttonLabels = { 'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS", '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B" };
+        const configTitles = {
+            'ao_seminar': "21st August' 2026 - AO Seminar",
+            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
+            'workshop_mis': "21st August' 2026 - MIS Workshop",
+            '22a': "22nd August' 2026 - Day 1 Hall A",
+            '22b': "22nd August' 2026 - Day 1 Hall B",
+            '23a': "23rd August' 2026 - Day 2 Hall A",
+            '23b': "23rd August' 2026 - Day 2 Hall B"
+        };
 
-        let appData = {}, globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v30'; 
+        const buttonLabels = {
+            'ao_seminar': "21 Aug: AO Seminar",
+            'workshop_diabetic': "21 Aug: Diabetic Foot",
+            'workshop_mis': "21 Aug: MIS",
+            '22a': "22nd August' 2026 - Hall A",
+            '22b': "22nd August' 2026 - Hall B",
+            '23a': "23rd August' 2026 - Hall A",
+            '23b': "23rd August' 2026 - Hall B"
+        };
+
+        let appData = {};
+        let globalQuizzes = [];
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v10'; 
         const container = document.getElementById('contentContainer');
-        const urlParams = new URLSearchParams(window.location.search);
-        let liveHall = urlParams.get('hall') || '22a'; 
+        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
         let liveUpdateTimer = null;
 
-        // --- AUTH LOGIC ---
-        function loginAuth() {
-            let phone = document.getElementById('mobileAuthInput').value.trim();
-            if(phone.length >= 10 && /^\d+$/.test(phone)) {
-                localStorage.setItem('ifascon_user_mobile', phone);
-                userMobile = phone;
-                document.getElementById('authScreen').classList.add('hidden');
-                document.getElementById('authScreen').classList.remove('flex');
-                document.getElementById('mainApp').classList.remove('hidden');
-                initializeApp();
-            } else { alert("Please enter a valid 10-digit mobile number."); }
-        }
-
-        window.logoutAuth = function() {
-            localStorage.removeItem('ifascon_user_mobile');
-            location.reload();
-        }
-
-        function checkAuthAndBoot() {
-            userMobile = localStorage.getItem('ifascon_user_mobile');
-            if(!userMobile) {
-                document.getElementById('authScreen').classList.remove('hidden');
-                document.getElementById('authScreen').classList.add('flex');
-            } else {
-                document.getElementById('mainApp').classList.remove('hidden');
-                initializeApp();
-            }
-        }
-
-        // --- APP LOGIC ---
         async function initializeApp() {
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (cachedData) {
                 try {
                     let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls; globalQuizzes = parsed.quizzes || [];
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
                     document.getElementById('loadingState').classList.add('hidden');
-                    initLiveDashboard(liveHall);
+                    initLiveDashboard();
                     fetchLiveSchedule(true);
                 } catch (e) { fetchLiveSchedule(false); }
             } else { fetchLiveSchedule(false); }
@@ -115,85 +89,118 @@
 
         async function fetchLiveSchedule(isBackground = false) {
             let fetchedData = {};
+            let quizzesLoaded = [];
             for (const [key, link] of Object.entries(sheetLinks)) {
-                if(link.includes('PASTE_YOUR')) continue;
                 try {
-                    const response = await fetch(link); const csvText = await response.text();
-                    Papa.parse(csvText, {
-                        complete: function(results) {
-                            try {
-                                if (key === 'quizzes') { globalQuizzes = parseQuizData(results.data); }
-                                else if (key === 'ao') {
-                                    const allAoEvents = parseRawData(results.data, "21 Aug");
-                                    let seminarEvents = [], diabeticEvents = [], misEvents = [];
-                                    let isWorkshopSection = false, currentTrack = 'diabetic';
-                                    allAoEvents.forEach(ev => {
-                                        const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                                        if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
-                                        if (isWorkshopSection) {
-                                            if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic'; else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
-                                            if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } else { ev.hall = "MIS Hall"; misEvents.push(ev); }
-                                        } else { ev.hall = "AO Seminar Hall"; seminarEvents.push(ev); }
-                                    });
-                                    fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
-                                    fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
-                                    fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
-                                } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) }; }
-                            } catch(e) {}
-                        }
-                    });
+                    const response = await fetch(link);
+                    const csvText = await response.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false }).data;
+                    
+                    if (key === 'quizzes') {
+                        quizzesLoaded = parseQuizData(parsedCsv);
+                    } else if (key === 'ao') {
+                        const allAo = parseRawData(parsedCsv, "21 Aug");
+                        let sem = [], dia = [], mis = [];
+                        let isWs = false, track = 'diabetic';
+                        allAo.forEach(ev => {
+                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
+                            if (isWs) {
+                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
+                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
+                                if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
+                                else { ev.hall = "MIS Hall"; mis.push(ev); }
+                            } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
+                        });
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+                    } else {
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
+                    }
                 } catch(err) {}
             }
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
-                localStorage.setItem(CACHE_KEY, JSON.stringify({halls: appData, quizzes: globalQuizzes}));
-                if (!isBackground) { document.getElementById('loadingState').classList.add('hidden'); initLiveDashboard(liveHall); } else { updateLiveDisplay(); }
+                globalQuizzes = quizzesLoaded;
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
+                if (!isBackground) { document.getElementById('loadingState').classList.add('hidden'); initLiveDashboard(); } 
+                else { updateLiveDisplay(); }
             }
         }
 
-        // PERFECTED QUIZ PARSING (Reads Column F / Index 5 for Correct Answer)
         function parseQuizData(rows) {
-            let quizzes = [];
+            let list = [];
             rows.forEach(r => {
-                while(r.length < 6) r.push("");
-                if (!r[0].trim() || r[0].toLowerCase().includes('question')) return;
-                quizzes.push({ 
-                    type: 'quiz', 
-                    title: r[0].trim(), 
-                    options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), 
-                    correct: r[5] ? r[5].trim() : "" 
+                if(!r[0] || r[0].toLowerCase().includes('question')) return;
+                list.push({
+                    type: 'quiz',
+                    title: r[0].trim(),
+                    options: [r[1], r[2], r[3], r[4]].map(x => (x || "").trim()).filter(Boolean),
+                    correct: (r[5] || "").trim()
                 });
             });
-            return quizzes;
+            return list;
         }
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             rows.forEach(r => {
-                while(r.length < 12) r.push(""); r = r.map(x => (x || "").trim());
-                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3], colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6], colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9], row_text = r.join(" ").toLowerCase();
-                if (row_text.includes("position:absolute") || row_text.includes("<!doctype html>") || (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) || (!col0 && !col1 && !col2 && !col3 && !colTitle) || row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) || row_text.includes('*quiz*')) return;
+                while(r.length < 12) r.push("");
+                r = r.map(x => (x || "").trim());
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let row_text = r.join(" ").toLowerCase();
+
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
                 const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
                 if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
-                    let text = colTitle || col3 || col0; if (row_text.includes("registration")) text = "Registration"; else if (row_text.includes("lunch")) text = "Lunch"; else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
-                    let adLink = ""; for(let cell of r) { if(cell.toLowerCase().includes('http')) { adLink = cell; break; } }
-                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink }); return;
+                    let text = colTitle || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+
+                    let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    return;
                 }
 
-                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion"), isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary"), isSession = false, isOration = false;
-                if (row_text.includes('oration')) { isSession = true; isOration = true; } else if (!isQA && !isPlenary) { if (!col1 && !col2 && !col0) isSession = true; else if (!col0 && col1 && col2 && !colTitle) isSession = true; else if (col3 && !colTitle && !colSpeaker) isSession = true; else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true; }
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                let isSession = false, isOration = false;
+
+                if (row_text.includes('oration')) { isSession = true; isOration = true; } 
+                else if (!isQA && !isPlenary) {
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                }
 
                 if (isSession) {
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
-                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) { if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle; else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3; else topic = col3 + ": " + colTitle; }
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                        else topic = col3 + ": " + colTitle;
+                    }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
-                    current_session = topic; events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session }); return;
+                    current_session = topic; 
+                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
+                    return;
                 }
 
                 if (col1 || colTitle || isQA || isPlenary) {
-                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker, time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
-                    if (col0) { let cleanDur = col0.replace(/[^0-9]/g, ''); time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0); }
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
+                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0) {
+                        let cleanDur = col0.replace(/[^0-9]/g, ''); 
+                        time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
+                    }
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
@@ -202,55 +209,48 @@
         }
 
         function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null; const parts = timeStr.split('-')[0].trim().split(/[.:]/);
-            if (parts.length < 2) return null; return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            if (!timeStr) return null;
+            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
         function subscribeToHall(hall_id) {
             if (currentSubscription) supabaseClient.removeChannel(currentSubscription);
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', hall_id).single().then(({ data }) => {
-                if (data) { remoteOverrideIndex = data.override_index; quizStartTime = data.quiz_start_time; updateLiveDisplay(); }
+            supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single().then(({ data }) => {
+                if (data) { remoteOverrideIndex = data.override_index; updateLiveDisplay(); }
             });
-           currentSubscription = supabaseClient.channel('custom-all-channel')
+            currentSubscription = supabaseClient.channel('custom-all-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
-                    (payload) => {
-                        // 1. Update the local state
-                        remoteOverrideIndex = payload.new.override_index;
-                        quizStartTime = payload.new.quiz_start_time;
-
-                        // 2. CRITICAL: FORCE UI UPDATE
-                        // This forces the app to re-run getLiveStatus() and updateDisplay() 
-                        // even if the user is currently looking at a different session.
-                        updateLiveDisplay();
-                        
-                        // 3. Optional: Add a subtle haptic/alert for the user 
-                        if (remoteOverrideIndex < 0) {
-                            console.log("Quiz triggered by AV!");
-                        }
-                    }
+                    (payload) => { remoteOverrideIndex = payload.new.override_index; updateLiveDisplay(); }
                 ).subscribe();
         }
 
-        // CORRECTED LEADERBOARD RECOGNITION
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
             
             if (remoteOverrideIndex !== null) {
-                if (remoteOverrideIndex === -100) return { currentEvent: { type: 'leaderboard' }, nextEvent: playableEvents[0] || null };
-
-                if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
+                if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
+                    return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
+                }
                 return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
             }
             
             const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
-                const ev = playableEvents[i]; const evStart = parseTimeToMinutes(ev.time);
+                const ev = playableEvents[i];
+                const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
-                        currentEvent = ev; if (ev.type === 'break' && i > 0 && playableEvents[i-1].type === 'presentation') currentEvent = playableEvents[i-1];
-                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
+                        currentEvent = ev; 
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') {
+                            currentEvent = playableEvents[i-1];
+                        }
+                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; 
+                        break;
                     } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
                 }
             }
@@ -258,31 +258,23 @@
         }
 
         function switchDelegateHall(newHall) {
-            // 1. Destroy old subscription
-            if (currentSubscription) {
-                supabaseClient.removeChannel(currentSubscription);
-            }
-            
-            // 2. Set new state
             liveHall = newHall;
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('hall', newHall);
-            window.history.pushState({}, '', newUrl);
-            
-            // 3. Force re-subscribe to the specific hall
-            subscribeToHall(newHall);
-            
-            // 4. Force re-fetch of local data
-            updateLiveDisplay();
+            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
+            subscribeToHall(newHall); updateLiveDisplay();
         }
 
-        // PERFECTED SUBMIT ACTION (LOWERCASE + TRIM GRADING)
+        window.saveDelegatePhone = function() {
+            let phone = document.getElementById('quizPhoneInput').value.trim();
+            if(phone.length >= 7) { localStorage.setItem('delegate_phone', phone); updateLiveDisplay(); } 
+            else { alert('Please enter a valid mobile number'); }
+        };
+
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
-            let phone = localStorage.getItem('ifascon_user_mobile');
-            let isCorrect = (option.trim().toLowerCase() === correctOption.trim().toLowerCase());
-            
-            try { await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, is_correct: isCorrect }]); } catch(e) {}
-            localStorage.setItem('answered_' + questionText.replace(/[^a-zA-Z0-9]/g, ''), 'true');
+            let phone = localStorage.getItem('delegate_phone');
+            try {
+                await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, is_correct: (option === correctOption) }]);
+            } catch(e) {}
+            localStorage.setItem('answered_' + questionText.replace(/\W/g, ''), 'true');
             updateLiveDisplay();
         };
 
@@ -293,131 +285,88 @@
 
             let hallSelectorHtml = `<div class="mb-6 pb-4 border-b border-slate-800"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span><div class="flex flex-wrap items-center gap-2">`;
             for (const [key, label] of Object.entries(buttonLabels)) {
-                let isActive = key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700';
-                hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${isActive}">${label}</button>`;
+                hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">${label}</button>`;
             }
             hallSelectorHtml += `</div></div>`;
 
-            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-base text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
+            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
             
             if (currentEvent) {
-                if (currentEvent.type === 'leaderboard') {
-                    nowPlayingHtml = `<div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl p-6 shadow-2xl mb-8 border border-amber-500/30" id="delegateLeaderboardContainer"><div class="text-center py-10"><div class="loader mx-auto mb-4"></div><p class="text-amber-400 font-bold animate-pulse">Syncing Leaderboard...</p></div></div>`;
-                    setTimeout(async () => {
-                        try {
-                            const { data } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
-                            let counts = {}; (data||[]).forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
-                            let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-                            let lbHtml = `<div class="flex justify-between items-center mb-6"><span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse">Live</span><h2 class="text-2xl font-black text-amber-400"><i class="fas fa-trophy mr-2"></i> Top Scores</h2></div><div class="flex flex-col gap-3">`;
-                            if(sorted.length === 0) lbHtml += `<p class="text-slate-400 text-center py-6 font-bold">No correct scores yet!</p>`;
-                            sorted.forEach((item, idx) => {
-                                let mask = item[0].length >= 10 ? item[0].slice(0,2) + '******' + item[0].slice(-2) : 'Unknown';
-                                let isMe = item[0] === userMobile ? 'bg-indigo-600/40 border-indigo-400' : 'bg-slate-800/80 border-slate-700';
-                                lbHtml += `<div class="flex justify-between items-center p-4 rounded-xl border shadow-inner ${isMe}"><div class="font-bold text-white flex items-center"><span class="w-6 text-slate-400 mr-2">${idx+1}.</span> ${mask} ${item[0] === userMobile ? '<span class="ml-2 text-[10px] bg-indigo-500 px-2 py-0.5 rounded-full uppercase tracking-wider">You</span>' : ''}</div><div class="font-black text-amber-400">${item[1]} pts</div></div>`;
-                            });
-                            lbHtml += `</div>`;
-                            document.getElementById('delegateLeaderboardContainer').innerHTML = lbHtml;
-                        } catch(e) {}
-                    }, 50);
-                }
-                else if (currentEvent.type === 'quiz') {
-                    let safeKey = 'answered_' + currentEvent.title.replace(/[^a-zA-Z0-9]/g, '');
-                    let hasAnswered = localStorage.getItem(safeKey);
+                if (currentEvent.type === 'quiz') {
+                    let savedPhone = localStorage.getItem('delegate_phone');
+                    let hasAnswered = localStorage.getItem('answered_' + currentEvent.title.replace(/\W/g, ''));
 
-                    if (hasAnswered) {
+                    if (!savedPhone) {
                         nowPlayingHtml = `
-                            <div class="text-center py-16 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8 shadow-inner">
-                                <i class="fas fa-check-circle text-6xl mb-4 text-emerald-500 animate-pulse"></i>
-                                <h2 class="text-3xl font-black text-white">Answer Submitted!</h2>
-                                <p class="text-base text-slate-400 mt-3 font-medium">Keep an eye on the main stage screen for the Live Leaderboard results.</p>
+                            <div class="bg-slate-800 p-8 rounded-3xl border border-indigo-500 shadow-2xl text-center mb-8">
+                                <i class="fas fa-mobile-alt text-5xl text-indigo-400 mb-4 animate-bounce"></i>
+                                <h2 class="text-2xl font-bold text-white mb-2">Live Interactive Quiz!</h2>
+                                <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4" placeholder="Mobile Number">
+                                <button onclick="saveDelegatePhone()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl">Start Quiz</button>
                             </div>`;
-                    } 
-                    else {
-                        let optionsHtml = '';
-                        currentEvent.options.forEach((opt, idx) => {
-                            if(opt) {
-                                let safeOpt = opt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                let safeCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                let safeTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                optionsHtml += `<button onclick="submitDelegateQuiz('${safeOpt}', '${safeCorrect}', '${safeTitle}')" class="quiz-option-btn w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 text-lg shadow active:scale-95 flex items-center"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
-                            }
-                        });
+                    } else if (hasAnswered) {
                         nowPlayingHtml = `
-                            <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 shadow-2xl mb-8">
-                                <div class="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
-                                    <span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-bolt mr-1"></i> Live Quiz</span>
-                                    <span class="text-amber-400 font-mono font-black text-xl flex items-center"><i class="fas fa-stopwatch mr-2"></i><span id="delQuizTimer">45</span>s</span>
-                                </div>
-                                <h2 class="text-2xl font-black text-white leading-tight mb-8">${currentEvent.title}</h2>
-                                <div class="flex flex-col gap-1">${optionsHtml}</div>
-                            </div>`;
+                            <div class="text-center py-16 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8"><i class="fas fa-check-circle text-6xl mb-4 text-emerald-500"></i><h2 class="text-3xl font-black text-white">Answer Submitted!</h2></div>`;
+                    } else {
+                        let opHtml = currentEvent.options.map((opt, idx) => {
+                            let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            let sCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            let sTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 flex items-center"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                        }).join('');
+                        
+                        nowPlayingHtml = `<div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 shadow-2xl mb-8"><h2 class="text-2xl font-black text-white leading-tight mb-8">${currentEvent.title}</h2><div>${opHtml}</div></div>`;
                     }
-                }
-                else if (currentEvent.type === 'break') {
+                } else if (currentEvent.type === 'break') {
                     if (currentEvent.adLink) {
-                        let link = currentEvent.adLink; let adMediaHtml = '';
+                        let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
-                            let fileId = link.match(/[-\w]{25,}/);
-                            if (fileId) adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
-                        } else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span></div>${adMediaHtml}</div>`;
+                            let fId = link.match(/[-\w]{25,}/);
+                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black">`;
+                        }
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
-                        let breakIcon = "fa-coffee"; let iconColor = "text-amber-500"; const titleLow = currentEvent.title.toLowerCase();
-                        if (titleLow.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; } else if (titleLow.includes('banquet') || titleLow.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; } else if (titleLow.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p></div>`;
+                        let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        if (currentEvent.title.toLowerCase().includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3">${currentEvent.time}</p></div>`;
                     }
-                } 
-                else {
-                    let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                    if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
+                } else {
+                    let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
                     nowPlayingHtml = `
-                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
-                            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
-                                <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
-                            </div>
-                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
-                            <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 shadow-2xl mb-8">
+                            <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center mb-6 w-max"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-sm mb-2"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                            <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 shadow-inner"><div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-xl font-extrabold text-white">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
                 }
             }
 
             let upNextHtml = '';
-            if (nextEvent && nextEvent.type !== 'quiz' && nextEvent.type !== 'leaderboard') {
+            if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm mt-1.5 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-[10px] sm:text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time}</span><h4 class="text-lg font-bold text-slate-200">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 text-sm mt-1.5"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
                     </div>`;
             }
 
-            let userBarHtml = `
-                <div class="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700">
-                    <div class="text-slate-300 text-sm font-bold"><i class="fas fa-user mr-2 text-indigo-400"></i>${userMobile}</div>
-                    <button onclick="logoutAuth()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg font-bold transition">Change Number</button>
-                </div>
-            `;
-
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
-                    ${userBarHtml}
                     ${hallSelectorHtml}
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
-                            <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
-                            <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                            <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
-                            <div class="bg-white/95 p-2 sm:p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
+                            <div class="bg-white/95 p-2 rounded-2xl shadow-xl inline-block">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
                             </div>
                         </div>
                         <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
-                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
+                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
                         </div>
                     </div>
                     ${nowPlayingHtml}
@@ -425,36 +374,8 @@
                 </div>`;
         }
 
-        // Live Timer Ticker for Delegate Phone
-        setInterval(() => {
-            const timerEl = document.getElementById('delQuizTimer');
-            if (timerEl && quizStartTime) {
-                let elapsed = Math.floor((Date.now() - new Date(quizStartTime).getTime()) / 1000);
-                let left = 45 - elapsed;
-                if (left < 0) left = 0;
-                timerEl.innerText = left;
-                
-                // When timer hits zero, change color and disable buttons
-                if (left <= 0) {
-                    timerEl.parentElement.classList.replace('text-amber-400', 'text-red-500');
-                    document.querySelectorAll('.quiz-option-btn').forEach(btn => {
-                        btn.disabled = true;
-                        btn.classList.add('opacity-50', 'cursor-not-allowed');
-                        btn.classList.remove('hover:bg-indigo-600', 'hover:border-indigo-500', 'active:scale-95');
-                    });
-                }
-            }
-        }, 1000);
-
-        function initLiveDashboard(hallKey) {
-            if (!appData[hallKey]) return;
-            subscribeToHall(hallKey); updateLiveDisplay();
-            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            liveUpdateTimer = setInterval(updateLiveDisplay, 30000); 
-        }
-
-        // Boot the App
-        checkAuthAndBoot();
+        function initLiveDashboard() { subscribeToHall(liveHall); setInterval(updateLiveDisplay, 30000); }
+        initializeApp();
     </script>
 </body>
 </html>
