@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -31,20 +30,20 @@
         </div>
     </main>
 
-    <!-- Full Screen Quiz Overlay -->
     <div id="quizOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950 flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        <!-- Injected dynamically -->
-    </div>
+        </div>
 
     <script>
-        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let remoteOverrideIndex = null;
-        let globalQuizIndex = null; // Track global quiz state separately
+        let globalQuizIndex = null; 
         let currentSubscription = null;
+        
+        // Load User Mobile from LocalStorage
+        let userMobile = localStorage.getItem('ifascon_user_mobile') || '';
 
         const sheetLinks = {
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
@@ -62,8 +61,7 @@
             '22a': "22 Aug - Hall A",
             '22b': "22 Aug - Hall B",
             '23a': "23 Aug - Hall A",
-            '23b': "23 Aug - Hall B",
-            'quizzes': "Live Quizzes"
+            '23b': "23 Aug - Hall B"
         };
 
         const buttonLabels = {
@@ -77,7 +75,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_delegate_cache_v23'; 
+        const CACHE_KEY = 'ifascon_delegate_cache_v27'; 
         const container = document.getElementById('contentContainer');
         const overlay = document.getElementById('quizOverlay');
         const urlParams = new URLSearchParams(window.location.search);
@@ -107,13 +105,12 @@
                         complete: function(results) {
                             try {
                                 if (key === 'quizzes') {
-                                    fetchedData['quizzes'] = { title: configTitles['quizzes'], events: parseQuizData(results.data) };
+                                    fetchedData['quizzes'] = { title: "Live Quizzes", events: parseQuizData(results.data) };
                                 }
                                 else if (key === 'ao') {
                                     const allAoEvents = parseRawData(results.data, "21 Aug");
                                     let seminarEvents = [], diabeticEvents = [], misEvents = [];
-                                    let isWorkshopSection = false;
-                                    let currentTrack = 'diabetic';
+                                    let isWorkshopSection = false; let currentTrack = 'diabetic';
 
                                     allAoEvents.forEach(ev => {
                                         const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
@@ -122,12 +119,9 @@
                                         if (isWorkshopSection) {
                                             if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
                                             else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
-                                            
                                             if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
                                             else { ev.hall = "MIS Hall"; misEvents.push(ev); }
-                                        } else {
-                                            ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
-                                        }
+                                        } else { ev.hall = "AO Seminar Hall"; seminarEvents.push(ev); }
                                     });
 
                                     fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
@@ -144,25 +138,22 @@
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
                 localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
-                if (!isBackground) {
-                    document.getElementById('loadingState').classList.add('hidden');
-                    initLiveDashboard(liveHall);
-                } else { updateLiveDisplay(); }
-            } else {
-                document.getElementById('loadingText').innerText = "Network Error: Failed to load schedule data.";
+                if (!isBackground) { document.getElementById('loadingState').classList.add('hidden'); initLiveDashboard(liveHall); } 
+                else { updateLiveDisplay(); }
             }
         }
 
+        // Grabs correct answer from Column 6 (r[5])
         function parseQuizData(rows) {
             let qs = [];
             rows.forEach((r, idx) => {
                 if (r.length === 0 || !r[0]) return;
                 if (idx === 0 && r[0].toLowerCase().includes("question")) return;
-                
                 qs.push({
                     index: qs.length,
                     question: r[0].trim(),
-                    options: r.slice(1, 5).map(o => o ? o.trim() : "").filter(o => o !== "")
+                    options: r.slice(1, 5).map(o => o ? o.trim() : "").filter(o => o !== ""),
+                    correct_answer: r[5] ? r[5].trim() : ""
                 });
             });
             return qs;
@@ -191,10 +182,7 @@
                     else if (/\b(coffee|tea)\b/i.test(row_text)) text = "Tea / Coffee Break";
 
                     let adLink = "";
-                    for(let cell of r) {
-                        if(cell.toLowerCase().includes('http')) { adLink = cell; break; }
-                    }
-
+                    for(let cell of r) { if(cell.toLowerCase().includes('http')) { adLink = cell; break; } }
                     events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
@@ -203,9 +191,8 @@
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
 
-                if (/\boration\b/i.test(row_text)) {
-                    isSession = true; isOration = true;
-                } else if (!isQA && !isPlenary) {
+                if (/\boration\b/i.test(row_text)) { isSession = true; isOration = true; } 
+                else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
@@ -228,10 +215,7 @@
                 if (col1 || colTitle || isQA || isPlenary) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
-                    if (col0) {
-                        let cleanDur = col0.replace(/[^0-9]/g, ''); 
-                        time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
-                    }
+                    if (col0) { let cleanDur = col0.replace(/[^0-9]/g, ''); time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0); }
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
@@ -247,39 +231,23 @@
             return (isNaN(hours) || isNaN(mins)) ? null : hours * 60 + mins;
         }
 
-        function getCurrentMinutes() {
-            const now = new Date();
-            return now.getHours() * 60 + now.getMinutes();
-        }
+        function getCurrentMinutes() { const now = new Date(); return now.getHours() * 60 + now.getMinutes(); }
 
-        // --- SUPABASE: LISTENER SYNC LOGIC ---
+        // --- SUPABASE: REALTIME LISTENER ---
         function subscribeToHall(hall_id) {
             if (currentSubscription) { supabaseClient.removeChannel(currentSubscription); }
             
-            // Check current global quiz state
             supabaseClient.from('hall_states').select('override_index').eq('hall_id', 'global_quiz').single()
-                .then(({ data }) => {
-                    if (data) { globalQuizIndex = data.override_index; updateLiveDisplay(); }
-                });
+                .then(({ data }) => { if (data) { globalQuizIndex = data.override_index; updateLiveDisplay(); } });
 
-            // Check specific hall state
             supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
-                .then(({ data }) => {
-                    if (data) { remoteOverrideIndex = data.override_index; updateLiveDisplay(); }
-                });
+                .then(({ data }) => { if (data) { remoteOverrideIndex = data.override_index; updateLiveDisplay(); } });
 
-            // Subscribe to ALL hall updates to catch both global overrides and specific hall overrides
             currentSubscription = supabaseClient.channel('delegate-all-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' },
                     (payload) => {
-                        if (payload.new.hall_id === 'global_quiz') {
-                            globalQuizIndex = payload.new.override_index;
-                            updateLiveDisplay();
-                        }
-                        else if (payload.new.hall_id === liveHall) {
-                            remoteOverrideIndex = payload.new.override_index;
-                            updateLiveDisplay();
-                        }
+                        if (payload.new.hall_id === 'global_quiz') { globalQuizIndex = payload.new.override_index; updateLiveDisplay(); }
+                        else if (payload.new.hall_id === liveHall) { remoteOverrideIndex = payload.new.override_index; updateLiveDisplay(); }
                     }
                 ).subscribe();
         }
@@ -295,9 +263,8 @@
                 const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
                 if (evStart !== null && evEnd !== null) {
-                    if (currentMins >= evStart && currentMins < evEnd) {
-                        currentEvent = ev; if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
-                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
+                    if (currentMins >= evStart && currentMins < evEnd) { currentEvent = ev; if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break; } 
+                    else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
                 }
             }
             return { currentEvent, nextEvent };
@@ -305,48 +272,150 @@
 
         function switchDelegateHall(newHall) {
             liveHall = newHall;
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('hall', newHall);
+            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall);
             window.history.pushState({}, '', newUrl);
+            subscribeToHall(newHall); updateLiveDisplay();
+        }
+
+        // --- NEW QUIZ LOGIC FOR DELEGATES ---
+        function saveUserMobile() {
+            const input = document.getElementById('delegateMobileInput').value.trim();
+            if (input.length >= 10 && /^\d+$/.test(input)) {
+                userMobile = input;
+                localStorage.setItem('ifascon_user_mobile', userMobile);
+                alert("Mobile number saved! You are ready for live quizzes.");
+            } else {
+                alert("Please enter a valid 10-digit mobile number.");
+            }
+        }
+
+        // Exposed to Window so the HTML buttons can call it
+        window.submitAnswer = async function(qIndex, selectedOpt, correctOpt) {
+            if (!userMobile) {
+                alert("Please save your Mobile Number at the top of the schedule screen first!");
+                return;
+            }
             
-            subscribeToHall(newHall); 
-            updateLiveDisplay();
+            // Prevent multiple submissions locally
+            if (sessionStorage.getItem(`answered_q_${qIndex}`)) {
+                alert("You have already answered this question.");
+                return;
+            }
+
+            sessionStorage.setItem(`answered_q_${qIndex}`, 'true');
+            
+            // Instantly update UI for the user
+            document.getElementById('quizOptionsContainer').innerHTML = `
+                <div class="flex flex-col items-center justify-center p-10 bg-slate-800/80 border border-slate-700 rounded-3xl w-full">
+                    <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4 animate-bounce"></i>
+                    <h3 class="text-2xl font-black text-white">Answer Locked In!</h3>
+                    <p class="text-slate-400 mt-2">Waiting for the AV team to reveal the leaderboard...</p>
+                </div>
+            `;
+
+            let isCorrect = selectedOpt.trim().toLowerCase() === correctOpt.trim().toLowerCase();
+
+            try {
+                // Fetch current score, Upsert new score
+                const { data } = await supabaseClient.from('quiz_scores').select('score').eq('mobile', userMobile).single();
+                let currentScore = data ? data.score : 0;
+                
+                if (isCorrect) {
+                    await supabaseClient.from('quiz_scores').upsert({ mobile: userMobile, score: currentScore + 10 });
+                } else if (!data) {
+                    // Register them in DB with 0 even if wrong on first try
+                    await supabaseClient.from('quiz_scores').upsert({ mobile: userMobile, score: 0 });
+                }
+            } catch(e) { console.error("Score update failed:", e); }
         }
 
         function renderQuizOverlayHtml(quizEvent) {
             let optionsHtml = '';
             const labels = ['A', 'B', 'C', 'D', 'E'];
-            quizEvent.options.forEach((opt, i) => {
-                optionsHtml += `
-                <div class="bg-slate-800/80 border-2 border-indigo-500/50 p-4 sm:p-6 rounded-2xl text-left shadow-lg flex items-center gap-4">
-                    <div class="bg-indigo-600 text-white w-10 h-10 sm:w-14 sm:h-14 rounded-xl font-black text-xl flex items-center justify-center flex-shrink-0">${labels[i]}</div>
-                    <div class="text-lg sm:text-2xl text-white font-bold leading-tight">${opt}</div>
-                </div>`;
-            });
+            
+            // Check if they already answered during this browser session
+            if (sessionStorage.getItem(`answered_q_${quizEvent.index}`)) {
+                optionsHtml = `
+                    <div class="flex flex-col items-center justify-center p-10 bg-slate-800/80 border border-slate-700 rounded-3xl w-full">
+                        <i class="fas fa-check-circle text-6xl text-emerald-500 mb-4"></i>
+                        <h3 class="text-2xl font-black text-white">You've answered this question!</h3>
+                        <p class="text-slate-400 mt-2">Waiting for the next round...</p>
+                    </div>`;
+            } else {
+                quizEvent.options.forEach((opt, i) => {
+                    optionsHtml += `
+                    <button onclick="submitAnswer(${quizEvent.index}, '${opt.replace(/'/g, "\\'")}', '${quizEvent.correct_answer.replace(/'/g, "\\'")}')" class="w-full bg-slate-800 hover:bg-indigo-600/40 border-2 border-slate-700 hover:border-indigo-400 p-4 sm:p-6 rounded-2xl text-left shadow-lg flex items-center gap-4 transition-all group active:scale-95">
+                        <div class="bg-indigo-600 group-hover:bg-indigo-500 text-white w-10 h-10 sm:w-14 sm:h-14 rounded-xl font-black text-xl flex items-center justify-center flex-shrink-0 transition-colors">${labels[i]}</div>
+                        <div class="text-lg sm:text-2xl text-white font-bold leading-tight">${opt}</div>
+                    </button>`;
+                });
+            }
 
             return `
             <div class="w-full max-w-4xl mx-auto py-6 sm:py-10 flex flex-col items-center">
                 <div class="animate-pulse bg-amber-500 text-slate-900 px-6 py-2 rounded-full text-xs sm:text-sm font-black uppercase tracking-widest flex items-center shadow-[0_0_20px_rgba(245,158,11,0.5)] mb-8 sm:mb-10">
-                    <i class="fas fa-broadcast-tower mr-2"></i> LIVE QUIZ OVERRIDE
+                    <i class="fas fa-broadcast-tower mr-2"></i> LIVE QUIZ - SELECT YOUR ANSWER
                 </div>
                 <h1 class="text-2xl sm:text-4xl lg:text-5xl text-white font-black text-center leading-tight mb-10 drop-shadow-2xl w-full">${quizEvent.question}</h1>
-                <div class="flex flex-col gap-4 w-full">
+                <div id="quizOptionsContainer" class="flex flex-col gap-4 w-full">
                     ${optionsHtml}
                 </div>
             </div>`;
         }
 
+        // Leaderboard for Delegates
+        async function fetchAndRenderLeaderboard() {
+            try {
+                const { data, error } = await supabaseClient.from('quiz_scores').select('*').order('score', { ascending: false }).limit(10);
+                
+                let lbHtml = `
+                <div class="w-full max-w-4xl mx-auto py-8 flex flex-col items-center">
+                    <h1 class="text-4xl sm:text-5xl text-white font-black text-center mb-8"><i class="fas fa-trophy text-amber-400 mr-3"></i> TOP SCORES</h1>
+                    <div class="w-full bg-slate-800/80 border border-slate-700 rounded-3xl p-6 shadow-2xl">`;
+                    
+                if(data && data.length > 0) {
+                    data.forEach((row, i) => {
+                        let mask = row.mobile.length >= 10 ? row.mobile.slice(0,2) + '******' + row.mobile.slice(-2) : 'Unknown';
+                        // Highlight their own number if it matches
+                        let isMe = row.mobile === userMobile ? 'bg-indigo-500/20 border-indigo-500/50' : 'border-slate-700/50';
+                        let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span class="text-slate-500 text-lg">${i+1}.</span>`;
+                        
+                        lbHtml += `
+                            <div class="flex justify-between items-center py-4 border-b ${isMe} rounded-lg px-2 last:border-0">
+                                <div class="text-xl sm:text-2xl font-bold ${row.mobile === userMobile ? 'text-white' : 'text-slate-200'} flex items-center gap-4"><span class="w-8 text-center text-2xl">${medal}</span> ${mask} ${row.mobile === userMobile ? '<span class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full ml-2 uppercase">You</span>' : ''}</div>
+                                <div class="text-xl sm:text-2xl font-black text-amber-400">${row.score} pts</div>
+                            </div>`;
+                    });
+                } else {
+                    lbHtml += `<div class="text-center text-slate-400 py-10 font-bold">No scores recorded yet.</div>`;
+                }
+                lbHtml += `</div></div>`;
+                return lbHtml;
+            } catch(e) {
+                return `<div class="text-center text-rose-400 text-xl py-10">Leaderboard currently unavailable.</div>`;
+            }
+        }
+
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
 
-            // SCENARIO 1: A QUIZ IS GLOBALLY ACTIVE - OVERRIDE EVERYTHING
-            if (globalQuizIndex !== null && appData['quizzes']) {
-                const activeQuiz = appData['quizzes'].events.find(q => q.index === globalQuizIndex);
-                if (activeQuiz) {
-                    overlay.innerHTML = renderQuizOverlayHtml(activeQuiz);
-                    overlay.classList.remove('hidden');
-                    overlay.classList.add('flex');
-                    return; // Stop normal rendering
+            // SCENARIO 1: A QUIZ OR LEADERBOARD IS GLOBALLY ACTIVE
+            if (globalQuizIndex !== null) {
+                if (globalQuizIndex === -1) { // -1 Triggers the Leaderboard
+                    fetchAndRenderLeaderboard().then(html => {
+                        overlay.innerHTML = html;
+                        overlay.classList.remove('hidden');
+                        overlay.classList.add('flex');
+                    });
+                    return;
+                } else if (appData['quizzes']) { // Normal Quiz Question
+                    const activeQuiz = appData['quizzes'].events.find(q => q.index === globalQuizIndex);
+                    if (activeQuiz) {
+                        overlay.innerHTML = renderQuizOverlayHtml(activeQuiz);
+                        overlay.classList.remove('hidden');
+                        overlay.classList.add('flex');
+                        return; 
+                    }
                 }
             } else {
                 overlay.classList.add('hidden');
@@ -356,6 +425,20 @@
             // SCENARIO 2: NORMAL OPERATION
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Mobile Input UI Module
+            let mobileInputHtml = `
+                <div class="bg-gradient-to-r from-slate-800 to-slate-900 border border-indigo-500/40 rounded-2xl p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+                    <div>
+                        <h3 class="text-white font-bold text-sm sm:text-base"><i class="fas fa-mobile-alt text-indigo-400 mr-2"></i>Live Quiz Registration</h3>
+                        <p class="text-slate-400 text-xs sm:text-sm mt-1">Enter your number to track points & appear on the leaderboard.</p>
+                    </div>
+                    <div class="flex w-full sm:w-auto shadow-inner">
+                        <input type="tel" id="delegateMobileInput" placeholder="10-digit mobile" class="bg-slate-950 text-white px-4 py-2.5 rounded-l-xl border border-slate-700 outline-none focus:border-indigo-500 w-full sm:w-48 text-sm font-mono tracking-wider" value="${userMobile}" maxlength="10">
+                        <button onclick="saveUserMobile()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-r-xl font-bold text-sm transition shadow-lg active:scale-95">Save</button>
+                    </div>
+                </div>
+            `;
 
             let hallSelectorHtml = `
                 <div class="mb-6 pb-4 border-b border-slate-800">
@@ -375,19 +458,13 @@
                     if (currentEvent.adLink) {
                         let link = currentEvent.adLink;
                         let adMediaHtml = '';
-                        
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) {
-                                let vId = ytMatch[1];
-                                adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${vId}?autoplay=1&mute=1&loop=1&playlist=${vId}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                            }
-                        } 
-                        else if (link.includes('drive.google.com')) {
+                            if (ytMatch) { adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`; }
+                        } else if (link.includes('drive.google.com')) {
                             let fileId = link.match(/[-\w]{25,}/);
                             if (fileId) { adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
-                        }
-                        else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
+                        } else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
 
                         nowPlayingHtml = `
                             <div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl">
@@ -398,32 +475,20 @@
                                 ${adMediaHtml}
                             </div>`;
                     } else {
-                        let breakIcon = "fa-coffee"; 
-                        let iconColor = "text-amber-500";
-                        const titleLow = currentEvent.title.toLowerCase();
-
+                        let breakIcon = "fa-coffee"; let iconColor = "text-amber-500"; const titleLow = currentEvent.title.toLowerCase();
                         if (titleLow.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; } 
                         else if (titleLow.includes('banquet') || titleLow.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; } 
                         else if (titleLow.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
-                        nowPlayingHtml = `
-                            <div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner">
-                                <i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i>
-                                <h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
-                                <p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p>
-                            </div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p></div>`;
                     }
-                } 
-                else {
+                } else {
                     let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
                     if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
-                    
                     nowPlayingHtml = `
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
                             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg">
-                                    <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
-                                </span>
+                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
                                 <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
                             </div>
                             ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
@@ -435,15 +500,12 @@
 
             let upNextHtml = '';
             if (nextEvent) {
-                upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm mt-1.5 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-[10px] sm:text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Presentation'}</span></div>
-                    </div>`;
+                upNextHtml = `<div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm mt-1.5 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div><div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-[10px] sm:text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Presentation'}</span></div></div>`;
             }
 
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
+                    ${mobileInputHtml}
                     ${hallSelectorHtml}
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
