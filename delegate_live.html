@@ -8,9 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
@@ -21,12 +19,27 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen bg-slate-900 overflow-hidden">
 
-    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+    <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0">
+        <div id="identityLoggedOutState" class="w-full flex flex-row items-center gap-2">
+            <i class="fas fa-user-circle text-xl text-slate-500"></i>
+            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white max-w-[160px] font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
+            <button onclick="saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition ml-auto">Login to Play</button>
+        </div>
+        <div id="identityLoggedInState" class="w-full hidden flex flex-row items-center justify-between">
+            <div class="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                <i class="fas fa-check-circle"></i>
+                <span>Logged In: <span id="identityBannerLabel" class="font-mono text-white"></span></span>
+            </div>
+            <button onclick="clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-2 py-1 border border-slate-700 hover:border-rose-900 rounded-md transition"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
-            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Live Dashboard...</p>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse">Loading Conference Dashboard...</p>
         </div>
     </main>
 
@@ -39,7 +52,7 @@
         let currentSubscription = null;
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -48,23 +61,13 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August' 2026 - AO Seminar",
-            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
-            'workshop_mis': "21st August' 2026 - MIS Workshop",
-            '22a': "22nd August' 2026 - Day 1 Hall A",
-            '22b': "22nd August' 2026 - Day 1 Hall B",
-            '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B"
+            'ao_seminar': "21 Aug - AO Seminar", 'workshop_diabetic': "21 Aug - Diabetic WS", 'workshop_mis': "21 Aug - MIS WS",
+            '22a': "22 Aug - Hall A", '22b': "22 Aug - Hall B", '23a': "23 Aug - Hall A", '23b': "23 Aug - Hall B"
         };
 
         const buttonLabels = {
-            'ao_seminar': "21 Aug: AO Seminar",
-            'workshop_diabetic': "21 Aug: Diabetic Foot",
-            'workshop_mis': "21 Aug: MIS",
-            '22a': "22 Aug: Hall A",
-            '22b': "22 Aug: Hall B",
-            '23a': "23 Aug: Hall A",
-            '23b': "23 Aug: Hall B"
+            'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS",
+            '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B"
         };
 
         let appData = {};
@@ -74,7 +77,35 @@
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
         let liveUpdateTimer = null;
 
+        function refreshIdentityStateUI() {
+            let num = localStorage.getItem('delegate_phone');
+            if (num) {
+                document.getElementById('identityLoggedOutState').classList.add('hidden');
+                document.getElementById('identityLoggedInState').classList.remove('hidden');
+                document.getElementById('identityBannerLabel').innerText = num;
+            } else {
+                document.getElementById('identityLoggedInState').classList.add('hidden');
+                document.getElementById('identityLoggedOutState').classList.remove('hidden');
+            }
+        }
+
+        window.saveTopBannerIdentity = function() {
+            let val = document.getElementById('topPhoneRegisterInput').value.trim();
+            if (val.length >= 7) {
+                localStorage.setItem('delegate_phone', val);
+                refreshIdentityStateUI();
+                updateLiveDisplay();
+            } else { alert('Please supply a valid telephone identity.'); }
+        };
+
+        window.clearDelegateIdentity = function() {
+            localStorage.removeItem('delegate_phone');
+            refreshIdentityStateUI();
+            updateLiveDisplay();
+        };
+
         async function initializeApp() {
+            refreshIdentityStateUI();
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (cachedData) {
                 try {
@@ -260,18 +291,6 @@
             return { currentEvent, nextEvent };
         }
 
-        function switchDelegateHall(newHall) {
-            liveHall = newHall;
-            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            subscribeToHall(newHall); updateLiveDisplay();
-        }
-
-        window.saveDelegatePhone = function() {
-            let phone = document.getElementById('quizPhoneInput').value.trim();
-            if(phone.length >= 7) { localStorage.setItem('delegate_phone', phone); updateLiveDisplay(); } 
-            else { alert('Please enter a valid mobile number'); }
-        };
-
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
             let phone = localStorage.getItem('delegate_phone');
             try {
@@ -285,18 +304,13 @@
             try {
                 const { data } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
                 if (!data || data.length === 0) return '';
-                let counts = {};
-                data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                let counts = {}; data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
                 let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 3);
-                
                 return `
                     <div class="mt-6 p-4 bg-slate-800/80 rounded-2xl border border-slate-700">
-                        <h4 class="text-sm font-black text-amber-400 uppercase tracking-wider mb-3 flex items-center"><i class="fas fa-trophy mr-2"></i>Current Standings</h4>
+                        <h4 class="text-sm font-black text-amber-400 uppercase tracking-wider mb-3 flex items-center"><i class="fas fa-trophy mr-2"></i>Live Standings</h4>
                         <div class="flex flex-col gap-2">
-                            ${sorted.map((item, idx) => {
-                                let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
-                                return `<div class="flex justify-between text-xs font-semibold text-slate-300"><span>#${idx+1} ${ob}</span><span class="text-indigo-400 font-bold">${item[1]} pts</span></div>`;
-                            }).join('')}
+                            ${sorted.map((item, idx) => `<div class="flex justify-between text-xs font-semibold text-slate-300"><span>#${idx+1} ${item[0].substring(0, 2) + '******' + item[0].slice(-2)}</span><span class="text-indigo-400 font-bold">${item[1]} pts</span></div>`).join('')}
                         </div>
                     </div>`;
             } catch(e) { return ''; }
@@ -320,28 +334,32 @@
                     let savedPhone = localStorage.getItem('delegate_phone');
                     let hasAnswered = localStorage.getItem('answered_' + currentEvent.title.replace(/\W/g, ''));
 
+                    // FULL SCREEN INTERACTIVE HIJACK FOR LACK OF CREDENTIALS
                     if (!savedPhone) {
                         nowPlayingHtml = `
-                            <div class="bg-slate-800 p-8 rounded-3xl border border-indigo-500 shadow-2xl text-center mb-8">
-                                <i class="fas fa-mobile-alt text-5xl text-indigo-400 mb-4 animate-bounce"></i>
-                                <h2 class="text-2xl font-bold text-white mb-2">Live Interactive Quiz!</h2>
-                                <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4" placeholder="Mobile Number">
-                                <button onclick="saveDelegatePhone()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl">Start Quiz</button>
+                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-12">
+                                <i class="fas fa-id-card text-6xl text-indigo-400 mb-4 animate-bounce"></i>
+                                <h2 class="text-3xl font-black text-white mb-2">Quiz Gated Behind Identity</h2>
+                                <p class="text-slate-300 mb-6 text-sm max-w-sm mx-auto">Please input your mobile identifier via the prompt field above or use this box to instantly join the current hall trivia module.</p>
+                                <div class="max-w-xs mx-auto">
+                                    <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
+                                    <button onclick="localStorage.setItem('delegate_phone', document.getElementById('quizPhoneInput').value.trim()); refreshIdentityStateUI(); updateLiveDisplay();" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition">Submit & Unlock Question</button>
+                                </div>
                             </div>`;
                     } else if (hasAnswered) {
                         let leaderboardWidget = await renderLeaderboardWidget();
                         nowPlayingHtml = `
                             <div class="text-center py-12 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8">
-                                <i class="fas fa-check-circle text-6xl mb-4 text-emerald-500"></i>
-                                <h2 class="text-3xl font-black text-white">Answer Submitted!</h2>
+                                <i class="fas fa-check-circle text-6xl mb-4 text-emerald-500 animate-pulse"></i>
+                                <h2 class="text-3xl font-black text-white">Response Authenticated!</h2>
                                 ${leaderboardWidget}
                             </div>`;
                     } else {
                         let opHtml = currentEvent.options.map((opt, idx) => {
-                            let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            let sCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            let sTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 flex items-center"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                            let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '"');
+                            let sCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '"');
+                            let sTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '"');
+                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 flex items-center shadow"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                         }).join('');
                         
                         nowPlayingHtml = `
@@ -387,7 +405,7 @@
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time}</span><h4 class="text-lg font-bold text-slate-200">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 text-sm mt-1.5"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.time}</span><h4 class="text-lg font-bold text-slate-200">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 text-sm mt-1.5"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
                     </div>`;
             }
 
@@ -412,7 +430,7 @@
                 </div>`;
         }
 
-        function initLiveDashboard() { subscribeToHall(liveHall); setInterval(updateLiveDisplay, 30000); }
+        function initLiveDashboard() { subscribeToHall(liveHall); setInterval(updateLiveDisplay, 15000); }
         initializeApp();
     </script>
 </body>
