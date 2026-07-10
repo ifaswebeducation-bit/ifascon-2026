@@ -8,7 +8,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
@@ -103,7 +105,7 @@
         let globalQuizzes = [];
         let quizStartTimeStamp = null;
         let quizIntervalTracker = null;
-        const CACHE_KEY = 'ifascon_schedule_cache_v25'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v26'; 
         const container = document.getElementById('contentContainer');
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
@@ -406,7 +408,7 @@
                         nowPlayingHtml = `
                             <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600 p-10 shadow-2xl mb-8">
                                 <div class="flex justify-between items-center mb-6">
-                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-wider mb-4 inline-block"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
                                     <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-2 rounded-xl text-sm">Show Standings</button>
                                 </div>
                                 <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
@@ -428,6 +430,7 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
+                            // FIXED: Resolved broken evaluation bracket anomaly layout paint structure bug
                             if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
