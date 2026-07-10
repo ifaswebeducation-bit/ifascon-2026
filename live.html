@@ -330,8 +330,23 @@
             try { await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall); } catch(e) {} 
         }
 
-        function switchHallFeed(newHall) { liveHall = newHall; manualOverrideIndex = null; quizStartTime = null; const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl); updateFeedButtons(); fetchHallState().then(() => updateLiveDisplay()); resetPanelTimer(); }
+        async function switchHallFeed(newHall) { 
+            liveHall = newHall; 
+            manualOverrideIndex = null; 
+            quizStartTime = null; 
+            
+            // CRITICAL: Explicitly clear the state in Supabase so the new hall starts "Clean"
+            try { 
+                await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall); 
+            } catch(e) {}
 
+            const newUrl = new URL(window.location); 
+            newUrl.searchParams.set('hall', newHall); 
+            window.history.pushState({}, '', newUrl); 
+            updateFeedButtons(); 
+            fetchHallState().then(() => updateLiveDisplay()); 
+            resetPanelTimer(); 
+        }
         function updateFeedButtons() {
             document.querySelectorAll('.feed-btn').forEach(btn => { btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500'); btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700'); });
             const activeBtn = document.getElementById('feed-' + liveHall); if (activeBtn) { activeBtn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700'); activeBtn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500'); }
@@ -388,7 +403,7 @@
                             if (ytMatch) adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fileId = link.match(/[-\w]{25,}/);
-                            if (fileId) adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                            if (fileId) adMediaHtml = `<img src="https://lh3.googleusercontent.com/d/${fileId[0]}" class="w-full ...">`;
                         } else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
                         
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span></div>${adMediaHtml}</div>`;
