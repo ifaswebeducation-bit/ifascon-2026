@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
@@ -19,17 +19,27 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-slate-900">
 
-    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+    <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
+            <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
+            <h3 class="text-2xl font-black mb-2 text-white">AV Console Gated</h3>
+            <p class="text-slate-400 text-sm mb-6">Provide administrative password credentials to mount workspace controls.</p>
+            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••">
+            <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Unlock Workspace</button>
+        </div>
+    </div>
+
+    <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
                 <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">AV Control Panel</span>
-                <span class="text-xs sm:text-sm text-slate-300">TV unlinked on manual shift. Auto-hides in 4s.</span>
+                <span class="text-xs text-slate-400 font-medium">Timeline state directly linked to live delegate dashboards.</span>
             </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+            <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
                 <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev Talk</button>
                 <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">Next Talk ➔</button>
-                <button onclick="resumeAutoSync()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">End Quiz / Resume Auto</button>
-                <button onclick="toggleManualPanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm"><i class="fas fa-times"></i></button>
+                <button onclick="terminateActiveQuiz()" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 px-3 py-1.5 rounded-lg font-bold border border-rose-500/30 active:scale-95 transition text-sm">Clear Active Quiz</button>
+                <button onclick="resumeAutoSync()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 active:scale-95 transition text-sm">Resume Auto Sync</button>
             </div>
         </div>
         
@@ -59,9 +69,9 @@
     </div>
 
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
-        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-30">
             <div class="loader mb-4"></div>
-            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Connecting to Live Hall Feed...</p>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse">Syncing Engine Schedule Database...</p>
         </div>
     </main>
 
@@ -71,22 +81,12 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv', 
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv', 
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
-        };
-
-        const configTitles = {
-            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
-            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
-            'workshop_mis': "21st August' 2026 - MIS Workshop",
-            '22a': "22nd August' 2026 - Day 1 Hall A",
-            '22b': "22nd August' 2026 - Day 1 Hall B",
-            '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B"
         };
 
         let appData = {};
@@ -101,7 +101,27 @@
         let manualOverrideIndex = null;
         let liveUpdateTimer = null;
 
+        // AUTHENTICATION PERSISTENCE SUITE ENGINE LOCKS
+        function checkPersistentAuth() {
+            if (sessionStorage.getItem('av_authenticated') === 'true') {
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            }
+        }
+
+        window.verifyGatePass = function() {
+            let val = document.getElementById('gatePassInput').value.trim();
+            if (val === 'ifascon2026') {
+                sessionStorage.setItem('av_authenticated', 'true');
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            } else {
+                alert('Invalid passkey architecture token.');
+            }
+        };
+
         async function initializeApp() {
+            checkPersistentAuth();
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (cachedData) {
                 try {
@@ -147,7 +167,7 @@
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
-                } catch(err) { console.error("Error fetching " + key, err); }
+                } catch(err) { console.error("Error configuration map sync mismatch: " + key, err); }
             }
             
             if (Object.keys(fetchedData).length > 0) {
@@ -281,20 +301,6 @@
             return { currentEvent, nextEvent };
         }
 
-        function toggleManualPanel() { 
-            const panel = document.getElementById('manualOverridePanel');
-            if (panel.classList.contains('hidden')) {
-                let password = prompt("Enter AV Admin Control Password:");
-                if (password === "ifascon2026") {
-                    panel.classList.remove('hidden'); 
-                } else if (password !== null) {
-                    alert("Unauthorized access denied.");
-                }
-            } else {
-                panel.classList.add('hidden');
-            }
-        }
-
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
@@ -316,6 +322,17 @@
 
         async function launchQuiz(idx) {
             manualOverrideIndex = -(idx + 1);
+            updateLiveDisplay();
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
+        }
+
+        // SEPARATE BUTTONS SPLIT LOGIC
+        async function terminateActiveQuiz() {
+            const data = appData[liveHall]; if (!data) return;
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            const { currentEvent } = getLiveStatus(data.events);
+            let fallbackIndex = playableEvents.indexOf(currentEvent);
+            manualOverrideIndex = fallbackIndex !== -1 ? fallbackIndex : 0;
             updateLiveDisplay();
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
         }
@@ -422,8 +439,7 @@
                             </div>
                         </div>
                         <div class="flex-1 w-full sm:w-auto flex justify-end">
-                            <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto">
-                                <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 text-xl"></i>
+                            <div class="bg-slate-800/80 border border-slate-700 px-5 py-3 rounded-2xl flex items-center gap-3 shadow-lg ml-auto">
                                 <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
                             </div>
                         </div>
@@ -467,7 +483,7 @@
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            liveUpdateTimer = setInterval(updateLiveDisplay, 30000);
+            liveUpdateTimer = setInterval(updateLiveDisplay, 15000);
         }
 
         initializeApp();
