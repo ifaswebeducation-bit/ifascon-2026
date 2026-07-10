@@ -83,7 +83,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v18'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v19'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -182,7 +182,6 @@
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
 
-                    // Detect Ad Link
                     let adLink = "";
                     for(let cell of r) {
                         if(cell.toLowerCase().includes('http')) {
@@ -206,16 +205,27 @@
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
-                if (!isQA && !isPlenary) {
+                
+                // FIXED: Detect Oration strictly and separately to avoid missing Symposiums
+                if (row_text.includes('oration')) {
+                    isSession = true; 
+                    isOration = true;
+                } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
                     else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
-                    else if (row_text.includes('oration')) { isSession = true; isOration = true; }
                 }
 
                 if (isSession) {
-                    let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
+                    // FIXED: Smart String Merger to prevent "Oration: Oration"
+                    let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                        else topic = col3 + ": " + colTitle;
+                    }
+
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
@@ -250,13 +260,11 @@
         }
 
         function getLiveStatus(events) {
-            // Include Orations in the playable playlist!
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
             
             if (manualOverrideIndex !== null) {
                 return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             }
-            
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
@@ -414,7 +422,8 @@
                                 </span>
                                 <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
                             </div>
-                            ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
+                            <!-- FIXED: Hide parent_session if it is identical to the title -->
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
                             <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
