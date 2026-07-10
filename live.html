@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -22,7 +21,6 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -36,7 +34,6 @@
                 <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
             </div>
         </div>
-        <!-- Feed Switcher -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -83,7 +80,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v16'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v17'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -180,7 +177,26 @@
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '' });
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+
+                    // Detect Ad Link
+                    let adLink = "";
+                    for(let cell of r) {
+                        if(cell.toLowerCase().includes('http')) {
+                            adLink = cell;
+                            break;
+                        }
+                    }
+
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '',
+                        adLink: adLink 
+                    });
                     return;
                 }
 
@@ -197,7 +213,7 @@
 
                 if (isSession) {
                     let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
@@ -331,22 +347,72 @@
             updateFeedButtons();
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
+            
             if (currentEvent) {
-                let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
-                
-                nowPlayingHtml = `
-                    <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
-                        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                            <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
-                                <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
-                            </span>
-                            <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
-                        </div>
-                        ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
-                        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                        ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
-                    </div>`;
+                if (currentEvent.type === 'break') {
+                    if (currentEvent.adLink) {
+                        let link = currentEvent.adLink;
+                        let adMediaHtml = '';
+                        
+                        if (link.includes('youtube.com') || link.includes('youtu.be')) {
+                            let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+                            if (ytMatch) {
+                                let vId = ytMatch[1];
+                                adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${vId}?autoplay=1&mute=1&loop=1&playlist=${vId}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                            }
+                        } 
+                        else if (link.includes('drive.google.com')) {
+                            let fileId = link.match(/[-\w]{25,}/);
+                            if (fileId) {
+                                adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                            }
+                        }
+                        else {
+                            adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                        }
+
+                        nowPlayingHtml = `
+                            <div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span>
+                                    <span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span>
+                                </div>
+                                ${adMediaHtml}
+                            </div>`;
+                    } else {
+                        let breakIcon = "fa-coffee"; 
+                        let iconColor = "text-amber-500";
+                        const titleLow = currentEvent.title.toLowerCase();
+
+                        if (titleLow.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; } 
+                        else if (titleLow.includes('banquet') || titleLow.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; } 
+                        else if (titleLow.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
+                        nowPlayingHtml = `
+                            <div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner">
+                                <i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i>
+                                <h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
+                                <p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p>
+                            </div>`;
+                    }
+                } 
+                else {
+                    let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                    if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
+                    
+                    nowPlayingHtml = `
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
+                            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
+                                    <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
+                                </span>
+                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
+                            </div>
+                            ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
+                            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                        </div>`;
+                }
             }
 
             let upNextHtml = '';
@@ -363,13 +429,14 @@
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
                             <div class="flex items-center gap-3 mb-1">
+                                <span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest hidden lg:inline-block">Digital Signage</span>
                                 <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
                             </div>
                             <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
                             <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 md:h-40 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
                             </div>
                         </div>
                         <div class="flex-1 w-full sm:w-auto flex justify-end">
