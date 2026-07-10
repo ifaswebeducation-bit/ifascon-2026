@@ -14,7 +14,7 @@
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animate-live { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes pulse { 0%, 100__ { opacity: 1; } 50% { opacity: 0.6; } }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -49,7 +49,9 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let remoteOverrideIndex = null;
+        let quizStartTimeStamp = null;
         let currentSubscription = null;
+        let tickerTimer = null;
 
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=2142278070&single=true&output=csv',
@@ -65,6 +67,7 @@
             '22a': "22 Aug - Hall A", '22b': "22 Aug - Hall B", '23a': "23 Aug - Hall A", '23b': "23 Aug - Hall B"
         };
 
+        // FIXED: Re-instated explicit configuration bindings for hall selections mapping array loops correctly
         const buttonLabels = {
             'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS",
             '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B"
@@ -72,38 +75,9 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v12'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v13'; 
         const container = document.getElementById('contentContainer');
-        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
-        let liveUpdateTimer = null;
-
-        function refreshIdentityStateUI() {
-            let num = localStorage.getItem('delegate_phone');
-            if (num) {
-                document.getElementById('identityLoggedOutState').classList.add('hidden');
-                document.getElementById('identityLoggedInState').classList.remove('hidden');
-                document.getElementById('identityBannerLabel').innerText = num;
-            } else {
-                document.getElementById('identityLoggedInState').classList.add('hidden');
-                document.getElementById('identityLoggedOutState').classList.remove('hidden');
-            }
-        }
-
-        window.saveTopBannerIdentity = function() {
-            let val = document.getElementById('topPhoneRegisterInput').value.trim();
-            if (val.length >= 7) {
-                localStorage.setItem('delegate_phone', val);
-                refreshIdentityStateUI();
-                updateLiveDisplay();
-            } else { alert('Please supply a valid telephone identity.'); }
-        };
-
-        window.clearDelegateIdentity = function() {
-            localStorage.removeItem('delegate_phone');
-            refreshIdentityStateUI();
-            updateLiveDisplay();
-        };
-
+        
         async function initializeApp() {
             refreshIdentityStateUI();
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -118,6 +92,35 @@
                 } catch (e) { fetchLiveSchedule(false); }
             } else { fetchLiveSchedule(false); }
         }
+
+        function refreshIdentityStateUI() {
+            let num = localStorage.getItem('delegate_phone');
+            let loggedInView = document.getElementById('identityLoggedInState');
+            let loggedOutView = document.getElementById('identityLoggedOutState');
+            if (num && loggedInView && loggedOutView) {
+                loggedOutView.classList.add('hidden');
+                loggedInView.classList.remove('hidden');
+                document.getElementById('identityBannerLabel').innerText = num;
+            } else if (loggedInView && loggedOutView) {
+                loggedInView.classList.add('hidden');
+                loggedOutView.classList.remove('hidden');
+            }
+        }
+
+        window.saveTopBannerIdentity = function() {
+            let val = document.getElementById('topPhoneRegisterInput').value.trim();
+            if (val.length >= 7) {
+                localStorage.setItem('delegate_phone', val);
+                refreshIdentityStateUI();
+                updateLiveDisplay();
+            } else { alert('Please supply a valid telephone number.'); }
+        };
+
+        window.clearDelegateIdentity = function() {
+            localStorage.removeItem('delegate_phone');
+            refreshIdentityStateUI();
+            updateLiveDisplay();
+        };
 
         async function fetchLiveSchedule(isBackground = false) {
             let fetchedData = {};
@@ -138,7 +141,7 @@
                             let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                             if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
                             if (isWs) {
-                                if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
+                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
                                 else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
                                 if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
                                 else { ev.hall = "MIS Hall"; mis.push(ev); }
@@ -251,12 +254,22 @@
 
         function subscribeToHall(hall_id) {
             if (currentSubscription) supabaseClient.removeChannel(currentSubscription);
-            supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single().then(({ data }) => {
-                if (data) { remoteOverrideIndex = data.override_index; updateLiveDisplay(); }
+            
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', hall_id).single().then(({ data }) => {
+                if (data) { 
+                    remoteOverrideIndex = data.override_index; 
+                    quizStartTimeStamp = data.quiz_start_time;
+                }
+                updateLiveDisplay();
             });
-            currentSubscription = supabaseClient.channel('custom-all-channel')
+
+            currentSubscription = supabaseClient.channel('custom-delegate-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
-                    (payload) => { remoteOverrideIndex = payload.new.override_index; updateLiveDisplay(); }
+                    (payload) => { 
+                        remoteOverrideIndex = payload.new.override_index; 
+                        quizStartTimeStamp = payload.new.quiz_start_time;
+                        updateLiveDisplay(); 
+                    }
                 ).subscribe();
         }
 
@@ -293,10 +306,14 @@
 
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
             let phone = localStorage.getItem('delegate_phone');
+            let cleanKey = questionText.replace(/\W/g, '');
+            localStorage.setItem('marked_' + cleanKey, option); 
+            
             try {
                 await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, is_correct: (option === correctOption) }]);
             } catch(e) {}
-            localStorage.setItem('answered_' + questionText.replace(/\W/g, ''), 'true');
+            
+            localStorage.setItem('answered_' + cleanKey, 'true');
             updateLiveDisplay();
         };
 
@@ -321,6 +338,7 @@
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+            // FIXED: Injected explicit array button iterations using buttonLabels configuration mapping
             let hallSelectorHtml = `<div class="mb-6 pb-4 border-b border-slate-800"><span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span><div class="flex flex-wrap items-center gap-2">`;
             for (const [key, label] of Object.entries(buttonLabels)) {
                 hallSelectorHtml += `<button onclick="switchDelegateHall('${key}')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold border transition-colors flex-shrink-0 ${key === liveHall ? 'bg-indigo-600 text-white border-indigo-500 shadow-md' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">${label}</button>`;
@@ -332,41 +350,83 @@
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
                     let savedPhone = localStorage.getItem('delegate_phone');
-                    let hasAnswered = localStorage.getItem('answered_' + currentEvent.title.replace(/\W/g, ''));
+                    let cleanKey = currentEvent.title.replace(/\W/g, '');
+                    let hasAnswered = localStorage.getItem('answered_' + cleanKey);
+                    let mySelection = localStorage.getItem('marked_' + cleanKey) || '';
 
-                    // FULL SCREEN INTERACTIVE HIJACK FOR LACK OF CREDENTIALS
+                    let secondsLeft = 45;
+                    if (quizStartTimeStamp) {
+                        let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                        secondsLeft = 45 - diff;
+                        if (secondsLeft < 0) secondsLeft = 0;
+                    }
+
+                    // 1. GATED FORCE LOGIN STATE OVER QUIZ ACTIVE
                     if (!savedPhone) {
                         nowPlayingHtml = `
-                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-12">
-                                <i class="fas fa-id-card text-6xl text-indigo-400 mb-4 animate-bounce"></i>
-                                <h2 class="text-3xl font-black text-white mb-2">Quiz Gated Behind Identity</h2>
-                                <p class="text-slate-300 mb-6 text-sm max-w-sm mx-auto">Please input your mobile identifier via the prompt field above or use this box to instantly join the current hall trivia module.</p>
+                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-6 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-10">
+                                <i class="fas fa-id-card text-5xl text-indigo-400 mb-4 animate-bounce"></i>
+                                <h2 class="text-2xl font-black text-white mb-2">Quiz Gated Behind Identity</h2>
+                                <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box below to instantly unlock the running conference question module.</p>
                                 <div class="max-w-xs mx-auto">
-                                    <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="localStorage.setItem('delegate_phone', document.getElementById('quizPhoneInput').value.trim()); refreshIdentityStateUI(); updateLiveDisplay();" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg transition">Submit & Unlock Question</button>
+                                    <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
+                                    <button onclick="let v = document.getElementById('quizPhoneInput').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); updateLiveDisplay(); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Submit & Join</button>
                                 </div>
                             </div>`;
-                    } else if (hasAnswered) {
+                    } 
+                    // 2. RUNNING STATE VOTING SCREEN
+                    else if (secondsLeft > 0) {
+                        if (hasAnswered) {
+                            nowPlayingHtml = `
+                                <div class="bg-slate-950 p-6 rounded-3xl border border-emerald-500/40 shadow-xl mb-8">
+                                    <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider block w-max mb-4"><i class="fas fa-lock mr-1.5"></i> Submission Frozen</span>
+                                    <h2 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h2>
+                                    <div class="flex flex-col gap-2.5">
+                                        ${currentEvent.options.map((opt, idx) => {
+                                            let selected = (opt.trim().toLowerCase() === mySelection.trim().toLowerCase());
+                                            let borderStyle = selected ? "border-indigo-500 bg-indigo-950/40 text-white font-bold" : "border-slate-800 bg-slate-900/40 text-slate-500 opacity-60";
+                                            let checkTag = selected ? `<span class="bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] uppercase font-black ml-auto">Your Selection</span>` : '';
+                                            return `<div class="border p-4 rounded-xl text-sm flex items-center ${borderStyle}"><span class="bg-slate-950 px-2.5 py-1 rounded text-xs mr-3 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${checkTag}</div>`;
+                                        }).join('')}
+                                    </div>
+                                    <div class="mt-5 text-center text-xs text-slate-400 font-medium">Awaiting live desk timer breakdown execution...</div>
+                                </div>`;
+                        } else {
+                            let opHtml = currentEvent.options.map((opt, idx) => {
+                                let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '"');
+                                let sCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '"');
+                                let sTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '"');
+                                return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-3.5 px-4 rounded-xl text-left transition mb-2.5 text-sm flex items-center shadow"><span class="bg-slate-900 px-2.5 py-0.5 rounded text-indigo-400 mr-3 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                            }).join('');
+                            
+                            nowPlayingHtml = `
+                                <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-5 shadow-2xl mb-8">
+                                    <div class="flex justify-between items-center mb-5 border-b border-slate-700/50 pb-3">
+                                        <span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-bolt mr-1"></i> Live Trivia</span>
+                                        <span class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-sm font-black px-3 py-1 rounded-xl"><i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s</span>
+                                    </div>
+                                    <h2 class="text-xl font-black text-white leading-snug mb-6">${currentEvent.title}</h2>
+                                    <div>${opHtml}</div>
+                                </div>`;
+                        }
+                    } 
+                    // 3. TIME-UP EXPIRED STATE
+                    else {
                         let leaderboardWidget = await renderLeaderboardWidget();
                         nowPlayingHtml = `
-                            <div class="text-center py-12 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8">
-                                <i class="fas fa-check-circle text-6xl mb-4 text-emerald-500 animate-pulse"></i>
-                                <h2 class="text-3xl font-black text-white">Response Authenticated!</h2>
+                            <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600/40 p-6 shadow-2xl mb-8">
+                                <span class="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider mb-4 inline-block"><i class="fas fa-stopwatch mr-1"></i> Quiz Question Time Up!</span>
+                                <h3 class="text-lg font-bold text-slate-400 mb-5 leading-snug">${currentEvent.title}</h3>
+                                <div class="flex flex-col gap-2 mb-4">
+                                    ${currentEvent.options.map((opt, idx) => {
+                                        let isCorrect = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
+                                        let selected = (opt.trim().toLowerCase() === mySelection.trim().toLowerCase());
+                                        let itemClass = isCorrect ? "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-1 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                                        let labelMarker = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[10px] font-black uppercase ml-auto">Correct Answer</span>` : selected ? `<span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[10px] ml-auto">Your Guess</span>` : '';
+                                        return `<div class="border p-3 rounded-xl text-xs flex items-center ${itemClass}"><span class="bg-slate-950 px-2 py-0.5 rounded mr-3 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
+                                    }).join('')}
+                                </div>
                                 ${leaderboardWidget}
-                            </div>`;
-                    } else {
-                        let opHtml = currentEvent.options.map((opt, idx) => {
-                            let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '"');
-                            let sCorrect = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '"');
-                            let sTitle = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '"');
-                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 flex items-center shadow"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
-                        }).join('');
-                        
-                        nowPlayingHtml = `
-                            <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 shadow-2xl mb-8">
-                                <div class="flex justify-between items-center mb-4"><span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-bolt mr-1"></i> Live Quiz</span></div>
-                                <h2 class="text-2xl font-black text-white leading-tight mb-8">${currentEvent.title}</h2>
-                                <div>${opHtml}</div>
                             </div>`;
                     }
                 } else if (currentEvent.type === 'break') {
@@ -378,7 +438,7 @@
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`;
-                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
+                        } else { media = `<img src="${link}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`; }
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
@@ -386,7 +446,6 @@
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.time}</p></div>`;
                     }
                 } else {
@@ -430,7 +489,16 @@
                 </div>`;
         }
 
-        function initLiveDashboard() { subscribeToHall(liveHall); setInterval(updateLiveDisplay, 15000); }
+        function initLiveDashboard() { 
+            subscribeToHall(liveHall); 
+            if(liveUpdateTimer) clearInterval(liveUpdateTimer);
+            if(tickerTimer) clearInterval(tickerTimer);
+            liveUpdateTimer = setInterval(updateLiveDisplay, 15000); 
+            tickerTimer = setInterval(() => {
+                if(remoteOverrideIndex !== null && remoteOverrideIndex < 0) updateLiveDisplay();
+            }, 1000);
+        }
+        
         initializeApp();
     </script>
 </body>
