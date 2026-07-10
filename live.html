@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -22,7 +21,6 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
 
-    <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-[200] shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -36,7 +34,6 @@
                 <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
             </div>
         </div>
-        <!-- Feed Switcher -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -52,7 +49,6 @@
         </div>
     </div>
 
-    <!-- Container for dynamic content -->
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full z-10" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
@@ -60,10 +56,8 @@
         </div>
     </main>
     
-    <!-- Full Screen Quiz Overlay -->
     <div id="quizOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950 flex-col items-center justify-center p-6 overflow-y-auto">
-        <!-- Injected dynamically -->
-    </div>
+        </div>
 
     <script>
         // --- SAFE SUPABASE INITIALIZATION ---
@@ -92,7 +86,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_av_cache_v22'; 
+        const CACHE_KEY = 'ifascon_av_cache_v24'; 
         const container = document.getElementById('contentContainer');
         const overlay = document.getElementById('quizOverlay');
         const urlParams = new URLSearchParams(window.location.search);
@@ -425,13 +419,39 @@
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
             updateFeedButtons();
+            
+            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // THE UNIVERSAL TOP HEADER - Ensures the clock button is ALWAYS present
+            const headerHtml = `
+                <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+                    <div class="flex-1 w-full sm:w-auto text-left">
+                        <div class="flex items-center gap-3 mb-1">
+                            <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                    </div>
+                    <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
+                        <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full sm:w-auto flex justify-end">
+                        <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto" title="Click for AV Controls">
+                            <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
+                            <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
 
             // SCENARIO 1: ADMIN QUIZ CONTROL PANEL
             if (liveHall === 'quizzes') {
                 overlay.classList.add('hidden'); // Ensure overlay is hidden in admin view
                 
                 let quizAdminHtml = `
-                    <div class="max-w-5xl mx-auto pt-6">
+                    <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
+                        ${headerHtml}
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-800/80 p-6 sm:p-8 rounded-3xl mb-8 border border-slate-700 gap-6">
                             <div>
                                 <h2 class="text-3xl font-black text-white mb-2"><i class="fas fa-satellite-dish text-indigo-400 mr-3"></i>Global Quiz Control</h2>
@@ -482,7 +502,6 @@
 
             // SCENARIO 3: NORMAL HALL SCHEDULE
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
-            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             
@@ -564,25 +583,7 @@
 
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
-                        <div class="flex-1 w-full sm:w-auto text-left">
-                            <div class="flex items-center gap-3 mb-1">
-                                <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
-                            </div>
-                            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
-                        </div>
-                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
-                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
-                            </div>
-                        </div>
-                        <div class="flex-1 w-full sm:w-auto flex justify-end">
-                            <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto" title="Click for AV Controls">
-                                <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
-                                <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
-                            </div>
-                        </div>
-                    </div>
+                    ${headerHtml}
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
