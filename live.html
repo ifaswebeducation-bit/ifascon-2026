@@ -8,10 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
@@ -22,7 +19,6 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-slate-900">
 
-    <!-- AV Control Panel Overlay -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -32,18 +28,16 @@
             <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
                 <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev Talk</button>
                 <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">Next Talk ➔</button>
-                <button onclick="resumeAutoSync()" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 px-3 py-1.5 rounded-lg font-bold border border-rose-500/30 active:scale-95 transition text-sm">Resume Auto</button>
+                <button onclick="resumeAutoSync()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">End Quiz / Resume Auto</button>
                 <button onclick="toggleManualPanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm"><i class="fas fa-times"></i></button>
             </div>
         </div>
         
-        <!-- Secret Quiz Launcher Sub-bar -->
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
             <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>
             <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
 
-        <!-- TV Station Switcher bar -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -58,14 +52,12 @@
         </div>
     </div>
 
-    <!-- Live Leaderboard Overlaid Frame -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Quiz Performers</h2>
         <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
         <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close Leaderboard</button>
     </div>
 
-    <!-- Main Dynamic Workspace View -->
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
@@ -99,7 +91,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_v23'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v24'; 
         const container = document.getElementById('contentContainer');
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
@@ -289,13 +281,11 @@
             return { currentEvent, nextEvent };
         }
 
-        // --- PASSWORD PROTECTION STATE CHECK ---
         function toggleManualPanel() { 
             const panel = document.getElementById('manualOverridePanel');
             if (panel.classList.contains('hidden')) {
-                // Prompts static secret access layer password logic
                 let password = prompt("Enter AV Admin Control Password:");
-                if (password === "IFASCON2026") {
+                if (password === "ifascon2026") {
                     panel.classList.remove('hidden'); 
                 } else if (password !== null) {
                     alert("Unauthorized access denied.");
@@ -383,9 +373,8 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            // HIGH SPEED GOOGLE DRIVE CLOUD ACCELERATION ENGINE LAYER RENDERING
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`;
-                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`; }
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
@@ -416,7 +405,7 @@
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
                         <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
@@ -469,7 +458,6 @@
 
         function initLiveKiosk() {
             updateLiveDisplay();
-            // Hook direct active real-time updates for AV master tracking channel state
             supabaseClient.channel('custom-all-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
                     (payload) => {
