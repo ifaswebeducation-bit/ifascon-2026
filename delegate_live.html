@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -45,7 +44,8 @@
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
-            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv'
         };
 
         const configTitles = {
@@ -55,7 +55,8 @@
             '22a': "22 Aug - Hall A",
             '22b': "22 Aug - Hall B",
             '23a': "23 Aug - Hall A",
-            '23b': "23 Aug - Hall B"
+            '23b': "23 Aug - Hall B",
+            'quizzes': "IFASCON 2026 - Quizzes"
         };
 
         const buttonLabels = {
@@ -65,11 +66,12 @@
             '22a': "22 Aug: Hall A",
             '22b': "22 Aug: Hall B",
             '23a': "23 Aug: Hall A",
-            '23b': "23 Aug: Hall B"
+            '23b': "23 Aug: Hall B",
+            'quizzes': "Quizzes"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v8'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v9'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -156,12 +158,12 @@
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
                 if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                const breakRegex = /\b(break|lunch|tea|coffee|registration|inauguration|banquet|gbm|valedictory)\b/i;
+                if (breakRegex.test(row_text) && !/\b(symposium|session)\b/i.test(row_text)) {
                     let text = colTitle || col3 || col0;
-                    if (row_text.includes("registration")) text = "Registration";
-                    else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    if (/\bregistration\b/i.test(row_text)) text = "Registration";
+                    else if (/\blunch\b/i.test(row_text)) text = "Lunch";
+                    else if (/\b(coffee|tea)\b/i.test(row_text)) text = "Tea / Coffee Break";
 
                     // Detect Ad Link
                     let adLink = "";
@@ -189,14 +191,14 @@
                 let isSession = false, isOration = false;
 
                 // FIXED: Detect Oration strictly and separately
-                if (row_text.includes('oration')) {
+                if (/\boration\b/i.test(row_text)) {
                     isSession = true; 
                     isOration = true;
                 } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (/\b(symposium|session|workshop)\b/i.test(row_text)) isSession = true;
                 }
 
                 if (isSession) {
@@ -208,7 +210,7 @@
                         else topic = col3 + ": " + colTitle;
                     }
 
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
@@ -375,7 +377,6 @@
                                 </span>
                                 <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
                             </div>
-                            <!-- FIXED: Hide parent_session if it is identical to the title -->
                             ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
                             <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
