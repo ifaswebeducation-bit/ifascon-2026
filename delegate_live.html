@@ -258,8 +258,22 @@
         }
 
         function switchDelegateHall(newHall) {
-            liveHall = newHall; const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            subscribeToHall(newHall); updateLiveDisplay();
+            // 1. Destroy old subscription
+            if (currentSubscription) {
+                supabaseClient.removeChannel(currentSubscription);
+            }
+            
+            // 2. Set new state
+            liveHall = newHall;
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('hall', newHall);
+            window.history.pushState({}, '', newUrl);
+            
+            // 3. Force re-subscribe to the specific hall
+            subscribeToHall(newHall);
+            
+            // 4. Force re-fetch of local data
+            updateLiveDisplay();
         }
 
         // PERFECTED SUBMIT ACTION (LOWERCASE + TRIM GRADING)
