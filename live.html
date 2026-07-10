@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
@@ -21,6 +22,7 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
+    <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -34,6 +36,7 @@
                 <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
             </div>
         </div>
+        <!-- Feed Switcher -->
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -80,7 +83,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v17'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v18'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -247,10 +250,13 @@
         }
 
         function getLiveStatus(events) {
-            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
+            // Include Orations in the playable playlist!
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            
             if (manualOverrideIndex !== null) {
                 return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             }
+            
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
@@ -284,7 +290,7 @@
 
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
-            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break');
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
             
             if (manualOverrideIndex === null) {
                 const { currentEvent } = getLiveStatus(data.events);
