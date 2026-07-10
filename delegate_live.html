@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -21,14 +22,19 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden relative">
 
-    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+    <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full z-10" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
             <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Live Dashboard...</p>
         </div>
     </main>
+
+    <!-- Full Screen Quiz Overlay -->
+    <div id="quizOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950 flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <!-- Injected dynamically -->
+    </div>
 
     <script>
         // --- SAFE SUPABASE INITIALIZATION ---
@@ -37,6 +43,7 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         let remoteOverrideIndex = null;
+        let globalQuizIndex = null; // Track global quiz state separately
         let currentSubscription = null;
 
         const sheetLinks = {
@@ -56,7 +63,7 @@
             '22b': "22 Aug - Hall B",
             '23a': "23 Aug - Hall A",
             '23b': "23 Aug - Hall B",
-            'quizzes': "IFASCON 2026 - Quizzes"
+            'quizzes': "Live Quizzes"
         };
 
         const buttonLabels = {
@@ -66,13 +73,13 @@
             '22a': "22 Aug: Hall A",
             '22b': "22 Aug: Hall B",
             '23a': "23 Aug: Hall A",
-            '23b': "23 Aug: Hall B",
-            'quizzes': "Quizzes"
+            '23b': "23 Aug: Hall B"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v9'; 
+        const CACHE_KEY = 'ifascon_delegate_cache_v23'; 
         const container = document.getElementById('contentContainer');
+        const overlay = document.getElementById('quizOverlay');
         const urlParams = new URLSearchParams(window.location.search);
         
         let liveHall = urlParams.get('hall') || '22a'; 
@@ -99,7 +106,10 @@
                     Papa.parse(csvText, {
                         complete: function(results) {
                             try {
-                                if (key === 'ao') {
+                                if (key === 'quizzes') {
+                                    fetchedData['quizzes'] = { title: configTitles['quizzes'], events: parseQuizData(results.data) };
+                                }
+                                else if (key === 'ao') {
                                     const allAoEvents = parseRawData(results.data, "21 Aug");
                                     let seminarEvents = [], diabeticEvents = [], misEvents = [];
                                     let isWorkshopSection = false;
@@ -143,6 +153,21 @@
             }
         }
 
+        function parseQuizData(rows) {
+            let qs = [];
+            rows.forEach((r, idx) => {
+                if (r.length === 0 || !r[0]) return;
+                if (idx === 0 && r[0].toLowerCase().includes("question")) return;
+                
+                qs.push({
+                    index: qs.length,
+                    question: r[0].trim(),
+                    options: r.slice(1, 5).map(o => o ? o.trim() : "").filter(o => o !== "")
+                });
+            });
+            return qs;
+        }
+
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             rows.forEach(r => {
@@ -165,24 +190,12 @@
                     else if (/\blunch\b/i.test(row_text)) text = "Lunch";
                     else if (/\b(coffee|tea)\b/i.test(row_text)) text = "Tea / Coffee Break";
 
-                    // Detect Ad Link
                     let adLink = "";
                     for(let cell of r) {
-                        if(cell.toLowerCase().includes('http')) {
-                            adLink = cell;
-                            break;
-                        }
+                        if(cell.toLowerCase().includes('http')) { adLink = cell; break; }
                     }
 
-                    events.push({ 
-                        type: 'break', 
-                        title: text, 
-                        time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '',
-                        adLink: adLink
-                    });
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
 
@@ -190,10 +203,8 @@
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
 
-                // FIXED: Detect Oration strictly and separately
                 if (/\boration\b/i.test(row_text)) {
-                    isSession = true; 
-                    isOration = true;
+                    isSession = true; isOration = true;
                 } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
@@ -202,14 +213,12 @@
                 }
 
                 if (isSession) {
-                    // FIXED: Smart String Merger
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
                     if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
                         if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
                         else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
                         else topic = col3 + ": " + colTitle;
                     }
-
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
@@ -245,34 +254,39 @@
 
         // --- SUPABASE: LISTENER SYNC LOGIC ---
         function subscribeToHall(hall_id) {
-            if (currentSubscription) {
-                supabaseClient.removeChannel(currentSubscription);
-            }
+            if (currentSubscription) { supabaseClient.removeChannel(currentSubscription); }
             
-            supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
+            // Check current global quiz state
+            supabaseClient.from('hall_states').select('override_index').eq('hall_id', 'global_quiz').single()
                 .then(({ data }) => {
-                    if (data) {
-                        remoteOverrideIndex = data.override_index;
-                        updateLiveDisplay();
-                    }
+                    if (data) { globalQuizIndex = data.override_index; updateLiveDisplay(); }
                 });
 
-            currentSubscription = supabaseClient.channel('custom-all-channel')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
+            // Check specific hall state
+            supabaseClient.from('hall_states').select('override_index').eq('hall_id', hall_id).single()
+                .then(({ data }) => {
+                    if (data) { remoteOverrideIndex = data.override_index; updateLiveDisplay(); }
+                });
+
+            // Subscribe to ALL hall updates to catch both global overrides and specific hall overrides
+            currentSubscription = supabaseClient.channel('delegate-all-channel')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' },
                     (payload) => {
-                        remoteOverrideIndex = payload.new.override_index;
-                        updateLiveDisplay();
+                        if (payload.new.hall_id === 'global_quiz') {
+                            globalQuizIndex = payload.new.override_index;
+                            updateLiveDisplay();
+                        }
+                        else if (payload.new.hall_id === liveHall) {
+                            remoteOverrideIndex = payload.new.override_index;
+                            updateLiveDisplay();
+                        }
                     }
                 ).subscribe();
         }
 
         function getLiveStatus(events) {
-            // Include Orations in the playable playlist!
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
-            
-            if (remoteOverrideIndex !== null) {
-                return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
-            }
+            if (remoteOverrideIndex !== null) return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
             
             const currentMins = getCurrentMinutes();
             let currentEvent = null, nextEvent = null;
@@ -299,8 +313,47 @@
             updateLiveDisplay();
         }
 
+        function renderQuizOverlayHtml(quizEvent) {
+            let optionsHtml = '';
+            const labels = ['A', 'B', 'C', 'D', 'E'];
+            quizEvent.options.forEach((opt, i) => {
+                optionsHtml += `
+                <div class="bg-slate-800/80 border-2 border-indigo-500/50 p-4 sm:p-6 rounded-2xl text-left shadow-lg flex items-center gap-4">
+                    <div class="bg-indigo-600 text-white w-10 h-10 sm:w-14 sm:h-14 rounded-xl font-black text-xl flex items-center justify-center flex-shrink-0">${labels[i]}</div>
+                    <div class="text-lg sm:text-2xl text-white font-bold leading-tight">${opt}</div>
+                </div>`;
+            });
+
+            return `
+            <div class="w-full max-w-4xl mx-auto py-6 sm:py-10 flex flex-col items-center">
+                <div class="animate-pulse bg-amber-500 text-slate-900 px-6 py-2 rounded-full text-xs sm:text-sm font-black uppercase tracking-widest flex items-center shadow-[0_0_20px_rgba(245,158,11,0.5)] mb-8 sm:mb-10">
+                    <i class="fas fa-broadcast-tower mr-2"></i> LIVE QUIZ OVERRIDE
+                </div>
+                <h1 class="text-2xl sm:text-4xl lg:text-5xl text-white font-black text-center leading-tight mb-10 drop-shadow-2xl w-full">${quizEvent.question}</h1>
+                <div class="flex flex-col gap-4 w-full">
+                    ${optionsHtml}
+                </div>
+            </div>`;
+        }
+
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
+
+            // SCENARIO 1: A QUIZ IS GLOBALLY ACTIVE - OVERRIDE EVERYTHING
+            if (globalQuizIndex !== null && appData['quizzes']) {
+                const activeQuiz = appData['quizzes'].events.find(q => q.index === globalQuizIndex);
+                if (activeQuiz) {
+                    overlay.innerHTML = renderQuizOverlayHtml(activeQuiz);
+                    overlay.classList.remove('hidden');
+                    overlay.classList.add('flex');
+                    return; // Stop normal rendering
+                }
+            } else {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
+
+            // SCENARIO 2: NORMAL OPERATION
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -332,13 +385,9 @@
                         } 
                         else if (link.includes('drive.google.com')) {
                             let fileId = link.match(/[-\w]{25,}/);
-                            if (fileId) {
-                                adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
-                            }
+                            if (fileId) { adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
                         }
-                        else {
-                            adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
-                        }
+                        else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
 
                         nowPlayingHtml = `
                             <div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl">
@@ -393,29 +442,23 @@
                     </div>`;
             }
 
-            // 3-COLUMN HEADER WITH LOGO CENTERED
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
-                    
                     ${hallSelectorHtml}
-
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
                             <div class="flex items-center gap-3 mb-1"><span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest">Live Status</span></div>
                             <h2 class="text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
-                        
                         <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
                             <div class="bg-white/95 p-2 sm:p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
                                 <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON+2026'">
                             </div>
                         </div>
-                        
                         <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
                             <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl sm:text-2xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
                         </div>
                     </div>
-                    
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
