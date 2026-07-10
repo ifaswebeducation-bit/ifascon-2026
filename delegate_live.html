@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -18,6 +17,8 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
         .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -46,7 +47,6 @@
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
         };
 
-        // Used for the big, beautiful Header
         const configTitles = {
             'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
             'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop (by Nebula)",
@@ -57,7 +57,6 @@
             '23b': "23rd August' 2026 - Day 2 Hall B"
         };
 
-        // Used for the Delegate Selection Buttons (Matches the AV Screen)
         const buttonLabels = {
             'ao_seminar': "21 Aug: AO Seminar",
             'workshop_diabetic': "21 Aug: Diabetic Foot",
@@ -69,7 +68,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v5'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v6'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -161,7 +160,26 @@
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '' });
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+
+                    // Detect Ad Link
+                    let adLink = "";
+                    for(let cell of r) {
+                        if(cell.toLowerCase().includes('http')) {
+                            adLink = cell;
+                            break;
+                        }
+                    }
+
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '',
+                        adLink: adLink
+                    });
                     return;
                 }
 
@@ -271,7 +289,6 @@
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // WRAPPING HALL SELECTOR MENU
             let hallSelectorHtml = `
                 <div class="mb-6 pb-4 border-b border-slate-800">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
@@ -284,22 +301,72 @@
             hallSelectorHtml += `</div></div>`;
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-base text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
+            
             if (currentEvent) {
-                let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
-                
-                nowPlayingHtml = `
-                    <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
-                        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                            <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg">
-                                <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
-                            </span>
-                            <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
-                        </div>
-                        ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
-                        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                        ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
-                    </div>`;
+                if (currentEvent.type === 'break') {
+                    if (currentEvent.adLink) {
+                        let link = currentEvent.adLink;
+                        let adMediaHtml = '';
+                        
+                        if (link.includes('youtube.com') || link.includes('youtu.be')) {
+                            let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+                            if (ytMatch) {
+                                let vId = ytMatch[1];
+                                adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${vId}?autoplay=1&mute=1&loop=1&playlist=${vId}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                            }
+                        } 
+                        else if (link.includes('drive.google.com')) {
+                            let fileId = link.match(/[-\w]{25,}/);
+                            if (fileId) {
+                                adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                            }
+                        }
+                        else {
+                            adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                        }
+
+                        nowPlayingHtml = `
+                            <div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span>
+                                    <span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span>
+                                </div>
+                                ${adMediaHtml}
+                            </div>`;
+                    } else {
+                        let breakIcon = "fa-coffee"; 
+                        let iconColor = "text-amber-500";
+                        const titleLow = currentEvent.title.toLowerCase();
+
+                        if (titleLow.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; } 
+                        else if (titleLow.includes('banquet') || titleLow.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; } 
+                        else if (titleLow.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
+                        nowPlayingHtml = `
+                            <div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner">
+                                <i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i>
+                                <h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
+                                <p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p>
+                            </div>`;
+                    }
+                } 
+                else {
+                    let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                    if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
+                    
+                    nowPlayingHtml = `
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
+                            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg">
+                                    <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
+                                </span>
+                                <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
+                            </div>
+                            ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                            <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                        </div>`;
+                }
             }
 
             let upNextHtml = '';
@@ -311,7 +378,6 @@
                     </div>`;
             }
 
-            // 3-COLUMN HEADER WITH LOGO CENTERED
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
                     
