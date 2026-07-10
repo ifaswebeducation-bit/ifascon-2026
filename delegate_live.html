@@ -21,6 +21,7 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
+    <!-- Auth Gateway Screen -->
     <div id="authScreen" class="hidden flex-col items-center justify-center h-screen fixed inset-0 bg-slate-900 z-[200] p-6 text-center">
         <i class="fas fa-user-circle text-6xl text-indigo-400 mb-6 animate-pulse"></i>
         <h2 class="text-3xl font-black text-white mb-2">Welcome Delegate</h2>
@@ -29,6 +30,7 @@
         <button onclick="loginAuth()" class="w-full max-w-sm bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-xl shadow-xl transition active:scale-95">Enter Dashboard ➔</button>
     </div>
 
+    <!-- Main Application -->
     <main class="flex-1 overflow-y-auto p-4 sm:p-10 relative max-w-7xl mx-auto w-full hidden" id="mainApp">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
@@ -48,7 +50,9 @@
         let userMobile = '';
 
         const sheetLinks = {
-            'quizzes': 'PASTE_YOUR_QUIZ_TAB_CSV_LINK_HERE',
+            // ---> PASTE YOUR QUIZ CSV LINK HERE <---
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
+            
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -60,7 +64,7 @@
         const buttonLabels = { 'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS", '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B" };
 
         let appData = {}, globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v29'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v30'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         let liveHall = urlParams.get('hall') || '22a'; 
@@ -73,6 +77,7 @@
                 localStorage.setItem('ifascon_user_mobile', phone);
                 userMobile = phone;
                 document.getElementById('authScreen').classList.add('hidden');
+                document.getElementById('authScreen').classList.remove('flex');
                 document.getElementById('mainApp').classList.remove('hidden');
                 initializeApp();
             } else { alert("Please enter a valid 10-digit mobile number."); }
@@ -146,12 +151,18 @@
             }
         }
 
+        // PERFECTED QUIZ PARSING (Reads Column F / Index 5 for Correct Answer)
         function parseQuizData(rows) {
             let quizzes = [];
             rows.forEach(r => {
                 while(r.length < 6) r.push("");
                 if (!r[0].trim() || r[0].toLowerCase().includes('question')) return;
-                quizzes.push({ type: 'quiz', title: r[0].trim(), options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), correct: r[5].trim() });
+                quizzes.push({ 
+                    type: 'quiz', 
+                    title: r[0].trim(), 
+                    options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), 
+                    correct: r[5] ? r[5].trim() : "" 
+                });
             });
             return quizzes;
         }
@@ -206,9 +217,13 @@
                 ).subscribe();
         }
 
+        // CORRECTED LEADERBOARD RECOGNITION
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            
             if (remoteOverrideIndex !== null) {
+                if (remoteOverrideIndex === -100) return { currentEvent: { type: 'leaderboard' }, nextEvent: playableEvents[0] || null };
+
                 if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
                 return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
             }
@@ -233,10 +248,11 @@
             subscribeToHall(newHall); updateLiveDisplay();
         }
 
-        // --- SUBMIT QUIZ ACTION ---
+        // PERFECTED SUBMIT ACTION (LOWERCASE + TRIM GRADING)
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
             let phone = localStorage.getItem('ifascon_user_mobile');
-            let isCorrect = (option === correctOption);
+            let isCorrect = (option.trim().toLowerCase() === correctOption.trim().toLowerCase());
+            
             try { await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, is_correct: isCorrect }]); } catch(e) {}
             localStorage.setItem('answered_' + questionText.replace(/[^a-zA-Z0-9]/g, ''), 'true');
             updateLiveDisplay();
@@ -257,7 +273,26 @@
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-base text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             
             if (currentEvent) {
-                if (currentEvent.type === 'quiz') {
+                if (currentEvent.type === 'leaderboard') {
+                    nowPlayingHtml = `<div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl p-6 shadow-2xl mb-8 border border-amber-500/30" id="delegateLeaderboardContainer"><div class="text-center py-10"><div class="loader mx-auto mb-4"></div><p class="text-amber-400 font-bold animate-pulse">Syncing Leaderboard...</p></div></div>`;
+                    setTimeout(async () => {
+                        try {
+                            const { data } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
+                            let counts = {}; (data||[]).forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                            let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                            let lbHtml = `<div class="flex justify-between items-center mb-6"><span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse">Live</span><h2 class="text-2xl font-black text-amber-400"><i class="fas fa-trophy mr-2"></i> Top Scores</h2></div><div class="flex flex-col gap-3">`;
+                            if(sorted.length === 0) lbHtml += `<p class="text-slate-400 text-center py-6 font-bold">No correct scores yet!</p>`;
+                            sorted.forEach((item, idx) => {
+                                let mask = item[0].length >= 10 ? item[0].slice(0,2) + '******' + item[0].slice(-2) : 'Unknown';
+                                let isMe = item[0] === userMobile ? 'bg-indigo-600/40 border-indigo-400' : 'bg-slate-800/80 border-slate-700';
+                                lbHtml += `<div class="flex justify-between items-center p-4 rounded-xl border shadow-inner ${isMe}"><div class="font-bold text-white flex items-center"><span class="w-6 text-slate-400 mr-2">${idx+1}.</span> ${mask} ${item[0] === userMobile ? '<span class="ml-2 text-[10px] bg-indigo-500 px-2 py-0.5 rounded-full uppercase tracking-wider">You</span>' : ''}</div><div class="font-black text-amber-400">${item[1]} pts</div></div>`;
+                            });
+                            lbHtml += `</div>`;
+                            document.getElementById('delegateLeaderboardContainer').innerHTML = lbHtml;
+                        } catch(e) {}
+                    }, 50);
+                }
+                else if (currentEvent.type === 'quiz') {
                     let safeKey = 'answered_' + currentEvent.title.replace(/[^a-zA-Z0-9]/g, '');
                     let hasAnswered = localStorage.getItem(safeKey);
 
@@ -324,7 +359,7 @@
             }
 
             let upNextHtml = '';
-            if (nextEvent && nextEvent.type !== 'quiz') {
+            if (nextEvent && nextEvent.type !== 'quiz' && nextEvent.type !== 'leaderboard') {
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm mt-1.5 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
