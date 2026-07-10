@@ -8,32 +8,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
         .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
+        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
 
-    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-900/95 border-b border-slate-700 p-4 z-[200] shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
+    <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
                 <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">AV Control Panel</span>
-                <span class="text-xs sm:text-sm text-slate-300">TV unlinked on manual shift. Auto-hides in 4s.</span>
             </div>
             <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
-                <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev Talk</button>
-                <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">Next Talk ➔</button>
+                <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev</button>
+                <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">Next ➔</button>
                 <button onclick="resumeAutoSync()" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 px-3 py-1.5 rounded-lg font-bold border border-rose-500/30 ml-1 active:scale-95 transition text-sm">Resume Auto</button>
-                <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1" title="Minimize Panel"><i class="fas fa-times"></i></button>
+                <button onclick="minimizePanel()" class="bg-slate-800 text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-sm ml-1"><i class="fas fa-times"></i></button>
             </div>
         </div>
+        
+        <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>
+        </div>
+
         <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -44,51 +46,51 @@
                 <button onclick="switchHallFeed('22b')" id="feed-22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
                 <button onclick="switchHallFeed('23a')" id="feed-23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
                 <button onclick="switchHallFeed('23b')" id="feed-23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
-                <button onclick="switchHallFeed('quizzes')" id="feed-quizzes" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Quizzes</button>
             </div>
         </div>
     </div>
 
-    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full z-10" id="contentContainer">
+    <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
+        <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Scores</h2>
+        <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
+        <button onclick="hideLeaderboard()" class="mt-10 bg-slate-700 hover:bg-slate-600 text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close Leaderboard</button>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
             <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Connecting to Live Hall Feed...</p>
         </div>
     </main>
 
-    <div id="quizOverlay" class="hidden fixed inset-0 z-[100] bg-slate-950 flex-col items-center justify-center p-6 overflow-y-auto">
-        </div>
-
     <script>
-        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
+            'quizzes': 'PASTE_YOUR_QUIZ_TAB_CSV_LINK_HERE',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
-            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv'
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
         };
 
         const configTitles = {
-            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
-            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop (by Nebula)",
-            'workshop_mis': "21st August' 2026 - MIS Workshop (by Arthrex)",
+            'ao_seminar': "21st August' 2026 - AO Seminar",
+            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
+            'workshop_mis': "21st August' 2026 - MIS Workshop",
             '22a': "22nd August' 2026 - Day 1 Hall A",
             '22b': "22nd August' 2026 - Day 1 Hall B",
             '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B",
-            'quizzes': "Global Control - Live Quizzes"
+            '23b': "23rd August' 2026 - Day 2 Hall B"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v26'; 
+        let globalQuizzes = [];
+        const CACHE_KEY = 'ifascon_schedule_cache_v28'; 
         const container = document.getElementById('contentContainer');
-        const overlay = document.getElementById('quizOverlay');
         const urlParams = new URLSearchParams(window.location.search);
         
         let liveHall = urlParams.get('hall') || 'ao_seminar';
@@ -96,190 +98,111 @@
         if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic';
         
         let manualOverrideIndex = null;
-        let globalQuizIndex = null; 
+        let quizStartTime = null;
         let liveUpdateTimer = null;
         let panelTimeout = null;
-        let currentSubscription = null;
+
+        async function fetchHallState() {
+            try {
+                const {data} = await supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single();
+                if(data) {
+                    manualOverrideIndex = data.override_index;
+                    quizStartTime = data.quiz_start_time;
+                }
+            } catch(e){}
+        }
 
         async function initializeApp() {
+            await fetchHallState();
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (cachedData) {
                 try {
-                    appData = JSON.parse(cachedData);
+                    let parsed = JSON.parse(cachedData);
+                    appData = parsed.halls; globalQuizzes = parsed.quizzes || [];
                     document.getElementById('loadingState').classList.add('hidden');
-                    initLiveKiosk(liveHall);
+                    initLiveKiosk();
                     fetchLiveSchedule(true);
                 } catch (e) { fetchLiveSchedule(false); }
             } else { fetchLiveSchedule(false); }
-
-            setupSupabaseListener();
-        }
-
-        function setupSupabaseListener() {
-            supabaseClient.from('hall_states').select('override_index').eq('hall_id', 'global_quiz').single()
-                .then(({ data }) => {
-                    if (data) {
-                        globalQuizIndex = data.override_index;
-                        updateLiveDisplay();
-                    }
-                });
-
-            currentSubscription = supabaseClient.channel('av-global-channel')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: 'hall_id=eq.global_quiz' },
-                    (payload) => {
-                        globalQuizIndex = payload.new.override_index;
-                        updateLiveDisplay();
-                    }
-                ).subscribe();
         }
 
         async function fetchLiveSchedule(isBackground = false) {
             let fetchedData = {};
             for (const [key, link] of Object.entries(sheetLinks)) {
+                if(link.includes('PASTE_YOUR')) continue;
                 try {
-                    const response = await fetch(link);
-                    const csvText = await response.text();
+                    const response = await fetch(link); const csvText = await response.text();
                     Papa.parse(csvText, {
                         complete: function(results) {
                             try {
-                                if (key === 'quizzes') {
-                                    fetchedData['quizzes'] = { title: configTitles['quizzes'], events: parseQuizData(results.data) };
-                                }
+                                if (key === 'quizzes') { globalQuizzes = parseQuizData(results.data); }
                                 else if (key === 'ao') {
                                     const allAoEvents = parseRawData(results.data, "21 Aug");
                                     let seminarEvents = [], diabeticEvents = [], misEvents = [];
-                                    let isWorkshopSection = false;
-                                    let currentTrack = 'diabetic';
-
+                                    let isWorkshopSection = false, currentTrack = 'diabetic';
                                     allAoEvents.forEach(ev => {
                                         const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                                         if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15')) isWorkshopSection = true;
-
                                         if (isWorkshopSection) {
                                             if (matchString.includes('diabetic') || matchString.includes('nebula')) currentTrack = 'diabetic';
                                             else if (matchString.includes('mis') || matchString.includes('arthrex')) currentTrack = 'mis';
-                                            
-                                            if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } 
-                                            else { ev.hall = "MIS Hall"; misEvents.push(ev); }
-                                        } else {
-                                            ev.hall = "AO Seminar Hall"; seminarEvents.push(ev);
-                                        }
+                                            if (currentTrack === 'diabetic') { ev.hall = "Diabetic Foot Hall"; diabeticEvents.push(ev); } else { ev.hall = "MIS Hall"; misEvents.push(ev); }
+                                        } else { ev.hall = "AO Seminar Hall"; seminarEvents.push(ev); }
                                     });
-
                                     fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
                                     fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diabeticEvents };
                                     fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misEvents };
-                                } else {
-                                    fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
-                                }
-                            } catch(e) { console.error(e); }
+                                } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) }; }
+                            } catch(e) {}
                         }
                     });
-                } catch(err) { console.error(err); }
+                } catch(err) {}
             }
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
-                localStorage.setItem(CACHE_KEY, JSON.stringify(appData));
-                if (!isBackground) {
-                    document.getElementById('loadingState').classList.add('hidden');
-                    initLiveKiosk(liveHall);
-                } else if (manualOverrideIndex === null) { updateLiveDisplay(); }
-            } else {
-                document.getElementById('loadingText').innerText = "Network Error: Failed to load schedule data.";
+                localStorage.setItem(CACHE_KEY, JSON.stringify({halls: appData, quizzes: globalQuizzes}));
+                if (!isBackground) { document.getElementById('loadingState').classList.add('hidden'); initLiveKiosk(); } 
+                else { updateLiveDisplay(); }
             }
         }
 
         function parseQuizData(rows) {
-            let qs = [];
-            rows.forEach((r, idx) => {
-                if (r.length === 0 || !r[0]) return;
-                if (idx === 0 && r[0].toLowerCase().includes("question")) return;
-                qs.push({
-                    index: qs.length,
-                    question: r[0].trim(),
-                    options: r.slice(1, 5).map(o => o ? o.trim() : "").filter(o => o !== "")
-                });
+            let quizzes = [];
+            rows.forEach(r => {
+                while(r.length < 6) r.push("");
+                if (!r[0].trim() || r[0].toLowerCase().includes('question')) return;
+                quizzes.push({ type: 'quiz', title: r[0].trim(), options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), correct: r[5].trim() });
             });
-            return qs;
+            return quizzes;
         }
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             rows.forEach(r => {
-                while(r.length < 12) r.push("");
-                r = r.map(x => (x || "").trim());
-                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
-                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
-                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
-                let row_text = r.join(" ").toLowerCase();
+                while(r.length < 12) r.push(""); r = r.map(x => (x || "").trim());
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3], colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6], colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9], row_text = r.join(" ").toLowerCase();
+                if (row_text.includes("position:absolute") || row_text.includes("<!doctype html>") || (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) || (!col0 && !col1 && !col2 && !col3 && !colTitle) || row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) || row_text.includes('*quiz*')) return; 
 
-                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
-                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
-                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
-                if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
-
-                const breakRegex = /\b(break|lunch|tea|coffee|registration|inauguration|banquet|gbm|valedictory)\b/i;
-                if (breakRegex.test(row_text) && !/\b(symposium|session)\b/i.test(row_text)) {
-                    let text = colTitle || col3 || col0;
-                    if (/\bregistration\b/i.test(row_text)) text = "Registration";
-                    else if (/\blunch\b/i.test(row_text)) text = "Lunch";
-                    else if (/\b(coffee|tea)\b/i.test(row_text)) text = "Tea / Coffee Break";
-
-                    let adLink = "";
-                    for(let cell of r) {
-                        if(cell.toLowerCase().includes('http')) {
-                            adLink = cell;
-                            break;
-                        }
-                    }
-
-                    events.push({ 
-                        type: 'break', 
-                        title: text, 
-                        time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '',
-                        adLink: adLink 
-                    });
-                    return;
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                    let text = colTitle || col3 || col0; if (row_text.includes("registration")) text = "Registration"; else if (row_text.includes("lunch")) text = "Lunch"; else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    let adLink = ""; for(let cell of r) { if(cell.toLowerCase().includes('http')) { adLink = cell; break; } }
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink }); return;
                 }
 
-                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
-                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
-                let isSession = false, isOration = false;
-                
-                if (/\boration\b/i.test(row_text)) {
-                    isSession = true; 
-                    isOration = true;
-                } else if (!isQA && !isPlenary) {
-                    if (!col1 && !col2 && !col0) isSession = true; 
-                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
-                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (/\b(symposium|session|workshop)\b/i.test(row_text)) isSession = true;
-                }
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion"), isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary"), isSession = false, isOration = false;
+                if (row_text.includes('oration')) { isSession = true; isOration = true; } else if (!isQA && !isPlenary) { if (!col1 && !col2 && !col0) isSession = true; else if (!col0 && col1 && col2 && !colTitle) isSession = true; else if (col3 && !colTitle && !colSpeaker) isSession = true; else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true; }
 
                 if (isSession) {
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
-                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
-                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
-                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
-                        else topic = col3 + ": " + colTitle;
-                    }
-
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons"].includes(c.toLowerCase()));
-                    current_session = topic; 
-                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
-                    return;
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) { if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle; else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3; else topic = col3 + ": " + colTitle; }
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    current_session = topic; events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session }); return;
                 }
 
                 if (col1 || colTitle || isQA || isPlenary) {
-                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
-                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
-                    if (col0) {
-                        let cleanDur = col0.replace(/[^0-9]/g, ''); 
-                        time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0);
-                    }
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker, time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0) { let cleanDur = col0.replace(/[^0-9]/g, ''); time_display = time_display ? `${time_display} (${cleanDur ? cleanDur + ' mins' : col0})` : (cleanDur ? cleanDur + ' mins' : col0); }
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
@@ -287,299 +210,128 @@
             return events;
         }
 
-        // --- GLOBAL QUIZ CONTROLS ---
-        async function broadcastQuiz(index) {
-            globalQuizIndex = index;
-            updateLiveDisplay(); 
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: index }).eq('hall_id', 'global_quiz');
-            } catch(e) { console.error(e); }
-        }
-
-        async function stopGlobalQuiz() {
-            globalQuizIndex = null;
-            updateLiveDisplay();
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: null }).eq('hall_id', 'global_quiz');
-            } catch(e) { console.error(e); }
-        }
-
-        function renderQuizOverlayHtml(quizEvent) {
-            let optionsHtml = '';
-            const labels = ['A', 'B', 'C', 'D', 'E'];
-            quizEvent.options.forEach((opt, i) => {
-                optionsHtml += `
-                <div class="bg-slate-800/80 border-2 border-indigo-500/50 p-6 sm:p-8 rounded-2xl text-left shadow-lg flex items-center gap-6">
-                    <div class="bg-indigo-600 text-white w-12 h-12 sm:w-16 sm:h-16 rounded-xl font-black text-2xl flex items-center justify-center flex-shrink-0">${labels[i]}</div>
-                    <div class="text-2xl sm:text-4xl text-white font-bold leading-tight">${opt}</div>
-                </div>`;
-            });
-
-            return `
-            <div class="w-full max-w-7xl mx-auto py-10 flex flex-col items-center">
-                <div class="animate-pulse bg-amber-500 text-slate-900 px-8 py-3 rounded-full text-lg sm:text-2xl font-black uppercase tracking-widest flex items-center shadow-[0_0_30px_rgba(245,158,11,0.6)] mb-10 sm:mb-16">
-                    <i class="fas fa-broadcast-tower mr-4"></i> LIVE INTERACTIVE QUIZ
-                </div>
-                <h1 class="text-4xl sm:text-6xl lg:text-7xl text-white font-black text-center leading-tight mb-16 drop-shadow-2xl w-full">${quizEvent.question}</h1>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10 w-full">
-                    ${optionsHtml}
-                </div>
-            </div>`;
-        }
-
         function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
-            if (parts.length < 2) return null;
-            const hours = parseInt(parts[0], 10), mins = parseInt(parts[1], 10);
-            return (isNaN(hours) || isNaN(mins)) ? null : hours * 60 + mins;
-        }
-
-        function getCurrentMinutes() {
-            const now = new Date();
-            return now.getHours() * 60 + now.getMinutes();
+            if (!timeStr) return null; const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null; return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
-            
             if (manualOverrideIndex !== null) {
+                if (manualOverrideIndex < 0 && globalQuizzes.length > 0) return { currentEvent: globalQuizzes[Math.abs(manualOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
                 return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             }
-            const currentMins = getCurrentMinutes();
+            
+            const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
             let currentEvent = null, nextEvent = null;
             for (let i = 0; i < playableEvents.length; i++) {
-                const ev = playableEvents[i];
-                const evStart = parseTimeToMinutes(ev.time);
+                const ev = playableEvents[i]; const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
-                        currentEvent = ev; if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
+                        currentEvent = ev; 
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type === 'presentation') currentEvent = playableEvents[i-1];
+                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; break;
                     } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
                 }
             }
             return { currentEvent, nextEvent };
         }
 
-        function toggleManualPanel() {
-            const panel = document.getElementById('manualOverridePanel');
-            if (panel.classList.contains('hidden')) { panel.classList.remove('hidden'); resetPanelTimer(); } 
-            else { minimizePanel(); }
-        }
-
-        function minimizePanel() {
-            document.getElementById('manualOverridePanel').classList.add('hidden');
-            if (panelTimeout) clearTimeout(panelTimeout);
-        }
-
-        function resetPanelTimer() {
-            if (panelTimeout) clearTimeout(panelTimeout);
-            panelTimeout = setTimeout(() => { minimizePanel(); }, 4000);
-        }
+        function toggleManualPanel() { const p = document.getElementById('manualOverridePanel'); if (p.classList.contains('hidden')) { p.classList.remove('hidden'); resetPanelTimer(); } else { minimizePanel(); } }
+        function minimizePanel() { document.getElementById('manualOverridePanel').classList.add('hidden'); if (panelTimeout) clearTimeout(panelTimeout); }
+        function resetPanelTimer() { if (panelTimeout) clearTimeout(panelTimeout); panelTimeout = setTimeout(() => { minimizePanel(); }, 4000); }
 
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
-            
-            if (manualOverrideIndex === null) {
-                const { currentEvent } = getLiveStatus(data.events);
-                manualOverrideIndex = playableEvents.indexOf(currentEvent);
-                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
-            }
-            
+            if (manualOverrideIndex === null || manualOverrideIndex < 0) { const { currentEvent } = getLiveStatus(data.events); manualOverrideIndex = playableEvents.indexOf(currentEvent); if (manualOverrideIndex === -1) manualOverrideIndex = 0; }
             let newIndex = manualOverrideIndex + step;
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
-            
-            manualOverrideIndex = newIndex;
-            document.getElementById('manualOverridePanel').classList.remove('hidden');
-            
-            updateLiveDisplay(); 
-            resetPanelTimer();
+            if (newIndex < 0) newIndex = 0; if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
+            manualOverrideIndex = newIndex; quizStartTime = null;
+            document.getElementById('manualOverridePanel').classList.remove('hidden'); updateLiveDisplay(); resetPanelTimer();
+            try { await supabaseClient.from('hall_states').update({ override_index: newIndex, quiz_start_time: null }).eq('hall_id', liveHall); } catch(e) {}
+        }
 
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: newIndex }).eq('hall_id', liveHall);
-            } catch(e) { console.error("Database update failed"); }
+        window.launchQuiz = async function(idx) {
+            manualOverrideIndex = -(idx + 1); 
+            quizStartTime = new Date().toISOString();
+            document.getElementById('manualOverridePanel').classList.remove('hidden'); updateLiveDisplay(); resetPanelTimer();
+            try { await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: quizStartTime }).eq('hall_id', liveHall); } catch(e) {}
         }
 
         async function resumeAutoSync() { 
-            manualOverrideIndex = null; 
-            minimizePanel(); 
-            updateLiveDisplay(); 
-            
-            try {
-                await supabaseClient.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
-            } catch(e) { console.error("Database reset failed"); }
+            manualOverrideIndex = null; quizStartTime = null; minimizePanel(); updateLiveDisplay(); 
+            try { await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall); } catch(e) {} 
         }
 
-        function switchHallFeed(newHall) {
-            liveHall = newHall;
-            manualOverrideIndex = null;
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('hall', newHall);
-            window.history.pushState({}, '', newUrl);
-            updateFeedButtons();
-            updateLiveDisplay();
-            resetPanelTimer();
-        }
+        function switchHallFeed(newHall) { liveHall = newHall; manualOverrideIndex = null; quizStartTime = null; const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl); updateFeedButtons(); fetchHallState().then(() => updateLiveDisplay()); resetPanelTimer(); }
 
         function updateFeedButtons() {
-            document.querySelectorAll('.feed-btn').forEach(btn => {
-                btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500');
-                btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
-            });
-            const activeBtn = document.getElementById('feed-' + liveHall);
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
-                activeBtn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500');
-            }
+            document.querySelectorAll('.feed-btn').forEach(btn => { btn.classList.remove('bg-indigo-600', 'text-white', 'border-indigo-500'); btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700'); });
+            const activeBtn = document.getElementById('feed-' + liveHall); if (activeBtn) { activeBtn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700'); activeBtn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-500'); }
         }
 
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
-            updateFeedButtons();
-            
-            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Universal Top Header
-            const headerHtml = `
-                <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
-                    <div class="flex-1 w-full sm:w-auto text-left">
-                        <div class="flex items-center gap-3 mb-1">
-                            <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
-                        </div>
-                        <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
-                    </div>
-                    <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
-                        <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                            <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
-                        </div>
-                    </div>
-                    <div class="flex-1 w-full sm:w-auto flex justify-end">
-                        <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto" title="Click for AV Controls">
-                            <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
-                            <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            let qBar = document.getElementById('quizControlBar');
+            if (globalQuizzes.length > 0) {
+                let qHtml = `<span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>`;
+                globalQuizzes.forEach((q, idx) => { qHtml += `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0, 15)}...</button>`; });
+                qBar.innerHTML = qHtml; qBar.classList.remove('hidden');
+            } else { qBar.classList.add('hidden'); }
 
-            // SCENARIO 1: ADMIN QUIZ CONTROL PANEL
-            if (liveHall === 'quizzes') {
-                overlay.classList.add('hidden');
-                
-                let quizAdminHtml = `
-                    <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
-                        ${headerHtml}
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-800/80 p-6 sm:p-8 rounded-3xl mb-8 border border-slate-700 gap-6">
-                            <div>
-                                <h2 class="text-3xl font-black text-white mb-2"><i class="fas fa-satellite-dish text-indigo-400 mr-3"></i>Global Quiz Control</h2>
-                                <p class="text-slate-400 text-lg">Broadcasting a quiz here instantly overrides ALL Delegate screens and TVs globally.</p>
-                            </div>
-                            <button onclick="stopGlobalQuiz()" class="bg-rose-600 hover:bg-rose-500 px-6 py-4 rounded-xl font-black text-white text-lg shadow-xl active:scale-95 transition flex items-center gap-3 w-full sm:w-auto justify-center">
-                                <i class="fas fa-stop-circle text-2xl"></i> Stop Broadcast
-                            </button>
-                        </div>
-                        <div class="flex flex-col gap-5 pb-20">
-                `;
-                
-                data.events.forEach(q => {
-                    let isLive = globalQuizIndex === q.index;
-                    quizAdminHtml += `
-                        <div class="bg-slate-800/50 p-6 sm:p-8 rounded-2xl border ${isLive ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.25)] bg-slate-800' : 'border-slate-700'} flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                            <div class="flex-1">
-                                <span class="text-sm font-bold ${isLive ? 'text-amber-400' : 'text-slate-400'} uppercase tracking-widest mb-3 block">Question ${q.index + 1}</span>
-                                <h3 class="text-2xl text-white font-bold leading-snug">${q.question}</h3>
-                            </div>
-                            <button onclick="broadcastQuiz(${q.index})" class="${isLive ? 'bg-amber-500 text-slate-900 pointer-events-none' : 'bg-indigo-600 hover:bg-indigo-500 text-white'} px-8 py-4 rounded-xl text-lg font-black transition active:scale-95 flex-shrink-0 flex items-center gap-3 shadow-lg w-full md:w-auto justify-center">
-                                ${isLive ? '<i class="fas fa-broadcast-tower animate-pulse"></i> LIVE NOW' : '<i class="fas fa-play"></i> Broadcast to All'}
-                            </button>
-                        </div>
-                    `;
-                });
-                
-                quizAdminHtml += `</div></div>`;
-                container.innerHTML = quizAdminHtml;
-                return;
-            }
-
-            // SCENARIO 2: GLOBAL QUIZ ACTIVE (Normal TV View)
-            if (globalQuizIndex !== null && appData['quizzes']) {
-                const activeQuiz = appData['quizzes'].events.find(q => q.index === globalQuizIndex);
-                if (activeQuiz) {
-                    overlay.innerHTML = renderQuizOverlayHtml(activeQuiz);
-                    overlay.classList.remove('hidden');
-                    overlay.classList.add('flex');
-                    return; 
-                }
-            } else {
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-            }
-
-            // SCENARIO 3: NORMAL HALL SCHEDULE
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
+            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            updateFeedButtons();
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             
             if (currentEvent) {
-                if (currentEvent.type === 'break') {
+                if (currentEvent.type === 'quiz') {
+                    nowPlayingHtml = `
+                        <div class="bg-gradient-to-b from-indigo-900/80 to-slate-900 rounded-3xl border-2 border-indigo-500/50 p-10 shadow-2xl relative overflow-hidden mb-8">
+                            <div class="flex justify-between items-center mb-6">
+                                <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Audience Quiz</span>
+                                <span class="text-4xl font-mono font-black text-amber-400" id="avQuizTimer">120s</span>
+                            </div>
+                            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-10">${currentEvent.title}</h1>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                                ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
+                            </div>
+                            <div class="flex flex-col sm:flex-row justify-between items-center mt-8 pt-8 border-t border-slate-700/50 gap-4">
+                                <p class="text-xl sm:text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your phone to vote!</p>
+                                <button onclick="showLeaderboard()" class="pointer-events-auto bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-4 rounded-xl shadow-lg transition text-lg w-full sm:w-auto">Show Leaderboard ➔</button>
+                            </div>
+                        </div>`;
+                }
+                else if (currentEvent.type === 'break') {
                     if (currentEvent.adLink) {
-                        let link = currentEvent.adLink;
-                        let adMediaHtml = '';
-                        
+                        let link = currentEvent.adLink; let adMediaHtml = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) {
-                                let vId = ytMatch[1];
-                                adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${vId}?autoplay=1&mute=1&loop=1&playlist=${vId}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                            }
-                        } 
-                        else if (link.includes('drive.google.com')) {
+                            if (ytMatch) adMediaHtml = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                        } else if (link.includes('drive.google.com')) {
                             let fileId = link.match(/[-\w]{25,}/);
-                            if (fileId) {
-                                adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
-                            }
-                        }
-                        else {
-                            adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
-                        }
-
-                        nowPlayingHtml = `
-                            <div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl">
-                                <div class="flex items-center justify-between mb-4">
-                                    <span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span>
-                                    <span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span>
-                                </div>
-                                ${adMediaHtml}
-                            </div>`;
+                            if (fileId) adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
+                        } else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span></div>${adMediaHtml}</div>`;
                     } else {
-                        let breakIcon = "fa-coffee"; 
-                        let iconColor = "text-amber-500";
-                        const titleLow = currentEvent.title.toLowerCase();
-
+                        let breakIcon = "fa-coffee"; let iconColor = "text-amber-500"; const titleLow = currentEvent.title.toLowerCase();
                         if (titleLow.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; } 
                         else if (titleLow.includes('banquet') || titleLow.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; } 
                         else if (titleLow.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-
-                        nowPlayingHtml = `
-                            <div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner">
-                                <i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i>
-                                <h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
-                                <p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p>
-                            </div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold"><i class="far fa-clock mr-2"></i>${currentEvent.time}</p></div>`;
                     }
                 } 
                 else {
                     let badgeStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
                     if (liveHall.includes('workshop')) badgeStyle = "bg-rose-600"; 
-                    
                     nowPlayingHtml = `
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden mb-8">
                             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg">
-                                    <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW
-                                </span>
+                                <span class="animate-live ${badgeStyle} px-4 py-1.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
                                 <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
                             </div>
                             ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
@@ -590,28 +342,73 @@
             }
 
             let upNextHtml = '';
-            if (nextEvent) {
+            if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Presentation'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
 
             container.innerHTML = `
                 <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
-                    ${headerHtml}
+                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+                        <div class="flex-1 w-full sm:w-auto text-left">
+                            <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
+                            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                        </div>
+                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
+                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON+2026'">
+                            </div>
+                        </div>
+                        <div class="flex-1 w-full sm:w-auto flex justify-end">
+                            <div onclick="toggleManualPanel()" class="cursor-pointer bg-slate-800/80 hover:bg-slate-800 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg group ml-auto">
+                                <i class="fas fa-sliders-h text-slate-500 group-hover:text-indigo-400 transition text-xl"></i>
+                                <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">${nowStr}</div>
+                            </div>
+                        </div>
+                    </div>
                     ${nowPlayingHtml}
                     ${upNextHtml}
                 </div>`;
         }
 
-        function initLiveKiosk(hallKey) {
-            if (!appData[hallKey]) { container.innerHTML = `<div class="text-center py-20 text-white"><h2 class="text-2xl font-bold">Hall ID '${hallKey}' Not Found.</h2></div>`; return; }
-            updateLiveDisplay();
-            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            liveUpdateTimer = setInterval(updateLiveDisplay, 30000);
-        }
+        // Live Timer Ticker
+        setInterval(() => {
+            const timerEl = document.getElementById('avQuizTimer');
+            if (timerEl && quizStartTime) {
+                let elapsed = Math.floor((Date.now() - new Date(quizStartTime).getTime()) / 1000);
+                let left = 120 - elapsed;
+                if (left < 0) left = 0;
+                timerEl.innerText = left + "s";
+                if (left <= 0) timerEl.classList.replace('text-amber-400', 'text-red-500');
+            }
+        }, 1000);
+
+        window.showLeaderboard = async function() {
+            document.getElementById('leaderboardModal').classList.remove('hidden');
+            document.getElementById('leaderboardList').innerHTML = '<div class="loader mx-auto"></div>';
+            try {
+                const { data, error } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
+                if (error) throw error;
+                let counts = {}; data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                if (sorted.length === 0) { document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No correct answers submitted yet!</div>'; return; }
+                
+                let html = '';
+                sorted.forEach((item, index) => {
+                    let phoneStr = item[0]; let obfuscated = phoneStr.length > 4 ? phoneStr.substring(0, 2) + '******' + phoneStr.substring(phoneStr.length - 2) : phoneStr;
+                    let medal = index === 0 ? 'text-amber-400 text-5xl' : index === 1 ? 'text-slate-300 text-4xl' : index === 2 ? 'text-amber-700 text-3xl' : 'text-slate-500 text-2xl';
+                    html += `<div class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-600 shadow-xl"><div class="flex items-center text-3xl font-bold text-white"><span class="w-16 text-center mr-6 ${medal}"><i class="fas fa-medal"></i></span>${obfuscated}</div><div class="text-3xl font-black text-indigo-400">${item[1]} pts</div></div>`;
+                });
+                document.getElementById('leaderboardList').innerHTML = html;
+            } catch (e) { document.getElementById('leaderboardList').innerHTML = '<div class="text-red-400 text-xl font-bold">Failed to load leaderboard data.</div>'; }
+        };
+
+        window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
+
+        function initLiveKiosk() { updateLiveDisplay(); if (liveUpdateTimer) clearInterval(liveUpdateTimer); liveUpdateTimer = setInterval(updateLiveDisplay, 30000); }
 
         initializeApp();
     </script>
