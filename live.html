@@ -99,7 +99,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_v22'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v23'; 
         const container = document.getElementById('contentContainer');
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
@@ -143,8 +143,8 @@
                             let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                             if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
                             if (isWs) {
-                                if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
-                                else if (matchStr.includes('mis') || matchString.includes('arthrex')) track = 'mis';
+                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
+                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
                                 if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
                                 else { ev.hall = "MIS Hall"; mis.push(ev); }
                             } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
@@ -200,7 +200,6 @@
                 const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration"];
                 let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
                 
-                // FIXED: Strict RegEx word boundaries to prevent matching "tear" inside an ACL talk!
                 if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
@@ -279,7 +278,6 @@
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev; 
-                        // COMPREHENSIVE TIMELINE PROTECTION OVER LUNCH/TEA SESSIONS
                         if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') {
                             currentEvent = playableEvents[i-1];
                         }
@@ -291,7 +289,21 @@
             return { currentEvent, nextEvent };
         }
 
-        function toggleManualPanel() { document.getElementById('manualOverridePanel').classList.toggle('hidden'); }
+        // --- PASSWORD PROTECTION STATE CHECK ---
+        function toggleManualPanel() { 
+            const panel = document.getElementById('manualOverridePanel');
+            if (panel.classList.contains('hidden')) {
+                // Prompts static secret access layer password logic
+                let password = prompt("Enter AV Admin Control Password:");
+                if (password === "IFASCON2026") {
+                    panel.classList.remove('hidden'); 
+                } else if (password !== null) {
+                    alert("Unauthorized access denied.");
+                }
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
 
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
@@ -312,7 +324,6 @@
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
         }
 
-        // FIXED: Real-time broadcast engine hook for launching quizzes instantly
         async function launchQuiz(idx) {
             manualOverrideIndex = -(idx + 1);
             updateLiveDisplay();
@@ -372,7 +383,8 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`;
+                            // HIGH SPEED GOOGLE DRIVE CLOUD ACCELERATION ENGINE LAYER RENDERING
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700">`; }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
@@ -457,6 +469,15 @@
 
         function initLiveKiosk() {
             updateLiveDisplay();
+            // Hook direct active real-time updates for AV master tracking channel state
+            supabaseClient.channel('custom-all-channel')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
+                    (payload) => {
+                        remoteOverrideIndex = payload.new.override_index;
+                        updateLiveDisplay();
+                    }
+                ).subscribe();
+            
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             liveUpdateTimer = setInterval(updateLiveDisplay, 30000);
         }
