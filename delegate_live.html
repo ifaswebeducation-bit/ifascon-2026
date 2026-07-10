@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
-    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -70,7 +69,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v11'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v12'; 
         const container = document.getElementById('contentContainer');
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
         let liveUpdateTimer = null;
@@ -109,7 +108,7 @@
                             if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
                             if (isWs) {
                                 if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
-                                else if (matchStr.includes('mis') || matchString.includes('arthrex')) track = 'mis';
+                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
                                 if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
                                 else { ev.hall = "MIS Hall"; mis.push(ev); }
                             } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
@@ -162,7 +161,6 @@
                 const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration"];
                 let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
                 
-                // FIXED: Strict RegEx boundaries here too to align parsing flawlessly
                 if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
@@ -283,7 +281,28 @@
             updateLiveDisplay();
         };
 
-        function updateLiveDisplay() {
+        async function renderLeaderboardWidget() {
+            try {
+                const { data } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
+                if (!data || data.length === 0) return '';
+                let counts = {};
+                data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 3);
+                
+                return `
+                    <div class="mt-6 p-4 bg-slate-800/80 rounded-2xl border border-slate-700">
+                        <h4 class="text-sm font-black text-amber-400 uppercase tracking-wider mb-3 flex items-center"><i class="fas fa-trophy mr-2"></i>Current Standings</h4>
+                        <div class="flex flex-col gap-2">
+                            ${sorted.map((item, idx) => {
+                                let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
+                                return `<div class="flex justify-between text-xs font-semibold text-slate-300"><span>#${idx+1} ${ob}</span><span class="text-indigo-400 font-bold">${item[1]} pts</span></div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            } catch(e) { return ''; }
+        }
+
+        async function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -310,8 +329,13 @@
                                 <button onclick="saveDelegatePhone()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl">Start Quiz</button>
                             </div>`;
                     } else if (hasAnswered) {
+                        let leaderboardWidget = await renderLeaderboardWidget();
                         nowPlayingHtml = `
-                            <div class="text-center py-16 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8"><i class="fas fa-check-circle text-6xl mb-4 text-emerald-500"></i><h2 class="text-3xl font-black text-white">Answer Submitted!</h2></div>`;
+                            <div class="text-center py-12 bg-gradient-to-b from-emerald-900/40 to-slate-800/40 rounded-3xl border border-emerald-500/30 my-8">
+                                <i class="fas fa-check-circle text-6xl mb-4 text-emerald-500"></i>
+                                <h2 class="text-3xl font-black text-white">Answer Submitted!</h2>
+                                ${leaderboardWidget}
+                            </div>`;
                     } else {
                         let opHtml = currentEvent.options.map((opt, idx) => {
                             let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -335,8 +359,8 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black">`;
-                        }
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`;
+                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
@@ -345,7 +369,7 @@
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
-                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3">${currentEvent.time}</p></div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.time}</p></div>`;
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
