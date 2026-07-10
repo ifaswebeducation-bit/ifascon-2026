@@ -19,6 +19,7 @@
 </head>
 <body class="flex flex-col h-screen overflow-hidden relative">
 
+    <!-- AV Control Panel -->
     <div id="manualOverridePanel" class="hidden fixed top-0 left-0 w-full bg-slate-950/95 border-b border-slate-700 p-4 z-50 shadow-2xl backdrop-blur flex flex-col gap-3 text-white transition-all duration-300">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -32,6 +33,7 @@
             </div>
         </div>
         
+        <!-- Quiz Launcher -->
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
             <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>
         </div>
@@ -50,6 +52,7 @@
         </div>
     </div>
 
+    <!-- Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-900/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Scores</h2>
         <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
@@ -69,7 +72,9 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
+            // ---> PASTE YOUR QUIZ CSV LINK HERE <---
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
+            
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -89,7 +94,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_v28'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v30'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -166,12 +171,18 @@
             }
         }
 
+        // PERFECTED QUIZ PARSING (Reads Column F / Index 5 for Correct Answer)
         function parseQuizData(rows) {
             let quizzes = [];
             rows.forEach(r => {
                 while(r.length < 6) r.push("");
                 if (!r[0].trim() || r[0].toLowerCase().includes('question')) return;
-                quizzes.push({ type: 'quiz', title: r[0].trim(), options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), correct: r[5].trim() });
+                quizzes.push({ 
+                    type: 'quiz', 
+                    title: r[0].trim(), 
+                    options: [r[1].trim(), r[2].trim(), r[3].trim(), r[4].trim()].filter(Boolean), 
+                    correct: r[5] ? r[5].trim() : "" 
+                });
             });
             return quizzes;
         }
@@ -217,7 +228,11 @@
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            
             if (manualOverrideIndex !== null) {
+                // TV Should never accidentally show the leaderboard "event" itself, it uses the modal.
+                if (manualOverrideIndex === -100) return { currentEvent: { type: 'leaderboard' }, nextEvent: playableEvents[0] || null };
+
                 if (manualOverrideIndex < 0 && globalQuizzes.length > 0) return { currentEvent: globalQuizzes[Math.abs(manualOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
                 return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             }
@@ -275,12 +290,18 @@
         function updateLiveDisplay() {
             const data = appData[liveHall]; if (!data) return;
 
+            // RESTORED QUIZ LAUNCHER LOGIC
             let qBar = document.getElementById('quizControlBar');
-            if (globalQuizzes.length > 0) {
+            if (qBar && globalQuizzes && globalQuizzes.length > 0) {
                 let qHtml = `<span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz:</span>`;
-                globalQuizzes.forEach((q, idx) => { qHtml += `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0, 15)}...</button>`; });
-                qBar.innerHTML = qHtml; qBar.classList.remove('hidden');
-            } else { qBar.classList.add('hidden'); }
+                globalQuizzes.forEach((q, idx) => {
+                    qHtml += `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0, 15)}...</button>`;
+                });
+                qBar.innerHTML = qHtml;
+                qBar.classList.remove('hidden');
+            } else if (qBar) {
+                qBar.classList.add('hidden');
+            }
 
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -289,7 +310,10 @@
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2><p class="text-lg text-slate-500 mt-2">Check the UP NEXT section below for scheduled presentations.</p></div>`;
             
             if (currentEvent) {
-                if (currentEvent.type === 'quiz') {
+                if (currentEvent.type === 'leaderboard') {
+                    nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-trophy text-6xl mb-4 text-amber-500"></i><h2 class="text-3xl font-bold text-amber-400">Leaderboard Active</h2><p class="text-lg text-slate-500 mt-2">Please look at the main modal.</p></div>`;
+                }
+                else if (currentEvent.type === 'quiz') {
                     nowPlayingHtml = `
                         <div class="bg-gradient-to-b from-indigo-900/80 to-slate-900 rounded-3xl border-2 border-indigo-500/50 p-10 shadow-2xl relative overflow-hidden mb-8">
                             <div class="flex justify-between items-center mb-6">
@@ -316,6 +340,7 @@
                             let fileId = link.match(/[-\w]{25,}/);
                             if (fileId) adMediaHtml = `<img src="https://drive.google.com/uc?id=${fileId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`;
                         } else { adMediaHtml = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl shadow-2xl border border-slate-700 bg-black">`; }
+                        
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400"><i class="far fa-clock mr-2"></i>${currentEvent.time || 'Time TBD'}</span></div>${adMediaHtml}</div>`;
                     } else {
                         let breakIcon = "fa-coffee"; let iconColor = "text-amber-500"; const titleLow = currentEvent.title.toLowerCase();
@@ -342,7 +367,7 @@
             }
 
             let upNextHtml = '';
-            if (nextEvent && nextEvent.type !== 'quiz') {
+            if (nextEvent && nextEvent.type !== 'quiz' && nextEvent.type !== 'leaderboard') {
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.time || 'Next'}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
@@ -386,9 +411,14 @@
             }
         }, 1000);
 
+        // PERFECTED LEADERBOARD BROADCAST (-100 index)
         window.showLeaderboard = async function() {
             document.getElementById('leaderboardModal').classList.remove('hidden');
             document.getElementById('leaderboardList').innerHTML = '<div class="loader mx-auto"></div>';
+            
+            // Broadcast to phones!
+            try { await supabaseClient.from('hall_states').update({ override_index: -100, quiz_start_time: null }).eq('hall_id', liveHall); } catch(e) {}
+
             try {
                 const { data, error } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
                 if (error) throw error;
@@ -406,7 +436,10 @@
             } catch (e) { document.getElementById('leaderboardList').innerHTML = '<div class="text-red-400 text-xl font-bold">Failed to load leaderboard data.</div>'; }
         };
 
-        window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
+        window.hideLeaderboard = function() { 
+            document.getElementById('leaderboardModal').classList.add('hidden'); 
+            resumeAutoSync(); // Tells phones to go back to regular schedule
+        };
 
         function initLiveKiosk() { updateLiveDisplay(); if (liveUpdateTimer) clearInterval(liveUpdateTimer); liveUpdateTimer = setInterval(updateLiveDisplay, 30000); }
 
