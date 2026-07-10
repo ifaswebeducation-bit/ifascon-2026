@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -48,13 +49,13 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
-            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop (by Nebula)",
-            'workshop_mis': "21st August' 2026 - MIS Workshop (by Arthrex)",
-            '22a': "22nd August' 2026 - Day 1 Hall A",
-            '22b': "22nd August' 2026 - Day 1 Hall B",
-            '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B"
+            'ao_seminar': "21 Aug - AO Seminar",
+            'workshop_diabetic': "21 Aug - Diabetic WS",
+            'workshop_mis': "21 Aug - MIS WS",
+            '22a': "22 Aug - Hall A",
+            '22b': "22 Aug - Hall B",
+            '23a': "23 Aug - Hall A",
+            '23b': "23 Aug - Hall B"
         };
 
         const buttonLabels = {
@@ -68,7 +69,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v6'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v8'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -186,16 +187,27 @@
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
-                if (!isQA && !isPlenary) {
+
+                // FIXED: Detect Oration strictly and separately
+                if (row_text.includes('oration')) {
+                    isSession = true; 
+                    isOration = true;
+                } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
                     else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
-                    else if (row_text.includes('oration')) { isSession = true; isOration = true; }
                 }
 
                 if (isSession) {
-                    let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
+                    // FIXED: Smart String Merger
+                    let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                        else topic = col3 + ": " + colTitle;
+                    }
+
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
                     events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
@@ -253,7 +265,8 @@
         }
 
         function getLiveStatus(events) {
-            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break');
+            // Include Orations in the playable playlist!
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
             
             if (remoteOverrideIndex !== null) {
                 return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
@@ -362,7 +375,8 @@
                                 </span>
                                 <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time || 'Time TBD'}</span>
                             </div>
-                            ${currentEvent.parent_session ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                            <!-- FIXED: Hide parent_session if it is identical to the title -->
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase tracking-wider text-sm sm:text-base mb-2 flex items-center"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
                             <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl sm:text-2xl mr-4 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
@@ -378,6 +392,7 @@
                     </div>`;
             }
 
+            // 3-COLUMN HEADER WITH LOGO CENTERED
             container.innerHTML = `
                 <div class="max-w-4xl mx-auto pt-2">
                     
