@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     
+    <!-- SUPABASE LIBRARY -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -17,6 +18,8 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .animate-live { animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -29,7 +32,6 @@
     </main>
 
     <script>
-        // --- SAFE SUPABASE INITIALIZATION ---
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -60,15 +62,15 @@
             'ao_seminar': "21 Aug: AO Seminar",
             'workshop_diabetic': "21 Aug: Diabetic Foot",
             'workshop_mis': "21 Aug: MIS",
-            '22a': "22nd August' 2026 - Hall A",
-            '22b': "22nd August' 2026 - Hall B",
-            '23a': "23rd August' 2026 - Hall A",
-            '23b': "23rd August' 2026 - Hall B"
+            '22a': "22 Aug: Hall A",
+            '22b': "22 Aug: Hall B",
+            '23a': "23 Aug: Hall A",
+            '23b': "23 Aug: Hall B"
         };
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v10'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v11'; 
         const container = document.getElementById('contentContainer');
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
         let liveUpdateTimer = null;
@@ -106,8 +108,8 @@
                             let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                             if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
                             if (isWs) {
-                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
-                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
+                                if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
+                                else if (matchStr.includes('mis') || matchString.includes('arthrex')) track = 'mis';
                                 if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
                                 else { ev.hall = "MIS Hall"; mis.push(ev); }
                             } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
@@ -157,12 +159,15 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration"];
+                let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
+                
+                // FIXED: Strict RegEx boundaries here too to align parsing flawlessly
+                if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
 
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
@@ -315,7 +320,12 @@
                             return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCorrect}', '${sTitle}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 text-white font-semibold py-4 px-5 rounded-xl text-left transition mb-3 flex items-center"><span class="bg-slate-900 px-3 py-1 rounded text-indigo-400 mr-4 font-black">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                         }).join('');
                         
-                        nowPlayingHtml = `<div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 shadow-2xl mb-8"><h2 class="text-2xl font-black text-white leading-tight mb-8">${currentEvent.title}</h2><div>${opHtml}</div></div>`;
+                        nowPlayingHtml = `
+                            <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 shadow-2xl mb-8">
+                                <div class="flex justify-between items-center mb-4"><span class="bg-rose-600 text-white px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-pulse"><i class="fas fa-bolt mr-1"></i> Live Quiz</span></div>
+                                <h2 class="text-2xl font-black text-white leading-tight mb-8">${currentEvent.title}</h2>
+                                <div>${opHtml}</div>
+                            </div>`;
                     }
                 } else if (currentEvent.type === 'break') {
                     if (currentEvent.adLink) {
@@ -330,7 +340,11 @@
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
-                        if (currentEvent.title.toLowerCase().includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
+                        const lowTitle = currentEvent.title.toLowerCase();
+                        if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
+                        else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
+                        else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3">${currentEvent.time}</p></div>`;
                     }
                 } else {
