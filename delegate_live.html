@@ -211,9 +211,23 @@
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { remoteOverrideIndex = data.override_index; quizStartTime = data.quiz_start_time; updateLiveDisplay(); }
             });
-            currentSubscription = supabaseClient.channel('custom-all-channel')
+           currentSubscription = supabaseClient.channel('custom-all-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
-                    (payload) => { remoteOverrideIndex = payload.new.override_index; quizStartTime = payload.new.quiz_start_time; updateLiveDisplay(); }
+                    (payload) => {
+                        // 1. Update the local state
+                        remoteOverrideIndex = payload.new.override_index;
+                        quizStartTime = payload.new.quiz_start_time;
+
+                        // 2. CRITICAL: FORCE UI UPDATE
+                        // This forces the app to re-run getLiveStatus() and updateDisplay() 
+                        // even if the user is currently looking at a different session.
+                        updateLiveDisplay();
+                        
+                        // 3. Optional: Add a subtle haptic/alert for the user 
+                        if (remoteOverrideIndex < 0) {
+                            console.log("Quiz triggered by AV!");
+                        }
+                    }
                 ).subscribe();
         }
 
@@ -402,7 +416,7 @@
             const timerEl = document.getElementById('delQuizTimer');
             if (timerEl && quizStartTime) {
                 let elapsed = Math.floor((Date.now() - new Date(quizStartTime).getTime()) / 1000);
-                let left = 120 - elapsed;
+                let left = 45 - elapsed;
                 if (left < 0) left = 0;
                 timerEl.innerText = left;
                 
