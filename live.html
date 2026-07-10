@@ -83,7 +83,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v19'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v20'; 
         const container = document.getElementById('contentContainer');
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -175,12 +175,13 @@
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
                 if (row_text.includes("ifascon 2026") || ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1)) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                // FIXED: Use regular expressions with word boundaries (\b) so "Tejas" doesn't trigger "tea"
+                const breakRegex = /\b(break|lunch|tea|coffee|registration|inauguration|banquet|gbm|valedictory)\b/i;
+                if (breakRegex.test(row_text) && !/\b(symposium|session)\b/i.test(row_text)) {
                     let text = colTitle || col3 || col0;
-                    if (row_text.includes("registration")) text = "Registration";
-                    else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    if (/\bregistration\b/i.test(row_text)) text = "Registration";
+                    else if (/\blunch\b/i.test(row_text)) text = "Lunch";
+                    else if (/\b(coffee|tea)\b/i.test(row_text)) text = "Tea / Coffee Break";
 
                     let adLink = "";
                     for(let cell of r) {
@@ -206,19 +207,18 @@
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
                 
-                // FIXED: Detect Oration strictly and separately to avoid missing Symposiums
-                if (row_text.includes('oration')) {
+                // FIXED: Detect Oration strictly with word boundaries to avoid catching "exploration" or "perforation"
+                if (/\boration\b/i.test(row_text)) {
                     isSession = true; 
                     isOration = true;
                 } else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (/\b(symposium|session|workshop)\b/i.test(row_text)) isSession = true;
                 }
 
                 if (isSession) {
-                    // FIXED: Smart String Merger to prevent "Oration: Oration"
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
                     if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
                         if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
