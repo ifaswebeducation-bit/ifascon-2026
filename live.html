@@ -321,8 +321,18 @@
         window.launchQuiz = async function(idx) {
             manualOverrideIndex = -(idx + 1); 
             quizStartTime = new Date().toISOString();
-            document.getElementById('manualOverridePanel').classList.remove('hidden'); updateLiveDisplay(); resetPanelTimer();
-            try { await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: quizStartTime }).eq('hall_id', liveHall); } catch(e) {}
+            document.getElementById('manualOverridePanel').classList.remove('hidden'); 
+            
+            // CRITICAL: We update the state to force a "broadcast" to all listeners
+            await supabaseClient.from('hall_states')
+                .update({ 
+                    override_index: manualOverrideIndex, 
+                    quiz_start_time: quizStartTime 
+                })
+                .eq('hall_id', liveHall);
+            
+            updateLiveDisplay(); 
+            resetPanelTimer();
         }
 
         async function resumeAutoSync() { 
