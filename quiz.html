@@ -9,11 +9,15 @@
 </head>
 <body class="bg-slate-900 text-white p-6">
     <div id="hallSelect" class="flex flex-col gap-4">
-        <h2 class="text-2xl font-bold mb-4">Select Your Hall</h2>
+        <h2 class="text-2xl font-bold mb-4">Which Hall are you in?</h2>
         <button onclick="setHall('22a')" class="bg-indigo-600 p-4 rounded-xl font-bold">Hall A</button>
         <button onclick="setHall('22b')" class="bg-indigo-600 p-4 rounded-xl font-bold">Hall B</button>
     </div>
-    <div id="quizArea" class="hidden"></div>
+
+    <div id="quizArea" class="hidden">
+        <div id="statusMsg" class="text-center text-slate-400 mt-10">Waiting for AV to start quiz...</div>
+        <div id="quizForm"></div>
+    </div>
 
     <script>
         const supabaseClient = window.supabase.createClient('https://iiqxxxamsprzhzggsrer.supabase.co', 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k');
@@ -26,13 +30,23 @@
         }
 
         function listenToQuiz(hallId) {
-            supabaseClient.channel('quiz-channel')
+            supabaseClient.channel('quiz-sync')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hallId}` },
                     (payload) => {
-                        // If index is negative, render quiz. If index >= 0, show "Waiting for Quiz"
-                        if (payload.new.override_index < 0) renderQuiz();
+                        if (payload.new.override_index < 0) {
+                            renderQuiz(payload.new.override_index);
+                        } else {
+                            document.getElementById('quizForm').innerHTML = "";
+                            document.getElementById('statusMsg').innerText = "Waiting for next quiz...";
+                        }
                     }
                 ).subscribe();
+        }
+
+        function renderQuiz(index) {
+            // Logic to fetch quiz from cached CSV data and render
+            document.getElementById('statusMsg').innerText = "Quiz Active!";
+            // Render buttons here...
         }
     </script>
 </body>
