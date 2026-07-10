@@ -89,9 +89,21 @@
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
         };
 
+        const configTitles = {
+            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
+            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
+            'workshop_mis': "21st August' 2026 - MIS Workshop",
+            '22a': "22nd August' 2026 - Day 1 Hall A",
+            '22b': "22nd August' 2026 - Day 1 Hall B",
+            '23a': "23rd August' 2026 - Day 2 Hall A",
+            '23b': "23rd August' 2026 - Day 2 Hall B"
+        };
+
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_v24'; 
+        let quizStartTimeStamp = null;
+        let quizIntervalTracker = null;
+        const CACHE_KEY = 'ifascon_schedule_cache_v25'; 
         const container = document.getElementById('contentContainer');
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
@@ -101,24 +113,21 @@
         let manualOverrideIndex = null;
         let liveUpdateTimer = null;
 
-        // AUTHENTICATION PERSISTENCE SUITE ENGINE LOCKS
+        function verifyGatePass() {
+            let val = document.getElementById('gatePassInput').value.trim();
+            if (val === 'ifascon2026') {
+                localStorage.setItem('av_authenticated_v2', 'true');
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            } else { alert('Invalid password credential token.'); }
+        }
+
         function checkPersistentAuth() {
-            if (sessionStorage.getItem('av_authenticated') === 'true') {
+            if (localStorage.getItem('av_authenticated_v2') === 'true') {
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
             }
         }
-
-        window.verifyGatePass = function() {
-            let val = document.getElementById('gatePassInput').value.trim();
-            if (val === 'ifascon2026') {
-                sessionStorage.setItem('av_authenticated', 'true');
-                document.getElementById('authGateFrame').classList.add('hidden');
-                document.getElementById('masterToolbarSuite').classList.remove('hidden');
-            } else {
-                alert('Invalid passkey architecture token.');
-            }
-        };
 
         async function initializeApp() {
             checkPersistentAuth();
@@ -167,7 +176,7 @@
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
-                } catch(err) { console.error("Error configuration map sync mismatch: " + key, err); }
+                } catch(err) { console.error(err); }
             }
             
             if (Object.keys(fetchedData).length > 0) {
@@ -317,16 +326,16 @@
             
             manualOverrideIndex = newIndex;
             updateLiveDisplay();
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
         async function launchQuiz(idx) {
             manualOverrideIndex = -(idx + 1);
+            let isoTime = new Date().toISOString();
             updateLiveDisplay();
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime }).eq('hall_id', liveHall);
         }
 
-        // SEPARATE BUTTONS SPLIT LOGIC
         async function terminateActiveQuiz() {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
@@ -334,19 +343,19 @@
             let fallbackIndex = playableEvents.indexOf(currentEvent);
             manualOverrideIndex = fallbackIndex !== -1 ? fallbackIndex : 0;
             updateLiveDisplay();
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
         async function resumeAutoSync() {
             manualOverrideIndex = null;
             updateLiveDisplay();
-            await supabaseClient.from('hall_states').update({ override_index: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
         function switchHallFeed(newHall) {
             liveHall = newHall; manualOverrideIndex = null;
             const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            updateLiveDisplay();
+            initLiveKiosk();
         }
 
         function updateLiveDisplay() {
@@ -370,18 +379,47 @@
             
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
-                    nowPlayingHtml = `
-                        <div class="bg-gradient-to-b from-indigo-900/80 to-slate-900 rounded-3xl border-2 border-indigo-500/50 p-10 shadow-2xl mb-8">
-                            <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse mb-6 inline-block shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Audience Quiz</span>
-                            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-10">${currentEvent.title}</h1>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                                ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
-                            </div>
-                            <div class="flex justify-between items-center mt-8 pt-8 border-t border-slate-700/50">
-                                <p class="text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your mobile phone to participate!</p>
-                                <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-4 rounded-xl shadow-lg text-lg">Show Standings</button>
-                            </div>
-                        </div>`;
+                    let secondsLeft = 45;
+                    if (quizStartTimeStamp) {
+                        let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                        secondsLeft = 45 - diff;
+                        if (secondsLeft < 0) secondsLeft = 0;
+                    }
+
+                    if (secondsLeft > 0) {
+                        nowPlayingHtml = `
+                            <div class="bg-gradient-to-b from-indigo-900/80 to-slate-900 rounded-3xl border-2 border-indigo-500/50 p-10 shadow-2xl mb-8">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse flex items-center shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Audience Quiz</span>
+                                    <span class="bg-slate-950 border border-red-500 text-rose-500 font-mono text-3xl font-black px-5 py-2 rounded-2xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
+                                </div>
+                                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-10">${currentEvent.title}</h1>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                                    ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
+                                </div>
+                                <div class="flex justify-between items-center mt-8 pt-8 border-t border-slate-700/50">
+                                    <p class="text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your phone to play!</p>
+                                    <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-4 rounded-xl shadow-lg text-lg">Show Standings</button>
+                                </div>
+                            </div>`;
+                    } else {
+                        nowPlayingHtml = `
+                            <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600 p-10 shadow-2xl mb-8">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
+                                    <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-2 rounded-xl text-sm">Show Standings</button>
+                                </div>
+                                <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
+                                <div class="flex flex-col gap-4">
+                                    ${currentEvent.options.map((opt, i) => {
+                                        let isCorrect = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
+                                        let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through";
+                                        let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
+                                        return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
+                                    }).join('')}
+                                </div>
+                            </div>`;
+                    }
                 } else if (currentEvent.type === 'break') {
                     if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
@@ -390,7 +428,7 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
@@ -428,7 +466,7 @@
             }
 
             container.innerHTML = `
-                <div class="max-w-6xl mx-auto pt-2 sm:pt-4">
+                <div class="max-w-6xl mx-auto pt-2">
                     <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
                         <div class="flex-1 w-full sm:w-auto text-left">
                             <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title}</h2>
@@ -455,10 +493,8 @@
             try {
                 const { data, error } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
                 if (error) throw error;
-                let counts = {};
-                data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                let counts = {}; data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
                 let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-                
                 if (sorted.length === 0) {
                     document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No correct answers logged yet.</div>';
                     return;
@@ -473,17 +509,30 @@
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
         function initLiveKiosk() {
-            updateLiveDisplay();
-            supabaseClient.channel('custom-all-channel')
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
+                if (data) { 
+                    manualOverrideIndex = data.override_index; 
+                    quizStartTimeStamp = data.quiz_start_time;
+                }
+                updateLiveDisplay();
+            });
+
+            supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
                     (payload) => {
-                        remoteOverrideIndex = payload.new.override_index;
+                        manualOverrideIndex = payload.new.override_index;
+                        quizStartTimeStamp = payload.new.quiz_start_time;
                         updateLiveDisplay();
                     }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
+            if (quizIntervalTracker) clearInterval(quizIntervalTracker);
+            
             liveUpdateTimer = setInterval(updateLiveDisplay, 15000);
+            quizIntervalTracker = setInterval(() => {
+                if (manualOverrideIndex !== null && manualOverrideIndex < 0) updateLiveDisplay();
+            }, 1000);
         }
 
         initializeApp();
