@@ -7,20 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="engine.js"></script> <!-- LINKS TO YOUR NEW BRAIN FILE -->
-
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse-fast { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(0.98); } }
-        .animate-live { animation: pulse-fast 2s infinite ease-in-out; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-live { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
     </style>
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden">
@@ -50,8 +44,40 @@
     </main>
 
     <script>
-        let liveUpdateTimer = null;
+        const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
+        const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let remoteOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let currentSubscription = null;
         let tickerTimer = null;
+        let liveUpdateTimer = null;
+
+        const sheetLinks = {
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1820023798&single=true&output=csv',
+            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
+            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
+            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+        };
+
+        const configTitles = {
+            'ao_seminar': "21 Aug - AO Seminar", 'workshop_diabetic': "21 Aug - Diabetic WS", 'workshop_mis': "21 Aug - MIS WS",
+            '22a': "22 Aug - Hall A", '22b': "22 Aug - Hall B", '23a': "23 Aug - Hall A", '23b': "23 Aug - Hall B"
+        };
+
+        const buttonLabels = {
+            'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS",
+            '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B"
+        };
+
+        let appData = {};
+        let globalQuizzes = [];
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v28'; 
+        const container = document.getElementById('contentContainer');
+        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
         function refreshIdentityStateUI() {
             let num = localStorage.getItem('delegate_phone');
@@ -82,32 +108,201 @@
             updateLiveDisplay();
         };
 
+        async function initializeApp() {
+            refreshIdentityStateUI();
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    let parsed = JSON.parse(cachedData);
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
+                    document.getElementById('loadingState').classList.add('hidden');
+                    initLiveDashboard();
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
+        }
+
+        async function fetchLiveSchedule(isBackground = false) {
+            let fetchedData = {};
+            let quizzesLoaded = [];
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                try {
+                    const response = await fetch(link);
+                    const csvText = await response.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false }).data;
+                    
+                    if (key === 'quizzes') {
+                        quizzesLoaded = parseQuizData(parsedCsv);
+                    } else if (key === 'ao') {
+                        const allAo = parseRawData(parsedCsv, "21 Aug");
+                        let sem = [], dia = [], mis = [];
+                        let isWs = false, track = 'diabetic';
+                        allAo.forEach(ev => {
+                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
+                            if (isWs) {
+                                if (matchStr.includes('diabetic') || matchString.includes('nebula')) track = 'diabetic';
+                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
+                                if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
+                                else { ev.hall = "MIS Hall"; mis.push(ev); }
+                            } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
+                        });
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+                    } else {
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
+                    }
+                } catch(err) {}
+            }
+            if (Object.keys(fetchedData).length > 0) {
+                appData = fetchedData;
+                globalQuizzes = quizzesLoaded;
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
+                if (!isBackground && document.getElementById('loadingState')) { 
+                    document.getElementById('loadingState').classList.add('hidden'); 
+                    initLiveDashboard(); 
+                } else { updateLiveDisplay(); }
+            }
+        }
+
+        function parseQuizData(rows) {
+            let list = [];
+            rows.forEach(r => {
+                if(!r[0] || r[0].toLowerCase().includes('question')) return;
+                list.push({
+                    type: 'quiz',
+                    title: r[0].trim(),
+                    options: [r[1], r[2], r[3], r[4]].map(x => (x || "").trim()).filter(Boolean),
+                    correct: (r[5] || "").trim()
+                });
+            });
+            return list;
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [], current_session = "";
+            rows.forEach(r => {
+                while(r.length < 12) r.push("");
+                r = r.map(x => (x || "").trim());
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let row_text = r.join(" ").toLowerCase();
+
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+
+                const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration", "registration"];
+                let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
+                
+                if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
+                    let text = colTitle || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
+
+                    let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
+                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', chairpersons: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    return;
+                }
+
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                let isSession = false, isOration = false;
+
+                if (row_text.includes('oration')) { isSession = true; isOration = true; } 
+                else if (!isQA && !isPlenary) {
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                }
+
+                if (isSession) {
+                    let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                        else topic = col3 + ": " + colTitle;
+                    }
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    current_session = topic; 
+                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
+                    return;
+                }
+
+                if (col1 || colTitle || isQA || isPlenary) {
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
+                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0 && !col0.toLowerCase().includes('duration')) {
+                        time_display = time_display ? `${time_display} (${col0.trim()})` : col0.trim();
+                    }
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+                }
+            });
+            return events;
+        }
+
         function switchDelegateHall(newHall) {
             liveHall = newHall;
             const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            subscribeToHall(newHall); 
-            updateLiveDisplay();
+            subscribeToHall(newHall); updateLiveDisplay();
         }
 
         function subscribeToHall(hall_id) {
-            if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
+            if (currentSubscription) supabaseClient.removeChannel(currentSubscription);
             
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
-                    manualOverrideIndex = data.override_index; 
+                    remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
                 }
                 updateLiveDisplay();
             });
 
-            window.currentSubscription = supabaseClient.channel('custom-delegate-channel-' + hall_id)
+            currentSubscription = supabaseClient.channel('custom-delegate-channel-' + hall_id)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
-                        manualOverrideIndex = payload.new.override_index; 
+                        remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
                         updateLiveDisplay(); 
                     }
                 ).subscribe();
+        }
+
+        function getLiveStatus(events) {
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            
+            if (remoteOverrideIndex !== null) {
+                if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
+                    return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
+                }
+                return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
+            }
+            
+            const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+            let currentEvent = null, nextEvent = null;
+            for (let i = 0; i < playableEvents.length; i++) {
+                const ev = playableEvents[i];
+                const evStart = parseTimeToMinutes(ev.time);
+                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                
+                if (evStart !== null && evEnd !== null) {
+                    if (currentMins >= evStart && currentMins < evEnd) {
+                        currentEvent = ev; 
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') {
+                            currentEvent = playableEvents[i-1];
+                        }
+                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; 
+                        break;
+                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
+                }
+            }
+            return { currentEvent, nextEvent };
         }
 
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
@@ -171,7 +366,7 @@
                             <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-6 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-10">
                                 <i class="fas fa-id-card text-5xl text-indigo-400 mb-4 animate-bounce"></i>
                                 <h2 class="text-2xl font-black text-white mb-2">Quiz Gated Behind Identity</h2>
-                                <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box above or below to instantly unlock the running conference question module.</p>
+                                <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box below to instantly unlock the running conference question module.</p>
                                 <div class="max-w-xs mx-auto">
                                     <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
                                     <button onclick="let v = document.getElementById('quizPhoneInput').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); updateLiveDisplay(); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg w-full">Submit & Join</button>
@@ -239,10 +434,9 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
-                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
-
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
+                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto rounded-2xl max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`;
+                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain bg-black border border-slate-700 shadow-2xl">`; }
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex justify-between items-center mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -261,17 +455,11 @@
                     }
                     
                     nowPlayingHtml = `
-                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl mb-8">
-                            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <div class="flex items-center gap-3">
-                                    <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
-                                    <div id="activeTalkTimer" ${endAttr}></div>
-                                </div>
-                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time}</span>
-                            </div>
-                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
-                            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 shadow-2xl mb-8">
+                            <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center mb-6 w-max"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-sm mb-2"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                            <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 shadow-inner"><div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-xl font-extrabold text-white">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
                 }
             }
@@ -279,32 +467,26 @@
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.time}</span><h4 class="text-lg font-bold text-slate-200">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 text-sm mt-1.5"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
                     </div>`;
             }
 
             container.innerHTML = `
-                <div class="max-w-6xl mx-auto pt-2">
-                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+                <div class="max-w-4xl mx-auto pt-2">
+                    ${hallSelectorHtml}
+                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 gap-4 border-b border-slate-800">
                         <div class="flex-1 w-full sm:w-auto text-left">
-                            <div class="flex items-center gap-3 mb-1">
-                                <span class="bg-indigo-600 text-white font-black px-2.5 py-0.5 rounded text-[10px] uppercase tracking-widest hidden lg:inline-block">Live Dashboard</span>
-                                <span class="text-slate-400 text-sm sm:text-base font-semibold">${data.title.split(' - ')[0]}</span>
-                            </div>
-                            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title.split(' - ')[1] || data.title}</h2>
+                            <span class="text-slate-400 text-sm font-semibold block mb-1">${data.title.split(' - ')[0]}</span>
+                            <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">${data.title.split(' - ')[1] || data.title}</h2>
                         </div>
-                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
-                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-2">
+                            <div class="bg-white/95 p-2 rounded-2xl shadow-xl inline-block">
                                 <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
                             </div>
                         </div>
-                        <div class="flex-1 w-full sm:w-auto flex justify-end">
-                            <div class="bg-slate-800/80 border border-slate-700 px-5 py-3 rounded-2xl transition flex items-center gap-3 shadow-lg ml-auto">
-                                <i class="far fa-clock text-slate-500 text-xl"></i>
-                                <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider" id="liveDigitalClock">${nowStr}</div>
-                            </div>
+                        <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
+                            <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3"><i class="far fa-clock text-slate-500"></i><div class="text-xl font-black text-white font-mono tracking-wider">${nowStr}</div></div>
                         </div>
                     </div>
                     ${nowPlayingHtml}
@@ -314,59 +496,15 @@
 
         function initLiveDashboard() { 
             subscribeToHall(liveHall); 
-            
-            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            if (tickerTimer) clearInterval(tickerTimer);
-            
-            // Decoupled Background Engine prevents layout blinking 
-            liveUpdateTimer = setInterval(() => {
-                if (manualOverrideIndex === null || manualOverrideIndex >= 0) {
-                    updateLiveDisplay();
-                }
-            }, 15000); 
-            
-            // Core high-speed timer ticking loop
+            if(liveUpdateTimer) clearInterval(liveUpdateTimer);
+            if(tickerTimer) clearInterval(tickerTimer);
+            liveUpdateTimer = setInterval(updateLiveDisplay, 15000); 
             tickerTimer = setInterval(() => {
-                // 1. Top Digital Clock tick
-                let clk = document.getElementById('liveDigitalClock');
-                if (clk) clk.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                // 2. Active Session Talk Timer inside Talk Box
-                let talkTimerEl = document.getElementById('activeTalkTimer');
-                if (talkTimerEl) {
-                    let endStr = talkTimerEl.getAttribute('data-endtime');
-                    if (endStr) {
-                        let endMins = parseTimeToMinutes(endStr);
-                        let now = new Date();
-                        let currentMins = now.getHours() * 60 + now.getMinutes();
-                        let diff = endMins - currentMins;
-                        
-                        if (diff > 0) {
-                            talkTimerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-pulse"></i>${diff} mins left`;
-                            talkTimerEl.className = "bg-indigo-900/80 text-indigo-200 border border-indigo-500/50 px-3 py-1 rounded-lg text-sm font-bold shadow-inner flex items-center";
-                        } else {
-                            talkTimerEl.innerHTML = `<i class="fas fa-exclamation-triangle mr-2 animate-pulse"></i>Time Up`;
-                            talkTimerEl.className = "bg-rose-900/80 text-rose-200 border border-rose-500/50 px-3 py-1 rounded-lg text-sm font-bold shadow-inner flex items-center";
-                        }
-                    }
-                }
-
-                // 3. Quiz 45 Second Timer
-                if (manualOverrideIndex !== null && manualOverrideIndex < 0 && quizStartTimeStamp) {
-                    let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
-                    let secondsLeft = 45 - diff;
-                    let timerEl = document.getElementById('quizCountdownTimer');
-                    
-                    if (secondsLeft <= 0) {
-                        if (timerEl && timerEl.dataset.expired !== "true") {
-                            updateLiveDisplay(); 
-                        }
-                    } else if (timerEl && timerEl.dataset.expired === "false") {
-                        timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s`;
-                    }
-                }
+                if(remoteOverrideIndex !== null && remoteOverrideIndex < 0) updateLiveDisplay();
             }, 1000);
         }
+        
+        initializeApp();
     </script>
 </body>
 </html>
