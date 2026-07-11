@@ -344,11 +344,13 @@
                 updateLiveDisplay(true);
             });
 
-            window.currentSubscription = supabaseClient.channel('custom-delegate-channel-' + hall_id)
+            // Creates a highly unique connection socket to prevent dropped data
+            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random())
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
+                        lastRenderHash = ""; // This forces the screen to redraw instantly, bypassing the anti-blink lock!
                         updateLiveDisplay(true); 
                     }
                 ).subscribe();
