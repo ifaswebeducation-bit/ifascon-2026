@@ -212,6 +212,26 @@
             }
         }
 
+        // Migrate legacy localStorage keys: remove answered_/marked_ entries that are NOT hall-scoped
+        function migrateLocalStorageKeys() {
+            try {
+                const halls = Object.keys(configTitles);
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k) keys.push(k); }
+                keys.forEach(k => {
+                    if (!k) return;
+                    if (k.startsWith('answered_') || k.startsWith('marked_')) {
+                        // if key already includes one of the hall ids, keep it
+                        const hasHall = halls.some(h => k.includes(h + '_') || k.includes('_' + h + '_'));
+                        if (!hasHall) {
+                            console.info('Migrating legacy key:', k, '-- removing to avoid stale lock');
+                            localStorage.removeItem(k);
+                        }
+                    }
+                });
+            } catch (e) { console.warn('Migration failed', e); }
+        }
+
         window.saveTopBannerIdentity = function() {
             let val = document.getElementById('topPhoneRegisterInput').value.trim();
             if (val.length >= 7) {
@@ -230,6 +250,9 @@
         };
 
         async function initializeApp() {
+            // Run migration to clear legacy non-hall-scoped cache so answers are not frozen
+            migrateLocalStorageKeys();
+
             refreshIdentityStateUI();
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
