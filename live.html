@@ -319,8 +319,12 @@
         }
 
         function getLiveStatus(events) {
-            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
-            
+            // FIXED: Skips the generic "Orations" grouping header and jumps straight to the Oration + Speaker
+            const playableEvents = events.filter(e => {
+                if (e.type === 'presentation' || e.type === 'break') return true;
+                if (e.isOration && e.speaker.trim() !== '') return true; 
+                return false;
+            });
             if (manualOverrideIndex !== null) {
                 if (manualOverrideIndex < 0 && globalQuizzes.length > 0) {
                     return { currentEvent: globalQuizzes[Math.abs(manualOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
