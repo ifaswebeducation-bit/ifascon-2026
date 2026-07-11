@@ -570,7 +570,14 @@
         }
 
         function initLiveDashboard() { 
+            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
+            
+            liveUpdateTimer = setInterval(() => {
+                if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) {
+                    updateLiveDisplay(false);
+                }
+            }, 15000); 
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
@@ -585,11 +592,15 @@
                         if (timerEl && timerEl.dataset.expired !== "true") {
                             updateLiveDisplay(true); 
                         }
-                    } else if (timerEl && timerEl.dataset.expired === "false") {
-                        timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
+                    } else {
+                        // If timer exists, update it. If not, the screen missed the render, so force it!
+                        if (timerEl && timerEl.dataset.expired === "false") {
+                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s`;
+                        } else {
+                            lastRenderHash = "";
+                            updateLiveDisplay(true);
+                        }
                     }
-                } else {
-                    if (new Date().getSeconds() % 15 === 0) updateLiveDisplay(false); 
                 }
             }, 1000);
         }
