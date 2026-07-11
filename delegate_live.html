@@ -146,27 +146,40 @@
         // MULTI-TIERED MATH ENGINE FOR DELEGATE APP
         async function fetchMathLeaderboard(type) {
             try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                // Build a scoped Supabase query so only relevant rows are returned.
+                let query = supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+
+                // Scope by single hall or by grouped halls for cumulative views
+                if (type === 'day1_cum') {
+                    query = query.in('hall_id', ['22a','22b']);
+                } else if (type === 'day2_cum') {
+                    query = query.in('hall_id', ['23a','23b']);
+                } else if (['22a','22b','23a','23b','ao_seminar','workshop_diabetic','workshop_mis'].includes(type)) {
+                    query = query.eq('hall_id', type);
+                } // else leave unfiltered for grand leaderboard
+
+                const { data, error } = await query;
                 if (error) throw error;
-                
-                let filteredData = data;
+
+                let filteredData = data || [];
                 let titleText = "";
 
-                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
-                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => d.hall_id === '22a' || d.hall_id === '22b'); titleText = "Day 1 Cumulative Leaders"; }
-                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
-                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => d.hall_id === '23a' || d.hall_id === '23b'); titleText = "Day 2 Cumulative Leaders"; }
+                if (type === '22a') { titleText = "Day 1: Hall A Leaderboard"; }
+                else if (type === '22b') { titleText = "Day 1: Hall B Leaderboard"; }
+                else if (type === 'day1_cum') { titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === '23a') { titleText = "Day 2: Hall A Leaderboard"; }
+                else if (type === '23b') { titleText = "Day 2: Hall B Leaderboard"; }
+                else if (type === 'day2_cum') { titleText = "Day 2 Cumulative Leaders"; }
                 else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
                 filteredData.forEach(r => { scores[r.phone] = 0; }); 
                 
+                // Group correct responses by (hall + question) and de-duplicate by phone
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
-                    let key = r.hall_id + "___" + r.question; 
+                    let key = (r.hall_id || 'none') + "___" + r.question; 
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => x.phone === r.phone)) {
                         qGroups[key].push(r);
@@ -176,13 +189,13 @@
                 Object.values(qGroups).forEach(responses => {
                     responses.forEach((r, idx) => {
                         let pts = Math.max(10 - idx, 1);
-                        scores[r.phone] += pts;
+                        scores[r.phone] = (scores[r.phone] || 0) + pts;
                     });
                 });
                 
                 let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
                 return { sorted, titleText };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
+            } catch(e) { console.error(e); return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
         function refreshIdentityStateUI() {
@@ -542,7 +555,7 @@
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
                     let savedPhone = localStorage.getItem('delegate_phone');
-                    let cleanKey = currentEvent.title.replace(/\W/g, '');
+                    let cleanKey = (liveHall + "_" + currentEvent.title).replace(/\W/g, '');
                     let hasAnswered = localStorage.getItem('answered_' + cleanKey);
                     let mySelection = localStorage.getItem('marked_' + cleanKey) || '';
 
