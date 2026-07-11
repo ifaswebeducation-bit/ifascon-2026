@@ -29,6 +29,7 @@
         </div>
     </div>
 
+    <!-- AV Command Center -->
     <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
@@ -43,8 +44,25 @@
             </div>
         </div>
         
+        <!-- NEW: Board Engine Matrix -->
+        <div class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
+            <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Board Engine:</span>
+            <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2 py-1.5 rounded outline-none font-bold">
+                <option value="22a">Day 1: Hall A Only</option>
+                <option value="22b">Day 1: Hall B Only</option>
+                <option value="day1_cum">Day 1: Cumulative (A+B)</option>
+                <option value="23a">Day 2: Hall A Only</option>
+                <option value="23b">Day 2: Hall B Only</option>
+                <option value="day2_cum">Day 2: Cumulative (A+B)</option>
+                <option value="grand">Grand Overall (All Days/Halls)</option>
+            </select>
+            <button onclick="showLeaderboard(document.getElementById('boardTypeSelect').value)" class="bg-slate-800 hover:bg-slate-700 text-amber-400 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-xs shadow">Show on TV</button>
+            <button onclick="forceLeaderboardGlobal(document.getElementById('boardTypeSelect').value)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs ml-2">Force on Phones</button>
+            <button onclick="forceLeaderboardGlobal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear Phones</button>
+        </div>
+
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
-            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Global Quiz:</span>
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz in Current Hall:</span>
             <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
 
@@ -62,10 +80,12 @@
         </div>
     </div>
 
+    <!-- Live Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
-        <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Quiz Performers</h2>
-        <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
-        <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close Leaderboard</button>
+        <h2 id="lbTitle" class="text-4xl lg:text-6xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Performers</h2>
+        <p id="lbSub" class="text-slate-400 font-bold tracking-widest uppercase mb-8">Calculating Live Database Weights...</p>
+        <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-4"></div>
+        <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close TV Board</button>
     </div>
 
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
@@ -108,13 +128,8 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August 2026 - AO Seminar",
-            'workshop_diabetic': "21st August 2026 - Diabetic Foot Workshop",
-            'workshop_mis': "21st August 2026 - MIS Workshop",
-            '22a': "22nd August 2026 - Hall A",
-            '22b': "22nd August 2026 - Hall B",
-            '23a': "23rd August 2026 - Hall A",
-            '23b': "23rd August 2026 - Hall B"
+            'ao_seminar': "21st August 2026 - AO Seminar", 'workshop_diabetic': "21st August 2026 - Diabetic Foot Workshop", 'workshop_mis': "21st August 2026 - MIS Workshop",
+            '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B"
         };
         const allHallsList = Object.keys(configTitles);
 
@@ -122,7 +137,7 @@
         let globalQuizzes = [];
         let quizStartTimeStamp = null;
         let lastRenderHash = ""; 
-        const CACHE_KEY = 'ifascon_schedule_cache_v33'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v40'; 
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
         if (liveHall === 'ao') liveHall = 'ao_seminar';
@@ -146,6 +161,48 @@
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
             }
+        }
+
+        // NEW: ADVANCED TIME-WEIGHTED MATH ENGINE
+        async function fetchMathLeaderboard(type) {
+            try {
+                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                if (error) throw error;
+                
+                let filteredData = data;
+                let titleText = "";
+
+                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
+                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => d.hall_id === '22a' || d.hall_id === '22b'); titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
+                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => d.hall_id === '23a' || d.hall_id === '23b'); titleText = "Day 2 Cumulative Leaders"; }
+                else { titleText = "Grand Conference Leaderboard"; } // Grand applies to all
+
+                let scores = {};
+                filteredData.forEach(r => { scores[r.phone] = 0; }); 
+                
+                let qGroups = {};
+                filteredData.forEach(r => {
+                    if (!r.is_correct) return;
+                    let key = r.hall_id + "___" + r.question; // Isolate race to the specific hall
+                    if (!qGroups[key]) qGroups[key] = [];
+                    if (!qGroups[key].some(x => x.phone === r.phone)) {
+                        qGroups[key].push(r);
+                    }
+                });
+                
+                Object.values(qGroups).forEach(responses => {
+                    responses.forEach((r, idx) => {
+                        let pts = Math.max(10 - idx, 1);
+                        scores[r.phone] += pts;
+                    });
+                });
+                
+                let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+                return { sorted, titleText };
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
         async function initializeApp() {
@@ -213,7 +270,6 @@
             }
         }
 
-        // FIXED: PM logic won't duplicate PM if it already exists
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
@@ -321,7 +377,6 @@
         }
 
         function getLiveStatus(events) {
-            // FIXED: Oration logic bypasses generic subheaders
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
                 if (e.isOration && (e.speaker || '').trim() !== '') return true; 
@@ -377,7 +432,7 @@
             
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
         async function launchQuiz(idx) {
@@ -386,9 +441,8 @@
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
             
-            for(let h of allHallsList) {
-                supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime }).eq('hall_id', h).then();
-            }
+            // Sends ONLY to the currently selected hall in the AV console
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
         async function terminateActiveQuiz() {
@@ -400,8 +454,16 @@
 
         async function resumeAutoSync() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
+
+        // NEW: Force Leaderboards globally
+        window.forceLeaderboardGlobal = async function(type) {
+            if (type !== 'none') showLeaderboard(type);
+            for(let h of allHallsList) {
+                supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', h).then();
+            }
+        };
 
         function switchHallFeed(newHall) {
             liveHall = newHall; manualOverrideIndex = null; quizStartTimeStamp = null;
@@ -458,7 +520,6 @@
                                 </div>
                                 <div class="flex justify-between items-center mt-8 pt-8 border-t border-slate-700/50">
                                     <p class="text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your phone to play!</p>
-                                    <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-4 rounded-xl shadow-lg text-lg">Show Standings</button>
                                 </div>
                             </div>`;
                     } else {
@@ -466,13 +527,12 @@
                             <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600 p-10 shadow-2xl mb-8">
                                 <div class="flex justify-between items-center mb-6">
                                     <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
-                                    <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-2 rounded-xl text-sm">Show Standings</button>
                                 </div>
                                 <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
                                 <div class="flex flex-col gap-4">
                                     ${currentEvent.options.map((opt, i) => {
                                         let isCorrect = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
-                                        let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through";
+                                        let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
                                     }).join('')}
@@ -490,7 +550,7 @@
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -502,7 +562,6 @@
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                    // FIXED: Oration logic hides the group header exactly as requested
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : '';
                     
                     nowPlayingHtml = `
@@ -530,25 +589,25 @@
             document.getElementById('dynamicContentWrapper').innerHTML = nowPlayingHtml + upNextHtml;
         }
 
-        window.showLeaderboard = async function() {
+        window.showLeaderboard = async function(presetType) {
+            let type = presetType || document.getElementById('boardTypeSelect').value;
             document.getElementById('leaderboardModal').classList.remove('hidden');
-            document.getElementById('leaderboardList').innerHTML = '<div class="loader"></div>';
-            try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
-                if (error) throw error;
-                let counts = {};
-                data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
-                let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-                
-                if (sorted.length === 0) {
-                    document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No correct answers logged yet.</div>';
-                    return;
-                }
-                document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
-                    let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
-                    return `<div class="flex justify-between items-center bg-slate-800 p-6 rounded-2xl border border-slate-600 shadow-xl"><div class="text-3xl font-bold text-white"><i class="fas fa-medal mr-4 text-amber-400"></i>${ob}</div><div class="text-3xl font-black text-indigo-400">${item[1]} pts</div></div>`;
-                }).join('');
-            } catch(e) { document.getElementById('leaderboardList').innerHTML = '<div class="text-red-400">Failed to load scores.</div>'; }
+            document.getElementById('leaderboardList').innerHTML = '<div class="loader mt-6"></div>';
+            
+            let mathResults = await fetchMathLeaderboard(type);
+            document.getElementById('lbSub').innerText = mathResults.titleText;
+            
+            let sorted = mathResults.sorted;
+            
+            if (sorted.length === 0) {
+                document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No scores logged for this sector yet.</div>';
+                return;
+            }
+            document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
+                let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
+                let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
+                return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${ob}</div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
+            }).join('');
         };
 
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
