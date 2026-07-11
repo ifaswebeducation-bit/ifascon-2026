@@ -37,7 +37,7 @@
         </div>
     </div>
 
-    <!-- Main Content Viewport -->
+    <!-- Main Content Dynamic Viewport Frame -->
     <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
         
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
@@ -45,7 +45,7 @@
             <p class="text-slate-400 font-semibold text-lg animate-pulse">Loading Conference Dashboard...</p>
         </div>
 
-        <!-- STATIC HEADER & BUTTONS: NEVER RELOADS -->
+        <!-- STATIC HEADER & NAV: NEVER RELOADS -->
         <div id="staticHeader" class="hidden">
             <div class="mb-6 pb-4 border-b border-slate-800">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
@@ -79,7 +79,7 @@
             </div>
         </div>
 
-        <!-- DYNAMIC CONTENT -->
+        <!-- DYNAMIC CONTENT: ONLY RELOADS WHEN TALK CHANGES -->
         <div id="dynamicContentWrapper"></div>
 
     </main>
@@ -92,6 +92,7 @@
         let remoteOverrideIndex = null;
         let quizStartTimeStamp = null;
         let tickerTimer = null;
+        let liveUpdateTimer = null;
         let lastRenderHash = "";
 
         const sheetLinks = {
@@ -115,7 +116,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v30'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v31'; 
         const container = document.getElementById('contentContainer');
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
@@ -150,7 +151,7 @@
 
         async function initializeApp() {
             refreshIdentityStateUI();
-            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const cachedData = localStorage.getItem(CACHE_KEY);
             if (cachedData) {
@@ -203,12 +204,25 @@
                 appData = fetchedData;
                 globalQuizzes = quizzesLoaded;
                 localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-                if (!isBackground) { 
-                    document.getElementById('loadingState').classList.add('hidden'); 
-                    document.getElementById('staticHeader').classList.remove('hidden');
+                if (!isBackground && document.getElementById('loadingState')) { 
+                    document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('staticHeader').classList.remove('hidden'); 
                     initLiveDashboard(); 
                 } else { updateLiveDisplay(true); }
             }
+        }
+
+        // TIME FORMATTER ENGINE
+        function convertTo12HourFormat(timeStr) {
+            if (!timeStr) return "";
+            return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])\b/g, function(match, p1, p2) {
+                let h = parseInt(p1, 10);
+                let ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                h = h ? h : 12; 
+                let paddedH = h < 10 ? '0' + h : h;
+                return paddedH + ':' + p2 + ' ' + ampm;
+            });
         }
 
         function parseQuizData(rows) {
@@ -243,8 +257,11 @@
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
 
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    let display_time = convertTo12HourFormat(time_raw);
+
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ type: 'break', title: text, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), speaker: '', chairpersons: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', chairpersons: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
 
@@ -269,18 +286,26 @@
                     }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
-                    events.push({ type: 'session', isOration: isOration, time: (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
+                    
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    let display_time = convertTo12HourFormat(time_raw);
+
+                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: display_time, title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
                 }
 
                 if (col1 || colTitle || isQA || isPlenary) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
-                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    
                     if (col0 && !col0.toLowerCase().includes('duration')) {
-                        time_display = time_display ? `${time_display} (${col0.trim()})` : col0.trim();
+                        time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim();
                     }
+                    
+                    let display_time = convertTo12HourFormat(time_raw);
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ type: 'presentation', time: time_display, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+
+                    events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
             });
             return events;
@@ -291,6 +316,16 @@
             const parts = timeStr.split('-')[0].trim().split(/[.:]/);
             if (parts.length < 2) return null;
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+
+        function switchDelegateHall(newHall) {
+            liveHall = newHall;
+            remoteOverrideIndex = null;
+            quizStartTimeStamp = null;
+            lastRenderHash = ""; // Clears the memory so the screen cleanly forces a redraw instantly
+            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
+            subscribeToHall(newHall); 
+            updateLiveDisplay(true);
         }
 
         function subscribeToHall(hall_id) {
@@ -352,13 +387,6 @@
             return { currentEvent, nextEvent };
         }
 
-        function switchDelegateHall(newHall) {
-            liveHall = newHall;
-            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            subscribeToHall(newHall); 
-            updateLiveDisplay(true);
-        }
-
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
             let phone = localStorage.getItem('delegate_phone');
             let cleanKey = questionText.replace(/\W/g, '');
@@ -400,8 +428,9 @@
 
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             
+            // Decoupled DOM tracking variable to stop blinking 
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + remoteOverrideIndex;
-            if (!forceRender && newHash === lastRenderHash) return;
+            if (!forceRender && newHash === lastRenderHash) { return; }
             lastRenderHash = newHash;
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
@@ -496,7 +525,7 @@
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -504,28 +533,20 @@
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
-                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.time}</p></div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                    let endAttr = "";
-                    if (currentEvent.time && currentEvent.time.includes('-')) {
-                        let rawEnd = currentEvent.time.split('-')[1].split('(')[0].trim();
-                        endAttr = `data-endtime="${rawEnd}"`;
-                    }
                     
                     nowPlayingHtml = `
-                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl mb-8">
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 shadow-2xl mb-8">
                             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                <div class="flex items-center gap-3">
-                                    <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
-                                    <div id="activeTalkTimer" ${endAttr}></div>
-                                </div>
-                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.time}</span>
+                                <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
+                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
-                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
-                            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title ? `<div class="text-indigo-400 font-bold uppercase text-sm mb-2"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : ''}
+                            <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 shadow-inner"><div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-xl font-extrabold text-white">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
                 }
             }
@@ -533,9 +554,8 @@
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next • ${nextEvent.display_time}</span><h4 class="text-lg font-bold text-slate-200">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 text-sm mt-1.5"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
                     </div>`;
             }
 
@@ -543,28 +563,18 @@
         }
 
         function initLiveDashboard() { 
+            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
+            
+            liveUpdateTimer = setInterval(() => {
+                if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) {
+                    updateLiveDisplay(false);
+                }
+            }, 15000); 
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
-                if(clk) clk.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                let talkTimerEl = document.getElementById('activeTalkTimer');
-                if (talkTimerEl) {
-                    let endStr = talkTimerEl.getAttribute('data-endtime');
-                    if (endStr) {
-                        let parts = endStr.split(/[.:]/);
-                        let endMins = parseInt(parts[0],10) * 60 + parseInt(parts[1],10);
-                        let diff = endMins - (new Date().getHours() * 60 + new Date().getMinutes());
-                        if (diff > 0) {
-                            talkTimerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-pulse"></i>${diff} mins left`;
-                            talkTimerEl.className = "bg-indigo-900/80 text-indigo-200 border border-indigo-500/50 px-3 py-1 rounded-lg text-sm font-bold shadow-inner flex items-center";
-                        } else {
-                            talkTimerEl.innerHTML = `<i class="fas fa-exclamation-triangle mr-2 animate-pulse"></i>Time Up`;
-                            talkTimerEl.className = "bg-rose-900/80 text-rose-200 border border-rose-500/50 px-3 py-1 rounded-lg text-sm font-bold shadow-inner flex items-center";
-                        }
-                    }
-                }
+                if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
                 if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && quizStartTimeStamp) {
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
@@ -578,13 +588,9 @@
                     } else if (timerEl && timerEl.dataset.expired === "false") {
                         timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s`;
                     }
-                } else {
-                    if (new Date().getSeconds() % 15 === 0) updateLiveDisplay(false); 
                 }
             }, 1000);
         }
-
-        initializeApp();
     </script>
 </body>
 </html>
