@@ -8,39 +8,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    
-    <!-- SUPABASE REALTIME CORE CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .animate-live { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .animate-live { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-slate-900">
 
-    <!-- Persistent Password Gated Security Veil -->
+    <!-- Auth Gated Screen -->
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
             <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
-            <h3 class="text-2xl font-black mb-2 text-white">AV Operations Console Gated</h3>
-            <p class="text-slate-400 text-sm mb-6">Provide administrative console passwords to mount real-time interface engines.</p>
+            <h3 class="text-2xl font-black mb-2 text-white">AV Console</h3>
+            <p class="text-slate-400 text-sm mb-6">Enter password to unlock broadcaster controls.</p>
             <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••">
-            <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Unlock System Workspace</button>
+            <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Unlock Workspace</button>
         </div>
     </div>
 
-    <!-- Permanent Top Mounted Admin Control System Dashboard Block -->
-    <div id="masterToolbarSuite" class="w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
+    <!-- Top AV Toolbar -->
+    <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-3">
                 <span class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded text-xs uppercase tracking-wider animate-pulse">AV Control Panel</span>
-                <span class="text-xs text-slate-400 font-medium">Real-time adjustments sync instantly with attendee screens globally.</span>
+                <span class="text-xs text-slate-400 font-medium">Syncs instantly with attendee screens globally.</span>
             </div>
-            <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
                 <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-sm">⬅ Prev Talk</button>
                 <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-sm">Next Talk ➔</button>
                 <button onclick="terminateActiveQuiz()" class="bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 px-3 py-1.5 rounded-lg font-bold border border-rose-500/30 active:scale-95 transition text-sm">Clear Active Quiz</button>
@@ -48,40 +45,61 @@
             </div>
         </div>
         
-        <!-- Live Quiz Launcher Subbar -->
+        <!-- Quiz Buttons -->
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
             <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Global Quiz:</span>
             <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
 
-        <!-- TV Station Switcher bar -->
-        <div class="flex items-center justify-between flex-wrap gap-2 pt-1">
+        <!-- Feed Switcher -->
+        <div class="flex items-center gap-2 pt-1 flex-wrap">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <button onclick="switchHallFeed('ao_seminar')" id="feed-ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: AO Seminar</button>
-                <button onclick="switchHallFeed('workshop_diabetic')" id="feed-workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: Diabetic Foot</button>
-                <button onclick="switchHallFeed('workshop_mis')" id="feed-workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: MIS</button>
-                <button onclick="switchHallFeed('22a')" id="feed-22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall A</button>
-                <button onclick="switchHallFeed('22b')" id="feed-22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
-                <button onclick="switchHallFeed('23a')" id="feed-23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
-                <button onclick="switchHallFeed('23b')" id="feed-23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
+            <div class="flex items-center gap-1.5 flex-wrap" id="hallButtonNav">
+                <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: AO Seminar</button>
+                <button onclick="switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: Diabetic Foot</button>
+                <button onclick="switchHallFeed('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">21 Aug: MIS</button>
+                <button onclick="switchHallFeed('22a')" data-hall="22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall A</button>
+                <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
+                <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
+                <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
             </div>
         </div>
     </div>
 
-    <!-- Live Leaderboard Overlaid Frame -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 class="text-5xl lg:text-7xl font-black text-amber-500 mb-8 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Quiz Performers</h2>
         <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4"></div>
         <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close Leaderboard</button>
     </div>
 
-    <!-- Workspace container -->
+    <!-- Main Workspace -->
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+        
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-30">
             <div class="loader mb-4"></div>
             <p class="text-slate-400 font-semibold text-lg animate-pulse">Syncing Engine Schedule Database...</p>
         </div>
+
+        <!-- STATIC HEADER: NEVER RELOADS -->
+        <div id="staticHeader" class="hidden flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+            <div class="flex-1 w-full sm:w-auto text-left">
+                <h2 id="headerTitle" class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight font-sans"></h2>
+            </div>
+            <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
+                <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON'">
+                </div>
+            </div>
+            <div class="flex-1 w-full sm:w-auto flex justify-end">
+                <div class="bg-slate-800/80 border border-slate-700 px-5 py-3 rounded-2xl flex items-center gap-3 shadow-lg ml-auto">
+                    <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider" id="liveDigitalClock"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DYNAMIC CONTENT: ONLY RELOADS WHEN TALK CHANGES -->
+        <div id="dynamicContentWrapper"></div>
+
     </main>
 
     <script>
@@ -99,61 +117,62 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August' 2026 - AO Trauma Foot & Ankle Seminar",
-            'workshop_diabetic': "21st August' 2026 - Diabetic Foot Workshop",
-            'workshop_mis': "21st August' 2026 - MIS Workshop",
-            '22a': "22nd August' 2026 - Day 1 Hall A",
-            '22b': "22nd August' 2026 - Day 1 Hall B",
-            '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B"
+            'ao_seminar': "21st August 2026 - AO Seminar",
+            'workshop_diabetic': "21st August 2026 - Diabetic Foot",
+            'workshop_mis': "21st August 2026 - MIS Workshop",
+            '22a': "22nd August 2026 - Hall A",
+            '22b': "22nd August 2026 - Hall B",
+            '23a': "23rd August 2026 - Hall A",
+            '23b': "23rd August 2026 - Hall B"
         };
         const allHallsList = Object.keys(configTitles);
 
         let appData = {};
         let globalQuizzes = [];
         let quizStartTimeStamp = null;
-        let quizIntervalTracker = null;
-        const CACHE_KEY = 'ifascon_schedule_cache_v28'; 
-        const container = document.getElementById('contentContainer');
+        let lastRenderHash = ""; // Prevents blinking!
         
-        let liveHall = new URLSearchParams(window.location.search).get('hall') || 'ao_seminar';
+        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
         if (liveHall === 'ao') liveHall = 'ao_seminar';
         if (liveHall === 'ao_workshops') liveHall = 'workshop_diabetic';
         
         let manualOverrideIndex = null;
-        let liveUpdateTimer = null;
         let tickerTimer = null;
 
-        function checkPersistentAuth() {
-            if (localStorage.getItem('av_auth_secure') === 'true') {
-                document.getElementById('authGateFrame').classList.add('hidden');
-            }
-        }
-
-        window.verifyGatePass = function() {
+        function verifyGatePass() {
             let val = document.getElementById('gatePassInput').value.trim();
             if (val === 'ifascon2026') {
                 localStorage.setItem('av_auth_secure', 'true');
                 document.getElementById('authGateFrame').classList.add('hidden');
-                updateLiveDisplay();
-            } else { alert('Invalid security passcode token.'); }
-        };
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            } else { alert('Invalid password credential token.'); }
+        }
+
+        function checkPersistentAuth() {
+            if (localStorage.getItem('av_auth_secure') === 'true') {
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            }
+        }
 
         async function initializeApp() {
             checkPersistentAuth();
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                try {
+            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            try {
+                const cachedData = localStorage.getItem('ifascon_v30');
+                if (cachedData) {
                     let parsed = JSON.parse(cachedData);
                     appData = parsed.halls || {};
                     globalQuizzes = parsed.quizzes || [];
-                    if (document.getElementById('loadingState')) {
-                        document.getElementById('loadingState').classList.add('hidden');
-                    }
+                    document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
                     fetchLiveSchedule(true);
-                } catch (e) { fetchLiveSchedule(false); }
-            } else { fetchLiveSchedule(false); }
+                    return;
+                }
+            } catch(e) {}
+            fetchLiveSchedule(false);
         }
 
         async function fetchLiveSchedule(isBackground = false) {
@@ -188,17 +207,21 @@
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
-                } catch(err) { console.error("Pipeline read error on tab: " + key, err); }
+                } catch(err) { console.error(err); }
             }
             
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
                 globalQuizzes = quizzesLoaded;
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-                if (!isBackground && document.getElementById('loadingState')) {
+                localStorage.setItem('ifascon_v30', JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
+                
+                if (!isBackground) {
                     document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
-                } else { updateLiveDisplay(); }
+                } else { 
+                    updateLiveDisplay(true); 
+                }
             }
         }
 
@@ -206,12 +229,7 @@
             let list = [];
             rows.forEach(r => {
                 if(!r[0] || r[0].toLowerCase().includes('question')) return;
-                list.push({
-                    type: 'quiz',
-                    title: r[0].trim(),
-                    options: [r[1], r[2], r[3], r[4]].map(x => (x || "").trim()).filter(Boolean),
-                    correct: (r[5] || "").trim()
-                });
+                list.push({ type: 'quiz', title: r[0].trim(), options: [r[1], r[2], r[3], r[4]].map(x => (x || "").trim()).filter(Boolean), correct: (r[5] || "").trim() });
             });
             return list;
         }
@@ -305,7 +323,14 @@
             for (let i = 0; i < playableEvents.length; i++) {
                 const ev = playableEvents[i];
                 const evStart = parseTimeToMinutes(ev.time);
-                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                
+                let evEnd = null;
+                if (ev.time && ev.time.includes('-')) {
+                    let endStr = ev.time.split('-')[1].split('(')[0].trim();
+                    let endParts = endStr.split(/[.:]/);
+                    if(endParts.length >= 2) evEnd = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+                }
+                if(evEnd === null && evStart !== null) evEnd = evStart + 15;
                 
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
@@ -336,7 +361,7 @@
             if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
             
             manualOverrideIndex = newIndex;
-            updateLiveDisplay();
+            updateLiveDisplay(true); // force rerender
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
@@ -344,7 +369,7 @@
             manualOverrideIndex = -(idx + 1);
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
-            updateLiveDisplay();
+            updateLiveDisplay(true);
             
             for(let h of allHallsList) {
                 supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime }).eq('hall_id', h).then();
@@ -352,39 +377,49 @@
         }
 
         async function terminateActiveQuiz() {
-            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay();
+            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
             for(let h of allHallsList) {
                 supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', h).then();
             }
         }
 
         async function resumeAutoSync() {
-            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay();
+            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
         function switchHallFeed(newHall) {
             liveHall = newHall; manualOverrideIndex = null; quizStartTimeStamp = null;
             const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
-            initLiveKiosk();
+            updateLiveDisplay(true);
         }
 
-        function updateLiveDisplay() {
+        function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
             
+            // Build toolbar components
             let quizBtnContainer = document.getElementById('quizButtonsContainer');
-            if (globalQuizzes.length > 0 && quizBtnContainer) {
+            if (globalQuizzes.length > 0 && quizBtnContainer && quizBtnContainer.innerHTML === '') {
                 quizBtnContainer.innerHTML = globalQuizzes.map((q, idx) => 
                     `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0,15)}...</button>`
                 ).join('');
             }
 
             document.querySelectorAll('.feed-btn').forEach(btn => {
-                btn.className = "feed-btn px-2.5 py-1 rounded text-xs font-bold " + (btn.id === 'feed-' + liveHall ? "bg-indigo-600 text-white border border-indigo-500" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700");
+                btn.className = "feed-btn px-2.5 py-1 rounded text-xs font-bold " + (btn.dataset.hall === liveHall ? "bg-indigo-600 text-white border border-indigo-500" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700");
             });
 
+            document.getElementById('headerTitle').innerText = data.title;
+
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
-            const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // Calculate a state hash. If the state hasn't changed, DO NOT wipe innerHTML! (Stops blinking)
+            let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + manualOverrideIndex;
+            
+            if (!forceRender && newHash === lastRenderHash) {
+                return; // Nothing structurally changed. Ticker will handle timers.
+            }
+            lastRenderHash = newHash;
 
             let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
             
@@ -408,12 +443,16 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                                     ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
                                 </div>
+                                <div class="flex justify-between items-center mt-8 pt-8 border-t border-slate-700/50">
+                                    <p class="text-2xl text-slate-300 font-bold"><i class="fas fa-mobile-alt mr-3 text-indigo-400"></i>Open the Live Dashboard on your phone to play!</p>
+                                    <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-4 rounded-xl shadow-lg text-lg">Show Standings</button>
+                                </div>
                             </div>`;
                     } else {
                         nowPlayingHtml = `
                             <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600 p-10 shadow-2xl mb-8">
                                 <div class="flex justify-between items-center mb-6">
-                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-wider mb-4 inline-block"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
                                     <button onclick="showLeaderboard()" class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-black px-6 py-2 rounded-xl text-sm">Show Standings</button>
                                 </div>
                                 <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
@@ -435,7 +474,7 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://drive.google.com/uc?id=${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.time}</span></div>${media}</div>`;
@@ -481,26 +520,7 @@
                     </div>`;
             }
 
-            container.innerHTML = `
-                <div class="max-w-6xl mx-auto pt-2">
-                    <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
-                        <div class="flex-1 w-full sm:w-auto text-left">
-                            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight">${data.title}</h2>
-                        </div>
-                        <div class="flex-shrink-0 order-first sm:order-none mb-4 sm:mb-0 mx-4">
-                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON'">
-                            </div>
-                        </div>
-                        <div class="flex-1 w-full sm:w-auto flex justify-end">
-                            <div class="bg-slate-800/80 border border-slate-700 px-5 py-3 rounded-2xl flex items-center gap-3 shadow-lg ml-auto">
-                                <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider" id="liveDigitalClock">${nowStr}</div>
-                            </div>
-                        </div>
-                    </div>
-                    ${nowPlayingHtml}
-                    ${upNextHtml}
-                </div>`;
+            document.getElementById('dynamicContentWrapper').innerHTML = nowPlayingHtml + upNextHtml;
         }
 
         window.showLeaderboard = async function() {
@@ -509,8 +529,10 @@
             try {
                 const { data, error } = await supabaseClient.from('quiz_responses').select('phone').eq('is_correct', true);
                 if (error) throw error;
-                let counts = {}; data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
+                let counts = {};
+                data.forEach(d => { counts[d.phone] = (counts[d.phone] || 0) + 1; });
                 let sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+                
                 if (sorted.length === 0) {
                     document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No correct answers logged yet.</div>';
                     return;
@@ -530,7 +552,7 @@
                     manualOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
                 }
-                updateLiveDisplay();
+                updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
@@ -538,23 +560,18 @@
                     (payload) => {
                         manualOverrideIndex = payload.new.override_index;
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        updateLiveDisplay();
+                        updateLiveDisplay(true); // Force redraw on remote push
                     }
                 ).subscribe();
             
-            if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            if (quizIntervalTracker) clearInterval(quizIntervalTracker);
-            
-            liveUpdateTimer = setInterval(() => {
-                if (manualOverrideIndex === null || manualOverrideIndex >= 0) {
-                    updateLiveDisplay();
-                }
-            }, 15000);
+            if (tickerTimer) clearInterval(tickerTimer);
             
             tickerTimer = setInterval(() => {
+                // 1. Clock Update (never replaces HTML, just text!)
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+                // 2. Active Session Talk Timer Update
                 let talkTimerEl = document.getElementById('activeTalkTimer');
                 if (talkTimerEl) {
                     let endStr = talkTimerEl.getAttribute('data-endtime');
@@ -572,6 +589,7 @@
                     }
                 }
 
+                // 3. Quiz Timer expiration check
                 if (manualOverrideIndex !== null && manualOverrideIndex < 0 && quizStartTimeStamp) {
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = 45 - diff;
@@ -579,11 +597,14 @@
                     
                     if (secondsLeft <= 0) {
                         if (timerEl && timerEl.dataset.expired !== "true") {
-                            updateLiveDisplay(); 
+                            updateLiveDisplay(true); // Force redraw to show timeout screen
                         }
                     } else if (timerEl && timerEl.dataset.expired === "false") {
-                        timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s`;
+                        timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
                     }
+                } else {
+                    // Check if regular schedule needs advancing
+                    updateLiveDisplay(false); 
                 }
             }, 1000);
         }
