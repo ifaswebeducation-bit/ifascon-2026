@@ -286,12 +286,19 @@
         function parseQuizData(rows) {
             let list = [];
             rows.forEach(r => {
-                if(!r[0] || r[0].toLowerCase().includes('question')) return;
-                list.push({ type: 'quiz', title: r[0].trim(), options: [r[1], r[2], r[3], r[4]].map(x => (x || "").trim()).filter(Boolean), correct: (r[5] || "").trim() });
+                // Skip header row or empty rows
+                if(!r[1] || r[1].toLowerCase().includes('question')) return;
+                
+                list.push({ 
+                    type: 'quiz', 
+                    hall_id: r[0].trim(), // New Column A
+                    title: r[1].trim(),   // Column B
+                    options: [r[2], r[3], r[4], r[5]].map(x => (x || "").trim()).filter(Boolean), // Columns C-F
+                    correct: (r[6] || "").trim() // Column G
+                });
             });
             return list;
         }
-
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             rows.forEach(r => {
