@@ -477,19 +477,26 @@
         }
 
         window.submitDelegateQuiz = async function(option, correctOption, questionText) {
-            let phone = localStorage.getItem('delegate_phone');
-            let cleanKey = questionText.replace(/\W/g, '');
-            localStorage.setItem('marked_' + cleanKey, option); 
-            
-            try {
-                await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: (option === correctOption) }]);
-            } catch(e) {}
-            
-            localStorage.setItem('answered_' + cleanKey, 'true');
-            updateLiveDisplay(true);
-            updatePersistentFooter();
-        };
-
+    let phone = localStorage.getItem('delegate_phone');
+    if (!phone) { alert("Please login first"); return; }
+    
+    // Key is now hall-specific so delegates can answer different quizzes
+    let cleanKey = (liveHall + "_" + questionText).replace(/\W/g, '');
+    localStorage.setItem('marked_' + cleanKey, option); 
+    localStorage.setItem('answered_' + cleanKey, 'true');
+    
+    try {
+        await supabaseClient.from('quiz_responses').insert([{ 
+            phone: phone, 
+            question: questionText, 
+            hall_id: liveHall, // Explicitly saved
+            is_correct: (option === correctOption) 
+        }]);
+    } catch(e) { console.error(e); }
+    
+    updateLiveDisplay(true);
+    updatePersistentFooter();
+};
         // NEW: PERSISTENT SCROLLING FOOTER UPDATE ENGINE
         async function updatePersistentFooter() {
             let phone = localStorage.getItem('delegate_phone');
