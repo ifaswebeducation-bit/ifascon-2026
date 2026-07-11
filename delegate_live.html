@@ -499,32 +499,28 @@
 };
         // NEW: PERSISTENT SCROLLING FOOTER UPDATE ENGINE
         async function updatePersistentFooter() {
-            let phone = localStorage.getItem('delegate_phone');
-            let el = document.getElementById('persistentLeaderboard');
-            if (!el) return;
+    let phone = localStorage.getItem('delegate_phone');
+    let el = document.getElementById('persistentLeaderboard');
+    if (!el) return;
 
-            if (!phone) {
-                el.innerHTML = `<span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span><span class="text-slate-500 text-[10px] sm:text-xs font-semibold ml-2">Login to track your position</span>`;
-                return;
-            }
+    if (!phone) {
+        el.innerHTML = `<span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Live Ranks:</span><span class="text-slate-500 text-[10px] sm:text-xs font-semibold ml-2">Login to track position</span>`;
+        return;
+    }
 
-            // Calculate Local Hall Rank
-            let localMath = await fetchMathLeaderboard(liveHall);
-            let localRank = localMath.sorted.findIndex(x => x[0] === phone);
-            let localText = localRank !== -1 ? `<span class="text-emerald-400 font-bold mr-1">#${localRank + 1}</span> ${localMath.sorted[localRank][1]}pt` : `<span class="text-slate-500">Unranked</span>`;
-
-            // Calculate Grand Global Rank
-            let grandMath = await fetchMathLeaderboard('grand');
-            let grandRank = grandMath.sorted.findIndex(x => x[0] === phone);
-            let grandText = grandRank !== -1 ? `<span class="text-amber-400 font-bold mr-1">#${grandRank + 1}</span> ${grandMath.sorted[grandRank][1]}pt` : `<span class="text-slate-500">Unranked</span>`;
-
-            el.innerHTML = `
-                <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Live Ranks:</span>
-                <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-slate-400 uppercase text-[9px] tracking-wider mr-2">Local Room</span> ${localText}</span>
-                <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-amber-600 uppercase text-[9px] tracking-wider mr-2">Overall Conf</span> ${grandText}</span>
-            `;
-        }
-
+    // Call the math engine for the CURRENT hall
+    let mathResults = await fetchMathLeaderboard(liveHall);
+    let sorted = mathResults.sorted;
+    let myRank = sorted.findIndex(x => x[0] === phone);
+    let myScore = myRank !== -1 ? sorted[myRank][1] : 0;
+    
+    el.innerHTML = `
+        <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> My Rank:</span>
+        <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0">
+            ${myRank !== -1 ? `<span class="text-emerald-400 font-bold mr-1">#${myRank + 1}</span> (${myScore} pts)` : '<span class="text-slate-500">Unranked</span>'}
+        </span>
+    `;
+}
         async function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
