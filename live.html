@@ -451,7 +451,10 @@
             // Sends ONLY to the currently selected hall in the AV console
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         }
-
+        async function launchQuizByTitle(title) {
+            let qIdx = globalQuizzes.findIndex(q => q.title === title);
+            if (qIdx !== -1) launchQuiz(qIdx);
+        }
         async function terminateActiveQuiz() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
             for(let h of allHallsList) {
@@ -483,9 +486,12 @@
             const data = appData[liveHall]; if (!data) return;
             
             let quizBtnContainer = document.getElementById('quizButtonsContainer');
-            if (globalQuizzes.length > 0 && quizBtnContainer && quizBtnContainer.innerHTML === '') {
-                quizBtnContainer.innerHTML = globalQuizzes.map((q, idx) => 
-                    `<button onclick="launchQuiz(${idx})" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q${idx+1}: ${q.title.substring(0,15)}...</button>`
+            // Filter global quizzes by the current liveHall selected on the AV console
+            let hallQuizzes = globalQuizzes.filter(q => q.hall_id === liveHall);
+            
+            if (quizBtnContainer) {
+                quizBtnContainer.innerHTML = hallQuizzes.map((q, idx) => 
+                    `<button onclick="launchQuizByTitle('${q.title.replace(/'/g, "\\'")}')" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q: ${q.title.substring(0,12)}...</button>`
                 ).join('');
             }
 
