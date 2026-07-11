@@ -21,7 +21,6 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden">
 
-    <!-- Persistent Top Registration Banner -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0">
         <div id="identityLoggedOutState" class="w-full flex flex-row items-center gap-2">
             <i class="fas fa-user-circle text-xl text-slate-500"></i>
@@ -37,7 +36,6 @@
         </div>
     </div>
 
-    <!-- Main Content Dynamic Viewport Frame -->
     <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
         
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
@@ -45,7 +43,6 @@
             <p class="text-slate-400 font-semibold text-lg animate-pulse">Loading Conference Dashboard...</p>
         </div>
 
-        <!-- STATIC HEADER & NAV: NEVER RELOADS -->
         <div id="staticHeader" class="hidden">
             <div class="mb-6 pb-4 border-b border-slate-800">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
@@ -79,9 +76,7 @@
             </div>
         </div>
 
-        <!-- DYNAMIC CONTENT -->
         <div id="dynamicContentWrapper"></div>
-
     </main>
 
     <script>
@@ -92,6 +87,7 @@
         let remoteOverrideIndex = null;
         let quizStartTimeStamp = null;
         let tickerTimer = null;
+        let liveUpdateTimer = null;
         let lastRenderHash = "";
 
         const sheetLinks = {
@@ -113,9 +109,14 @@
             '23b': "23rd August 2026 - Hall B"
         };
 
+        const buttonLabels = {
+            'ao_seminar': "21 Aug: AO Seminar", 'workshop_diabetic': "21 Aug: Diabetic Foot", 'workshop_mis': "21 Aug: MIS",
+            '22a': "22 Aug: Hall A", '22b': "22 Aug: Hall B", '23a': "23 Aug: Hall A", '23b': "23 Aug: Hall B"
+        };
+
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v32'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v33'; 
         const container = document.getElementById('contentContainer');
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
@@ -211,14 +212,10 @@
             }
         }
 
+        // FIXED: Format perfectly skips duplicate PM
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
-            
-            // If the time already contains AM or PM from the sheet, don't double-process it!
-            if (/[aApP][mM]/.test(timeStr)) {
-                return timeStr;
-            }
-
+            if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
             return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
                 let h = parseInt(p1, 10);
                 let ampm = h >= 12 ? 'PM' : 'AM';
@@ -227,7 +224,6 @@
                 let paddedH = h < 10 ? '0' + h : h;
                 return paddedH + ':' + p2 + ' ' + ampm;
             });
-        }
         }
 
         function parseQuizData(rows) {
@@ -256,6 +252,7 @@
                 const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration", "registration"];
                 let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
                 
+                // FIXED: Strict boundary regex \btea\b blocks "tear" mismatches
                 if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
@@ -327,7 +324,7 @@
             liveHall = newHall;
             remoteOverrideIndex = null;
             quizStartTimeStamp = null;
-            lastRenderHash = ""; // Clears the memory so the screen cleanly forces a redraw instantly
+            lastRenderHash = ""; 
             const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
             subscribeToHall(newHall); 
             updateLiveDisplay(true);
@@ -341,23 +338,29 @@
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
                 }
+                lastRenderHash = ""; // Forces clean redraw
                 updateLiveDisplay(true);
             });
 
-            // Creates a highly unique connection socket to prevent dropped data
-            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random())
+            // FIXED: Unique socket connection ensures data doesn't get dropped
+            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random().toString(36).substring(7))
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        lastRenderHash = ""; // This forces the screen to redraw instantly, bypassing the anti-blink lock!
+                        lastRenderHash = ""; 
                         updateLiveDisplay(true); 
                     }
                 ).subscribe();
         }
 
         function getLiveStatus(events) {
-            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || e.isOration);
+            // FIXED: Oration logic hides the group header and safely checks the string
+            const playableEvents = events.filter(e => {
+                if (e.type === 'presentation' || e.type === 'break') return true;
+                if (e.isOration && (e.speaker || '').trim() !== '') return true; 
+                return false;
+            });
             
             if (remoteOverrideIndex !== null) {
                 if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
@@ -435,7 +438,6 @@
 
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
             
-            // Decoupled DOM tracking variable to stop blinking 
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + remoteOverrideIndex;
             if (!forceRender && newHash === lastRenderHash) { return; }
             lastRenderHash = newHash;
@@ -532,7 +534,7 @@
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -544,6 +546,7 @@
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-sm mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : '';
                     
                     nowPlayingHtml = `
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 shadow-2xl mb-8">
@@ -551,7 +554,7 @@
                                 <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
                                 <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
-                            ${currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-sm mb-2 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : ''}
+                            ${pSess}
                             <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 shadow-inner"><div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-xl font-extrabold text-white">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
@@ -573,12 +576,14 @@
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
+            // Background interval for checking natural schedule transitions (forces sync)
             liveUpdateTimer = setInterval(() => {
                 if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) {
                     updateLiveDisplay(false);
                 }
             }, 15000); 
             
+            // High-speed real-time tracker for the quiz logic
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -593,7 +598,6 @@
                             updateLiveDisplay(true); 
                         }
                     } else {
-                        // If timer exists, update it. If not, the screen missed the render, so force it!
                         if (timerEl && timerEl.dataset.expired === "false") {
                             timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-1 animate-spin"></i>${secondsLeft}s`;
                         } else {
@@ -603,6 +607,8 @@
                     }
                 }
             }, 1000);
+            
+            subscribeToHall(liveHall); 
         }
 
         initializeApp();
