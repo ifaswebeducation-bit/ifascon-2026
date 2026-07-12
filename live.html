@@ -182,9 +182,10 @@
             let val = document.getElementById('gatePassInput').value.trim();
             if (val === 'ifascon2026') {
                 localStorage.setItem('av_auth_secure', 'true');
-                checkPersistentAuth(); // This updates UI and returns true
-                // Now load the data
-                setTimeout(() => { initializeApp(); }, 50);
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                // Initialize the app after successful authentication
+                initializeApp();
             } else { alert('Invalid password credential token.'); }
         }
 
@@ -192,9 +193,7 @@
             if (localStorage.getItem('av_auth_secure') === 'true') {
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                return true; // Signal that auth exists
             }
-            return false;
         }
 
         // NEW: ADVANCED TIME-WEIGHTED MATH ENGINE
@@ -349,11 +348,12 @@
         }
 
         async function initializeApp() {
-            let isAuthenticated = checkPersistentAuth();
-            if (!isAuthenticated) {
-                return; // Not authenticated yet, wait for password input
+            // Check if already authenticated
+            if (localStorage.getItem('av_auth_secure') !== 'true') {
+                return; // Not authenticated, don't initialize
             }
-            
+
+            checkPersistentAuth();
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -365,9 +365,9 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
-                    await fetchLiveSchedule(true);
-                } catch (e) { await fetchLiveSchedule(false); }
-            } else { await fetchLiveSchedule(false); }
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
         }
 
         async function fetchLiveSchedule(isBackground = false) {
