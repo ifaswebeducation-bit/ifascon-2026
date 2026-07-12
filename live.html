@@ -24,7 +24,7 @@
             <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
             <h3 class="text-2xl font-black mb-2 text-white">AV Console</h3>
             <p class="text-slate-400 text-sm mb-6">Enter password to unlock broadcaster controls.</p>
-            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••" onkeypress="if(event.key === 'Enter') verifyGatePass()">
+            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••">
             <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Unlock Workspace</button>
         </div>
     </div>
@@ -184,8 +184,6 @@
                 localStorage.setItem('av_auth_secure', 'true');
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                // Load the app data after password verification
-                initializeApp();
             } else { alert('Invalid password credential token.'); }
         }
 
@@ -347,14 +345,8 @@
             updateLiveDisplay(true);
         }
 
-        async function initializeApp() {
+        
             checkPersistentAuth();
-            
-            // Only proceed if user is authenticated
-            if (localStorage.getItem('av_auth_secure') !== 'true') {
-                return;
-            }
-            
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -366,9 +358,9 @@
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
-                    await fetchLiveSchedule(true);
-                } catch (e) { await fetchLiveSchedule(false); }
-            } else { await fetchLiveSchedule(false); }
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
         }
 
         async function fetchLiveSchedule(isBackground = false) {
