@@ -62,7 +62,8 @@
         </div>
 
         <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
-            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Launch Quiz in Current Hall:</span>
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Quiz Controls:</span>
+            <button onclick="showQuizmasterHallSelect()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-1.5 rounded-lg font-bold text-xs shadow active:scale-95 transition"><i class="fas fa-gamepad mr-1"></i>Start Quizmaster Mode</button>
             <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
         </div>
 
@@ -76,6 +77,36 @@
                 <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
                 <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
                 <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quizmaster Mode - Hall Selection Modal -->
+    <div id="quizmasterHallSelect" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[70] flex flex-col items-center justify-center p-6">
+        <div class="bg-slate-900 border-2 border-indigo-500 rounded-3xl p-10 shadow-2xl max-w-2xl w-full">
+            <h2 class="text-4xl font-black text-white mb-2 text-center"><i class="fas fa-gamepad text-indigo-400 mr-3"></i>Quizmaster Mode</h2>
+            <p class="text-slate-400 text-center mb-8 font-semibold">Select a hall to start the quiz:</p>
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <button onclick="initQuizmasterMode('22a')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-6 px-8 rounded-2xl text-2xl transition shadow-xl transform hover:scale-105"><i class="fas fa-door-open mr-3"></i>Hall A</button>
+                <button onclick="initQuizmasterMode('22b')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-6 px-8 rounded-2xl text-2xl transition shadow-xl transform hover:scale-105"><i class="fas fa-door-open mr-3"></i>Hall B</button>
+            </div>
+            <button onclick="exitQuizmasterMode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl border border-slate-600 transition"><i class="fas fa-times mr-2"></i>Cancel</button>
+        </div>
+    </div>
+
+    <!-- Quizmaster Mode - Question Navigator -->
+    <div id="quizmasterQuestionNav" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[70] flex flex-col items-center justify-center p-6 overflow-y-auto">
+        <div class="bg-slate-900 border-2 border-rose-500 rounded-3xl p-8 shadow-2xl max-w-4xl w-full">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
+                <h2 class="text-3xl font-black text-white"><i class="fas fa-list-check text-rose-400 mr-3"></i>Question Navigator</h2>
+                <button onclick="exitQuizQuestionNav()" class="text-slate-400 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-96 overflow-y-auto mb-6 pb-4 border-b border-slate-700" id="questionButtonGrid"></div>
+            <div id="selectedQuestionDisplay" class="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700"></div>
+            <div class="flex gap-3 justify-center flex-wrap">
+                <button onclick="prevQuizQuestion()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-6 py-2 rounded-lg transition"><i class="fas fa-chevron-left mr-2"></i>Previous</button>
+                <button id="displayCurrentQuestionBtn" onclick="displayCurrentQuestion()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-2 rounded-lg shadow-lg transition"><i class="fas fa-play mr-2"></i>Display Question</button>
+                <button onclick="nextQuizQuestion()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-6 py-2 rounded-lg transition">Next<i class="fas fa-chevron-right ml-2"></i></button>
             </div>
         </div>
     </div>
@@ -205,7 +236,116 @@
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        async function initializeApp() {
+        let quizmasterMode = false;
+        let quizmasterCurrentHall = null;
+        let quizmasterCurrentQuestionIdx = 0;
+        let quizmasterHallQuizzes = [];
+
+        function showQuizmasterHallSelect() {
+            document.getElementById('quizmasterHallSelect').classList.remove('hidden');
+        }
+
+        function initQuizmasterMode(hall) {
+            quizmasterMode = true;
+            quizmasterCurrentHall = hall;
+            quizmasterCurrentQuestionIdx = 0;
+            
+            quizmasterHallQuizzes = globalQuizzes.filter(q => q.hall_id === hall);
+            if (quizmasterHallQuizzes.length === 0) {
+                alert('No quizzes available for ' + hall);
+                return;
+            }
+
+            document.getElementById('quizmasterHallSelect').classList.add('hidden');
+            document.getElementById('quizmasterQuestionNav').classList.remove('hidden');
+            renderQuestionGrid();
+            displayQuestionDetails();
+        }
+
+        function exitQuizmasterMode() {
+            quizmasterMode = false;
+            quizmasterCurrentHall = null;
+            quizmasterCurrentQuestionIdx = 0;
+            quizmasterHallQuizzes = [];
+            document.getElementById('quizmasterHallSelect').classList.add('hidden');
+            document.getElementById('quizmasterQuestionNav').classList.add('hidden');
+            manualOverrideIndex = null;
+            quizStartTimeStamp = null;
+            updateLiveDisplay(true);
+        }
+
+        function exitQuizQuestionNav() {
+            exitQuizmasterMode();
+        }
+
+        function renderQuestionGrid() {
+            let grid = document.getElementById('questionButtonGrid');
+            grid.innerHTML = quizmasterHallQuizzes.map((q, idx) => {
+                let isActive = idx === quizmasterCurrentQuestionIdx ? 'bg-indigo-600 text-white border-indigo-400' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700';
+                return `<button onclick="selectQuestion(${idx})" class="flex-1 min-w-20 py-2 px-2 rounded-lg font-bold text-sm border transition ${isActive}">Q${idx + 1}</button>`;
+            }).join('');
+        }
+
+        function selectQuestion(idx) {
+            quizmasterCurrentQuestionIdx = idx;
+            renderQuestionGrid();
+            displayQuestionDetails();
+        }
+
+        function displayQuestionDetails() {
+            let q = quizmasterHallQuizzes[quizmasterCurrentQuestionIdx];
+            if (!q) return;
+            
+            let display = document.getElementById('selectedQuestionDisplay');
+            display.innerHTML = `
+                <div class="mb-4">
+                    <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">Question ${quizmasterCurrentQuestionIdx + 1} of ${quizmasterHallQuizzes.length}</p>
+                    <h3 class="text-2xl font-black text-white mb-4">${q.title}</h3>
+                </div>
+                <div class="space-y-2">
+                    ${q.options.map((opt, i) => {
+                        let isCorrect = opt.trim().toLowerCase() === q.correct.trim().toLowerCase();
+                        let badge = isCorrect ? '<span class="ml-2 bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-bold">✓ CORRECT</span>' : '';
+                        return `<div class="bg-slate-700/50 p-3 rounded-lg text-white flex items-start"><span class="font-bold mr-3 text-indigo-400">${String.fromCharCode(65+i)}.</span> <span class="flex-1">${opt}</span>${badge}</div>`;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function prevQuizQuestion() {
+            if (quizmasterCurrentQuestionIdx > 0) {
+                quizmasterCurrentQuestionIdx--;
+                renderQuestionGrid();
+                displayQuestionDetails();
+            }
+        }
+
+        function nextQuizQuestion() {
+            if (quizmasterCurrentQuestionIdx < quizmasterHallQuizzes.length - 1) {
+                quizmasterCurrentQuestionIdx++;
+                renderQuestionGrid();
+                displayQuestionDetails();
+            }
+        }
+
+        async function displayCurrentQuestion() {
+            let q = quizmasterHallQuizzes[quizmasterCurrentQuestionIdx];
+            if (!q) return;
+            
+            manualOverrideIndex = -(globalQuizzes.indexOf(q) + 1);
+            let isoTime = new Date().toISOString();
+            quizStartTimeStamp = isoTime;
+            
+            await supabaseClient.from('hall_states').update({ 
+                override_index: manualOverrideIndex, 
+                quiz_start_time: isoTime, 
+                force_leaderboard: null 
+            }).eq('hall_id', quizmasterCurrentHall);
+            
+            updateLiveDisplay(true);
+        }
+
+        
             checkPersistentAuth();
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
