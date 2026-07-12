@@ -184,6 +184,8 @@
                 localStorage.setItem('av_auth_secure', 'true');
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                // Initialize the app after successful authentication
+                initializeApp();
             } else { alert('Invalid password credential token.'); }
         }
 
@@ -356,7 +358,12 @@
             updateLiveDisplay(true);
         }
 
-        
+        async function initializeApp() {
+            // Check if already authenticated
+            if (localStorage.getItem('av_auth_secure') !== 'true') {
+                return; // Not authenticated, don't initialize
+            }
+
             checkPersistentAuth();
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
