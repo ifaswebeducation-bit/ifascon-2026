@@ -197,19 +197,30 @@
         // NEW: ADVANCED TIME-WEIGHTED MATH ENGINE
         async function fetchMathLeaderboard(type) {
             try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                // Scope the DB query to the requested hall(s) to avoid loading orphaned rows
+                let query = supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+
+                if (type === 'day1_cum') {
+                    query = query.in('hall_id', ['22a','22b']);
+                } else if (type === 'day2_cum') {
+                    query = query.in('hall_id', ['23a','23b']);
+                } else if (['22a','22b','23a','23b','ao_seminar','workshop_diabetic','workshop_mis'].includes(type)) {
+                    query = query.eq('hall_id', type);
+                }
+
+                const { data, error } = await query;
                 if (error) throw error;
-                
-                let filteredData = data;
+
+                let filteredData = data || [];
                 let titleText = "";
 
-                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
-                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => d.hall_id === '22a' || d.hall_id === '22b'); titleText = "Day 1 Cumulative Leaders"; }
-                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
-                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => d.hall_id === '23a' || d.hall_id === '23b'); titleText = "Day 2 Cumulative Leaders"; }
-                else { titleText = "Grand Conference Leaderboard"; } // Grand applies to all
+                if (type === '22a') { titleText = "Day 1: Hall A Leaderboard"; }
+                else if (type === '22b') { titleText = "Day 1: Hall B Leaderboard"; }
+                else if (type === 'day1_cum') { titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === '23a') { titleText = "Day 2: Hall A Leaderboard"; }
+                else if (type === '23b') { titleText = "Day 2: Hall B Leaderboard"; }
+                else if (type === 'day2_cum') { titleText = "Day 2 Cumulative Leaders"; }
+                else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
                 filteredData.forEach(r => { scores[r.phone] = 0; }); 
@@ -217,7 +228,7 @@
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
-                    let key = r.hall_id + "___" + r.question; // Isolate race to the specific hall
+                    let key = (r.hall_id || 'none') + "___" + r.question; // Isolate race to the specific hall
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => x.phone === r.phone)) {
                         qGroups[key].push(r);
@@ -227,13 +238,13 @@
                 Object.values(qGroups).forEach(responses => {
                     responses.forEach((r, idx) => {
                         let pts = Math.max(10 - idx, 1);
-                        scores[r.phone] += pts;
+                        scores[r.phone] = (scores[r.phone] || 0) + pts;
                     });
                 });
                 
                 let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
                 return { sorted, titleText };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
+            } catch(e) { console.error(e); return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
         let quizmasterMode = false;
