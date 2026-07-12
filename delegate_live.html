@@ -45,6 +45,33 @@
         </div>
     </div>
 
+    <!-- Quiz Time - Hall Selection Modal -->
+    <div id="quizTimeModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[80] flex flex-col items-center justify-center p-4 sm:p-6">
+        <div class="bg-gradient-to-b from-rose-950 to-slate-900 border-3 border-rose-500 rounded-3xl p-8 sm:p-12 shadow-2xl max-w-xl w-full text-center">
+            <div class="mb-6">
+                <h1 class="text-5xl sm:text-6xl font-black text-white mb-2"><i class="fas fa-siren-on animate-pulse text-rose-500 mr-3"></i>Quiz Time!</h1>
+                <p class="text-slate-300 font-semibold text-lg">Select your hall to play</p>
+            </div>
+            
+            <div id="quizTimeIdentityCheck" class="mb-8 pb-8 border-b border-slate-700">
+                <p class="text-slate-400 text-sm mb-4">Enter your mobile number to continue:</p>
+                <input type="tel" id="quizTimePhoneInput" class="w-full bg-slate-950 border-2 border-slate-700 rounded-xl px-4 py-3 text-white text-center text-lg mb-3 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
+                <button onclick="validateQuizTimeIdentity()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition mb-2"><i class="fas fa-check mr-2"></i>Login to Play</button>
+                <button onclick="cancelQuizTime()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold py-2 rounded-lg transition text-sm"><i class="fas fa-times mr-2"></i>Cancel</button>
+            </div>
+
+            <div class="space-y-3">
+                <p class="text-slate-400 text-sm font-semibold mb-4">Which hall are you in?</p>
+                <button onclick="selectQuizHall('22a')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-6 rounded-2xl text-xl transition shadow-lg transform hover:scale-105">
+                    <i class="fas fa-door-open mr-3"></i>Hall A
+                </button>
+                <button onclick="selectQuizHall('22b')" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-black py-4 px-6 rounded-2xl text-xl transition shadow-lg transform hover:scale-105">
+                    <i class="fas fa-door-open mr-3"></i>Hall B
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaderboard Modal (Called remotely by AV) -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="lbTitle" class="text-4xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
@@ -553,20 +580,17 @@
                         if (secondsLeft < 0) secondsLeft = 0;
                     }
 
+                    // Show Quiz Time Modal if user is not logged in
                     if (!savedPhone) {
+                        showQuizTimeModal();
                         nowPlayingHtml = `
-                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-6 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-10">
-                                <i class="fas fa-id-card text-5xl text-indigo-400 mb-4 animate-bounce"></i>
-                                <h2 class="text-2xl font-black text-white mb-2">Quiz Gated Behind Identity</h2>
-                                <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box above or below to instantly unlock the running conference question module.</p>
-                                <div class="max-w-xs mx-auto">
-                                    <input type="tel" id="quizPhoneInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-center text-lg mb-4 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('quizPhoneInput').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); updateLiveDisplay(true); updatePersistentFooter(); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg w-full">Submit & Join</button>
-                                </div>
+                            <div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8">
+                                <i class="fas fa-gamepad text-6xl mb-4 text-rose-500 animate-bounce"></i>
+                                <h2 class="text-3xl font-bold text-white mb-2">Quiz Time!</h2>
+                                <p class="text-slate-400 font-semibold">Please log in with your mobile number to participate</p>
                             </div>`;
                     } 
                     else if (secondsLeft > 0) {
-                        if (hasAnswered) {
                             nowPlayingHtml = `
                                 <div class="bg-slate-950 p-6 rounded-3xl border border-emerald-500/40 shadow-xl mb-8">
                                     <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider block w-max mb-4"><i class="fas fa-lock mr-1.5"></i> Submission Frozen</span>
@@ -688,7 +712,41 @@
 
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
-        function initLiveDashboard() { 
+        // Quiz Time Mode Functions
+        window.validateQuizTimeIdentity = function() {
+            let phone = document.getElementById('quizTimePhoneInput').value.trim();
+            if (phone.length >= 7) {
+                localStorage.setItem('delegate_phone', phone);
+                refreshIdentityStateUI();
+                document.getElementById('quizTimeModal').classList.add('hidden');
+                document.getElementById('quizTimeIdentityCheck').classList.remove('hidden');
+                document.getElementById('quizTimePhoneInput').value = '';
+                updateLiveDisplay(true);
+                updatePersistentFooter();
+            } else {
+                alert('Please enter a valid mobile number (at least 7 digits).');
+            }
+        };
+
+        window.selectQuizHall = function(hall) {
+            liveHall = hall;
+            document.getElementById('quizTimeModal').classList.add('hidden');
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('hall', hall);
+            window.history.pushState({}, '', newUrl);
+            updateLiveDisplay(true);
+        };
+
+        window.cancelQuizTime = function() {
+            document.getElementById('quizTimeModal').classList.add('hidden');
+        };
+
+        function showQuizTimeModal() {
+            document.getElementById('quizTimeModal').classList.remove('hidden');
+            document.getElementById('quizTimePhoneInput').focus();
+        }
+
+         
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
