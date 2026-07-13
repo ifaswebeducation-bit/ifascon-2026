@@ -429,7 +429,44 @@
                 localStorage.setItem('av_auth_secure', 'true');
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                startApplicationLogic();
+            } else { alert('Invalid password credential token.'); }
+        }
+
+        function checkPersistentAuth() {
+            if (localStorage.getItem('av_auth_secure') === 'true') {
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
                 startApplicationLogic(); // Call this after successful authentication
+            }
+        }
+
+        // NEW FUNCTION: Encapsulates the main application setup logic
+        function startApplicationLogic() {
+            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            const cachedData = localStorage.getItem(CACHE_KEY);
+            if (cachedData) {
+                try {
+                    let parsed = JSON.parse(cachedData);
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
+                    document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('staticHeader').classList.remove('hidden');
+                    initLiveKiosk();
+                    fetchLiveSchedule(true);
+                } catch (e) { fetchLiveSchedule(false); }
+            } else { fetchLiveSchedule(false); }
+        }
+
+        async function fetchLiveSchedule(isBackground = false) {
+            let fetchedData = {};
+            let quizzesLoaded = [];
+            
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                try {
+                    const response = await fetch(link);
+                    const csvText = await
             } else { alert('Invalid password credential token.'); }
         }
 
