@@ -413,12 +413,24 @@
                 appData = fetchedData;
                 globalQuizzes = quizzesLoaded;
                 localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-                if (!isBackground) {
+                if (!isBackground) { // Only update UI if it's not a background fetch
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
-                } else { updateLiveDisplay(true); }
+                    updateLiveDisplay(true); // Ensure display is updated after fresh fetch
+                }
             }
+        }
+
+        // Modify verifyGatePass to call startApplicationLogic after successful auth
+        function verifyGatePass() {
+            let val = document.getElementById('gatePassInput').value.trim();
+            if (val === 'ifascon2026') {
+                localStorage.setItem('av_auth_secure', 'true');
+                document.getElementById('authGateFrame').classList.add('hidden');
+                document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                startApplicationLogic(); // Call this after successful authentication
+            } else { alert('Invalid password credential token.'); }
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -823,7 +835,7 @@
             }, 1000);
         }
 
-        initializeApp();
+        initAuthAndClock(); // Call the initial authentication and clock setup function
     </script>
 </body>
 </html>
