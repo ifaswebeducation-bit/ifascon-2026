@@ -184,6 +184,7 @@
                 localStorage.setItem('av_auth_secure', 'true');
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                startApplicationLogic(); // Call this after successful authentication
             } else { alert('Invalid password credential token.'); }
         }
 
@@ -191,6 +192,7 @@
             if (localStorage.getItem('av_auth_secure') === 'true') {
                 document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
+                startApplicationLogic(); // Call this after successful authentication
             }
         }
 
@@ -457,17 +459,6 @@
                     fetchLiveSchedule(true);
                 } catch (e) { fetchLiveSchedule(false); }
             } else { fetchLiveSchedule(false); }
-        }
-
-        async function fetchLiveSchedule(isBackground = false) {
-            let fetchedData = {};
-            let quizzesLoaded = [];
-            
-            for (const [key, link] of Object.entries(sheetLinks)) {
-                try {
-                    const response = await fetch(link);
-                    const csvText = await
-            } else { alert('Invalid password credential token.'); }
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -872,7 +863,7 @@
             }, 1000);
         }
 
-        initAuthAndClock(); // Call the initial authentication and clock setup function
+        checkPersistentAuth(); // Call the initial authentication check function
     </script>
 </body>
 </html>
