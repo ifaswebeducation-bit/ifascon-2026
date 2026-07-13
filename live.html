@@ -376,7 +376,7 @@
         }
 
         
-            checkPersistentAuth();
+           function startApplicationLogic() {
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const cachedData = localStorage.getItem(CACHE_KEY);
