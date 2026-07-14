@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-        window.addEventListener("error", function (e) {
-            alert("CRASH DETECTED!\nError: " + e.message + "\nLine: " + e.lineno);
-        });
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IFASCON 2026 - AV Broadcaster</title>
@@ -27,10 +22,9 @@
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
             <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
-            <h3 class="text-2xl font-black mb-2 text-white">AV Console</h3>
-            <p class="text-slate-400 text-sm mb-6">Enter password to unlock broadcaster controls.</p>
-            <div id="gatePassError" class="text-red-400 text-sm mb-3 font-semibold" style="display: none;"></div>
-            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••" oninput="clearGatePassError()">
+            <h3 class="text-2xl font-black mb-2 text-white">AV Console Gated</h3>
+            <p class="text-slate-400 text-sm mb-6">Provide administrative password credentials to mount workspace controls.</p>
+            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-xl mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••••••">
             <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Unlock Workspace</button>
         </div>
     </div>
@@ -50,7 +44,7 @@
             </div>
         </div>
         
-        <!-- NEW: Board Engine Matrix -->
+        <!-- Board Engine Matrix -->
         <div class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
             <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Board Engine:</span>
             <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2 py-1.5 rounded outline-none font-bold">
@@ -67,12 +61,13 @@
             <button onclick="forceLeaderboardGlobal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear Phones</button>
         </div>
 
-        <div id="quizControlBar" class="flex items-center gap-2 pt-1 border-b border-slate-800 pb-3 flex-wrap">
-            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Quiz Controls:</span>
-            <button onclick="showQuizmasterHallSelect()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-1.5 rounded-lg font-bold text-xs shadow active:scale-95 transition"><i class="fas fa-gamepad mr-1"></i>Start Quizmaster Mode</button>
-            <div id="quizButtonsContainer" class="flex flex-wrap gap-1.5"></div>
+        <!-- NEW: SMART QUIZMASTER DASHBOARD -->
+        <div id="quizControlBar" class="flex flex-col gap-2 pt-2 border-b border-slate-800 pb-3">
+            <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher (Current Hall):</span>
+            <div id="quizButtonsContainer" class="w-full"></div>
         </div>
 
+        <!-- Feed Switcher -->
         <div class="flex items-center gap-2 pt-1 flex-wrap">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Switch TV Feed:</span>
             <div class="flex items-center gap-1.5 flex-wrap" id="hallButtonNav">
@@ -83,36 +78,6 @@
                 <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22 Aug: Hall B</button>
                 <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall A</button>
                 <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23 Aug: Hall B</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quizmaster Mode - Hall Selection Modal -->
-    <div id="quizmasterHallSelect" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[70] flex flex-col items-center justify-center p-6">
-        <div class="bg-slate-900 border-2 border-indigo-500 rounded-3xl p-10 shadow-2xl max-w-2xl w-full">
-            <h2 class="text-4xl font-black text-white mb-2 text-center"><i class="fas fa-gamepad text-indigo-400 mr-3"></i>Quizmaster Mode</h2>
-            <p class="text-slate-400 text-center mb-8 font-semibold">Select a hall to start the quiz:</p>
-            <div class="grid grid-cols-2 gap-6 mb-8">
-                <button onclick="initQuizmasterMode('22a')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-6 px-8 rounded-2xl text-2xl transition shadow-xl transform hover:scale-105"><i class="fas fa-door-open mr-3"></i>Hall A</button>
-                <button onclick="initQuizmasterMode('22b')" class="bg-purple-600 hover:bg-purple-500 text-white font-black py-6 px-8 rounded-2xl text-2xl transition shadow-xl transform hover:scale-105"><i class="fas fa-door-open mr-3"></i>Hall B</button>
-            </div>
-            <button onclick="exitQuizmasterMode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl border border-slate-600 transition"><i class="fas fa-times mr-2"></i>Cancel</button>
-        </div>
-    </div>
-
-    <!-- Quizmaster Mode - Question Navigator -->
-    <div id="quizmasterQuestionNav" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[70] flex flex-col items-center justify-center p-6 overflow-y-auto">
-        <div class="bg-slate-900 border-2 border-rose-500 rounded-3xl p-8 shadow-2xl max-w-4xl w-full">
-            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-700">
-                <h2 class="text-3xl font-black text-white"><i class="fas fa-list-check text-rose-400 mr-3"></i>Question Navigator</h2>
-                <button onclick="exitQuizQuestionNav()" class="text-slate-400 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-96 overflow-y-auto mb-6 pb-4 border-b border-slate-700" id="questionButtonGrid"></div>
-            <div id="selectedQuestionDisplay" class="bg-slate-800 rounded-2xl p-6 mb-6 border border-slate-700"></div>
-            <div class="flex gap-3 justify-center flex-wrap">
-                <button onclick="prevQuizQuestion()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-6 py-2 rounded-lg transition"><i class="fas fa-chevron-left mr-2"></i>Previous</button>
-                <button id="displayCurrentQuestionBtn" onclick="displayCurrentQuestion()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-8 py-2 rounded-lg shadow-lg transition"><i class="fas fa-play mr-2"></i>Display Question</button>
-                <button onclick="nextQuizQuestion()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-6 py-2 rounded-lg transition">Next<i class="fas fa-chevron-right ml-2"></i></button>
             </div>
         </div>
     </div>
@@ -174,7 +139,7 @@
         let globalQuizzes = [];
         let quizStartTimeStamp = null;
         let lastRenderHash = ""; 
-        const CACHE_KEY = 'ifascon_schedule_cache_v40'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v50'; 
         
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
         if (liveHall === 'ao') liveHall = 'ao_seminar';
@@ -188,57 +153,32 @@
             let val = document.getElementById('gatePassInput').value.trim();
             if (val === 'ifascon2026') {
                 localStorage.setItem('av_auth_secure', 'true');
-                document.getElementById('authGateFrame').style.display = 'none';
+                document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                startApplicationLogic(); 
-            } else { 
-                showGatePassError('Invalid password. Please try again.');
-                document.getElementById('gatePassInput').value = ''; // Clear the input on fail
-            }
+            } else { alert('Invalid password credential token.'); }
         }
 
-        function showGatePassError(message) {
-            const errorDiv = document.getElementById('gatePassError');
-            errorDiv.innerText = message;
-            errorDiv.style.display = 'block';
-        }
-
-        function clearGatePassError() {
-            document.getElementById('gatePassError').style.display = 'none';
-        }
         function checkPersistentAuth() {
             if (localStorage.getItem('av_auth_secure') === 'true') {
-                document.getElementById('authGateFrame').style.display = 'none';
+                document.getElementById('authGateFrame').classList.add('hidden');
                 document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                startApplicationLogic(); 
             }
         }
-        // NEW: ADVANCED TIME-WEIGHTED MATH ENGINE
+
         async function fetchMathLeaderboard(type) {
             try {
-                // Scope the DB query to the requested hall(s) to avoid loading orphaned rows
-                let query = supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
-
-                if (type === 'day1_cum') {
-                    query = query.in('hall_id', ['22a','22b']);
-                } else if (type === 'day2_cum') {
-                    query = query.in('hall_id', ['23a','23b']);
-                } else if (['22a','22b','23a','23b','ao_seminar','workshop_diabetic','workshop_mis'].includes(type)) {
-                    query = query.eq('hall_id', type);
-                }
-
-                const { data, error } = await query;
+                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
                 if (error) throw error;
-
-                let filteredData = data || [];
+                
+                let filteredData = data;
                 let titleText = "";
 
-                if (type === '22a') { titleText = "Day 1: Hall A Leaderboard"; }
-                else if (type === '22b') { titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === 'day1_cum') { titleText = "Day 1 Cumulative Leaders"; }
-                else if (type === '23a') { titleText = "Day 2: Hall A Leaderboard"; }
-                else if (type === '23b') { titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === 'day2_cum') { titleText = "Day 2 Cumulative Leaders"; }
+                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
+                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => d.hall_id === '22a' || d.hall_id === '22b'); titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
+                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => d.hall_id === '23a' || d.hall_id === '23b'); titleText = "Day 2 Cumulative Leaders"; }
                 else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
@@ -247,7 +187,7 @@
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
-                    let key = (r.hall_id || 'none') + "___" + r.question; // Isolate race to the specific hall
+                    let key = r.hall_id + "___" + r.question; 
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => x.phone === r.phone)) {
                         qGroups[key].push(r);
@@ -257,126 +197,17 @@
                 Object.values(qGroups).forEach(responses => {
                     responses.forEach((r, idx) => {
                         let pts = Math.max(10 - idx, 1);
-                        scores[r.phone] = (scores[r.phone] || 0) + pts;
+                        scores[r.phone] += pts;
                     });
                 });
                 
                 let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
                 return { sorted, titleText };
-            } catch(e) { console.error(e); return { sorted: [], titleText: "Error Loading Board" }; }
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        let quizmasterMode = false;
-        let quizmasterCurrentHall = null;
-        let quizmasterCurrentQuestionIdx = 0;
-        let quizmasterHallQuizzes = [];
-
-        function showQuizmasterHallSelect() {
-            document.getElementById('quizmasterHallSelect').classList.remove('hidden');
-        }
-
-        function initQuizmasterMode(hall) {
-            quizmasterMode = true;
-            quizmasterCurrentHall = hall;
-            quizmasterCurrentQuestionIdx = 0;
-            
-            quizmasterHallQuizzes = globalQuizzes.filter(q => q.hall_id === hall);
-            if (quizmasterHallQuizzes.length === 0) {
-                alert('No quizzes available for ' + hall);
-                return;
-            }
-
-            document.getElementById('quizmasterHallSelect').classList.add('hidden');
-            document.getElementById('quizmasterQuestionNav').classList.remove('hidden');
-            renderQuestionGrid();
-            displayQuestionDetails();
-        }
-
-        function exitQuizmasterMode() {
-            quizmasterMode = false;
-            quizmasterCurrentHall = null;
-            quizmasterCurrentQuestionIdx = 0;
-            quizmasterHallQuizzes = [];
-            document.getElementById('quizmasterHallSelect').classList.add('hidden');
-            document.getElementById('quizmasterQuestionNav').classList.add('hidden');
-            manualOverrideIndex = null;
-            quizStartTimeStamp = null;
-            updateLiveDisplay(true);
-        }
-
-        function exitQuizQuestionNav() {
-            exitQuizmasterMode();
-        }
-
-        function renderQuestionGrid() {
-            let grid = document.getElementById('questionButtonGrid');
-            grid.innerHTML = quizmasterHallQuizzes.map((q, idx) => {
-                let isActive = idx === quizmasterCurrentQuestionIdx ? 'bg-indigo-600 text-white border-indigo-400' : 'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700';
-                return `<button onclick="selectQuestion(${idx})" class="flex-1 min-w-20 py-2 px-2 rounded-lg font-bold text-sm border transition ${isActive}">Q${idx + 1}</button>`;
-            }).join('');
-        }
-
-        function selectQuestion(idx) {
-            quizmasterCurrentQuestionIdx = idx;
-            renderQuestionGrid();
-            displayQuestionDetails();
-        }
-
-        function displayQuestionDetails() {
-            let q = quizmasterHallQuizzes[quizmasterCurrentQuestionIdx];
-            if (!q) return;
-            
-            let display = document.getElementById('selectedQuestionDisplay');
-            display.innerHTML = `
-                <div class="mb-4">
-                    <p class="text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">Question ${quizmasterCurrentQuestionIdx + 1} of ${quizmasterHallQuizzes.length}</p>
-                    <h3 class="text-2xl font-black text-white mb-4">${q.title}</h3>
-                </div>
-                <div class="space-y-2">
-                    ${q.options.map((opt, i) => {
-                        let isCorrect = opt.trim().toLowerCase() === q.correct.trim().toLowerCase();
-                        let badge = isCorrect ? '<span class="ml-2 bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-bold">✓ CORRECT</span>' : '';
-                        return `<div class="bg-slate-700/50 p-3 rounded-lg text-white flex items-start"><span class="font-bold mr-3 text-indigo-400">${String.fromCharCode(65+i)}.</span> <span class="flex-1">${opt}</span>${badge}</div>`;
-                    }).join('')}
-                </div>
-            `;
-        }
-
-        function prevQuizQuestion() {
-            if (quizmasterCurrentQuestionIdx > 0) {
-                quizmasterCurrentQuestionIdx--;
-                renderQuestionGrid();
-                displayQuestionDetails();
-            }
-        }
-
-        function nextQuizQuestion() {
-            if (quizmasterCurrentQuestionIdx < quizmasterHallQuizzes.length - 1) {
-                quizmasterCurrentQuestionIdx++;
-                renderQuestionGrid();
-                displayQuestionDetails();
-            }
-        }
-
-        async function displayCurrentQuestion() {
-            let q = quizmasterHallQuizzes[quizmasterCurrentQuestionIdx];
-            if (!q) return;
-            
-            manualOverrideIndex = -(globalQuizzes.indexOf(q) + 1);
-            let isoTime = new Date().toISOString();
-            quizStartTimeStamp = isoTime;
-            
-            await supabaseClient.from('hall_states').update({ 
-                override_index: manualOverrideIndex, 
-                quiz_start_time: isoTime, 
-                force_leaderboard: null 
-            }).eq('hall_id', quizmasterCurrentHall);
-            
-            updateLiveDisplay(true);
-        }
-
-        
-           function startApplicationLogic() {
+        async function initializeApp() {
+            checkPersistentAuth();
             document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -432,50 +263,12 @@
                 appData = fetchedData;
                 globalQuizzes = quizzesLoaded;
                 localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-                if (!isBackground) { // Only update UI if it's not a background fetch
+                if (!isBackground) {
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('staticHeader').classList.remove('hidden');
                     initLiveKiosk();
-                    updateLiveDisplay(true); // Ensure display is updated after fresh fetch
-                }
+                } else { updateLiveDisplay(true); }
             }
-        }
-
-        // Modify verifyGatePass to call startApplicationLogic after successful auth
-        function verifyGatePass() {
-            let val = document.getElementById('gatePassInput').value.trim();
-            if (val === 'ifascon2026') {
-                localStorage.setItem('av_auth_secure', 'true');
-                document.getElementById('authGateFrame').classList.add('hidden');
-                document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                startApplicationLogic();
-            } else { alert('Invalid password credential token.'); }
-        }
-
-        function checkPersistentAuth() {
-            if (localStorage.getItem('av_auth_secure') === 'true') {
-                document.getElementById('authGateFrame').classList.add('hidden');
-                document.getElementById('masterToolbarSuite').classList.remove('hidden');
-                startApplicationLogic(); // Call this after successful authentication
-            }
-        }
-
-        // NEW FUNCTION: Encapsulates the main application setup logic
-        function startApplicationLogic() {
-            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                try {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden');
-                    initLiveKiosk();
-                    fetchLiveSchedule(true);
-                } catch (e) { fetchLiveSchedule(false); }
-            } else { fetchLiveSchedule(false); }
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -491,22 +284,23 @@
             });
         }
 
+        // UPDATED: Now maps to the new Column B for Symposium Targets
         function parseQuizData(rows) {
             let list = [];
             rows.forEach(r => {
-                // Skip header row or empty rows
-                if(!r[1] || r[1].toLowerCase().includes('question')) return;
-                
+                if(!r[0] || r[2] === undefined || r[2].toLowerCase().includes('question')) return;
                 list.push({ 
                     type: 'quiz', 
-                    hall_id: r[0].trim(), // New Column A
-                    title: r[1].trim(),   // Column B
-                    options: [r[2], r[3], r[4], r[5]].map(x => (x || "").trim()).filter(Boolean), // Columns C-F
-                    correct: (r[6] || "").trim() // Column G
+                    hall_id: (r[0] || "").trim(), 
+                    symposium: (r[1] || "").trim(), 
+                    title: (r[2] || "").trim(), 
+                    options: [r[3], r[4], r[5], r[6]].map(x => (x || "").trim()).filter(Boolean), 
+                    correct: (r[7] || "").trim() 
                 });
             });
             return list;
         }
+
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             rows.forEach(r => {
@@ -655,14 +449,13 @@
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
-            
-            // Sends ONLY to the currently selected hall in the AV console
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         }
-        async function launchQuizByTitle(title) {
-            let qIdx = globalQuizzes.findIndex(q => q.title === title);
-            if (qIdx !== -1) launchQuiz(qIdx);
-        }
+
+        window.launchQuizByGlobalIndex = function(idx) {
+            launchQuiz(idx);
+        };
+
         async function terminateActiveQuiz() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
             for(let h of allHallsList) {
@@ -675,7 +468,6 @@
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
-        // NEW: Force Leaderboards globally
         window.forceLeaderboardGlobal = async function(type) {
             if (type !== 'none') showLeaderboard(type);
             for(let h of allHallsList) {
@@ -692,15 +484,48 @@
 
         function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
-            
+            const { currentEvent, nextEvent } = getLiveStatus(data.events);
+
+            // NEW: Smart Quizmaster Dashboard Generation
             let quizBtnContainer = document.getElementById('quizButtonsContainer');
-            // Filter global quizzes by the current liveHall selected on the AV console
-            let hallQuizzes = globalQuizzes.filter(q => q.hall_id === liveHall);
-            
-            if (quizBtnContainer) {
-                quizBtnContainer.innerHTML = hallQuizzes.map((q, idx) => 
-                    `<button onclick="launchQuizByTitle('${q.title.replace(/'/g, "\\'")}')" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500 text-rose-100 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">Q: ${q.title.substring(0,12)}...</button>`
-                ).join('');
+            if (globalQuizzes.length > 0 && quizBtnContainer) {
+                let hallQuizzes = globalQuizzes.filter(q => q.hall_id === liveHall);
+                
+                if (hallQuizzes.length > 0) {
+                    let groups = {};
+                    hallQuizzes.forEach(q => {
+                        let symp = q.symposium || 'Uncategorized';
+                        if(!groups[symp]) groups[symp] = [];
+                        groups[symp].push(q);
+                    });
+
+                    let activeSymp = "";
+                    if(currentEvent && currentEvent.parent_session) {
+                        activeSymp = currentEvent.parent_session.toLowerCase().trim();
+                    }
+
+                    let dashHtml = `<div class="w-full grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-2 max-h-48 overflow-y-auto pr-2">`;
+                    
+                    for(let [symp, qs] of Object.entries(groups)) {
+                        let isRecommended = activeSymp && symp.toLowerCase().trim() === activeSymp;
+                        let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
+                        let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
+                        let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
+
+                        dashHtml += `<div class="border rounded-xl p-3 ${blockStyle}">
+                                    <div class="text-xs mb-3 flex items-center justify-between"><span class="${headerStyle} truncate">${symp}</span> ${badge}</div>
+                                    <div class="flex flex-col gap-2">`;
+                        qs.forEach(q => {
+                            let globalIdx = globalQuizzes.findIndex(gx => gx === q);
+                            dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx})" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-1.5"></i> ${q.title}</button>`;
+                        });
+                        dashHtml += `</div></div>`;
+                    }
+                    dashHtml += `</div>`;
+                    quizBtnContainer.innerHTML = dashHtml;
+                } else {
+                    quizBtnContainer.innerHTML = `<span class="text-slate-500 text-xs italic">No quizzes routed to ${configTitles[liveHall]} in the Engine.</span>`;
+                }
             }
 
             document.querySelectorAll('.feed-btn').forEach(btn => {
@@ -709,8 +534,6 @@
 
             document.getElementById('headerTitle').innerText = data.title;
 
-            const { currentEvent, nextEvent } = getLiveStatus(data.events);
-            
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + manualOverrideIndex;
             if (!forceRender && newHash === lastRenderHash) {
                 return; 
@@ -816,7 +639,8 @@
             document.getElementById('leaderboardList').innerHTML = '<div class="loader mt-6"></div>';
             
             let mathResults = await fetchMathLeaderboard(type);
-            document.getElementById('lbSub').innerText = mathResults.titleText;
+            document.getElementById('lbTitle').innerHTML = `<i class="fas fa-trophy mr-4 text-amber-400"></i> ${mathResults.titleText}`;
+            document.getElementById('lbSub').innerText = "Real-time Rankings Computed";
             
             let sorted = mathResults.sorted;
             
@@ -880,7 +704,7 @@
             }, 1000);
         }
 
-        checkPersistentAuth(); // Call the initial authentication check function
+        initializeApp();
     </script>
 </body>
 </html>
