@@ -204,12 +204,13 @@
                 if (row_text.includes("ifascon 2026")) return;
                 if ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "inauguration", "gbm", "valedictory"];
                 if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("inauguration")) text = "Inauguration";
                     else if (row_text.includes("gbm")) text = "GBM";
                     else if (row_text.includes("valedictory")) text = "Valedictory";
                     let time_str = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
