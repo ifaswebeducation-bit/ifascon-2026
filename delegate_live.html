@@ -378,18 +378,31 @@
         }
 
         window.switchDelegateHall = function(newHall) {
-            document.getElementById('quizRadarBanner').classList.add('hidden'); 
-            document.getElementById('globalHijackOverlay').classList.add('hidden');
+            // Safely hide overlays
+            let radar = document.getElementById('quizRadarBanner');
+            if (radar) radar.classList.add('hidden'); 
+            
+            let hijack = document.getElementById('globalHijackOverlay');
+            if (hijack) hijack.classList.add('hidden');
+            
             liveHall = newHall;
             remoteOverrideIndex = null;
             quizStartTimeStamp = null;
             lastRenderHash = ""; 
-            const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl);
+            
+            // THE FIX: Trap the file:// URL crash
+            try {
+                const newUrl = new URL(window.location); 
+                newUrl.searchParams.set('hall', newHall); 
+                window.history.pushState({}, '', newUrl);
+            } catch (e) {
+                console.warn("Running locally: Skipped URL bar update to prevent crash.");
+            }
+            
             subscribeToHall(newHall); 
             updateLiveDisplay(true);
             updatePersistentFooter();
         };
-
         function subscribeToHall(hall_id) {
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
@@ -508,11 +521,17 @@
         async function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
-            // FIXED: Dynamically highlight the active layout button cleanly
+            // Safe button highlighting
             document.querySelectorAll('.feed-btn').forEach(btn => {
-                btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 " + (btn.dataset.hall === liveHall ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700");
+                let targetHall = btn.dataset.hall; // safely reads data-hall="22a"
+                if (targetHall === liveHall) {
+                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md";
+                } else {
+                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700";
+                }
             });
-
+            
+            // ... rest of the function continues ...
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
 
