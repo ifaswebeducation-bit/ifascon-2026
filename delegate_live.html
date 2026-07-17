@@ -510,8 +510,7 @@
 
             // FIXED: Dynamically highlight the active layout button cleanly
             document.querySelectorAll('.feed-btn').forEach(btn => {
-                let btnHall = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
-                btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 " + (btnHall === liveHall ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700");
+                btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 " + (btn.dataset.hall === liveHall ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700");
             });
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
