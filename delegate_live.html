@@ -727,15 +727,26 @@
                 if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && quizStartTimeStamp) {
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = 45 - diff;
-                    let timerEl = document.getElementById('quizCountdownTimer');
                     
                     if (secondsLeft <= 0) {
-                        if (timerEl && timerEl.dataset.expired !== "true") {
+                        // THE FIX: If the timer hits 0 and we haven't rendered the reveal yet, force it!
+                        if (!window.quizExpiredRendered) {
+                            window.quizExpiredRendered = true;
                             updateLiveDisplay(true); 
                         }
-                    } else if (timerEl && timerEl.dataset.expired === "false") {
-                        timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
+                    } else {
+                        // Reset flag while active
+                        window.quizExpiredRendered = false;
+                        
+                        // Safely update visual timer if it exists (for people who haven't answered yet)
+                        let timerEl = document.getElementById('quizCountdownTimer');
+                        if (timerEl) {
+                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
+                        }
                     }
+                } else {
+                    // Reset flag when no quiz is running
+                    window.quizExpiredRendered = false;
                 }
             }, 1000);
             
