@@ -139,10 +139,8 @@
         let appData = {};
         let globalQuizzes = [];
         const CACHE_KEY = 'ifascon_schedule_cache_delegate_v60'; 
-        const container = document.getElementById('contentContainer');
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
-        // THE MATH ENGINE
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
@@ -165,7 +163,7 @@
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
-                    let key = r.hall_id + "___" + r.question; 
+                    let key = r.hall_id + "_" + r.question; 
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
                 });
@@ -179,11 +177,10 @@
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        // AMNESIA FIX: Sync from DB on Load/Login
         async function syncMyAnswers() {
             let phone = localStorage.getItem('delegate_phone');
             if(!phone) return;
-            const { data } = await supabaseClient.from('quiz_responses').select('question, hall_id, is_correct').eq('phone', phone);
+            const { data } = await supabaseClient.from('quiz_responses').select('question, hall_id').eq('phone', phone);
             if(data) {
                 data.forEach(d => {
                     let cleanKey = (d.hall_id + "_" + d.question).replace(/\W/g, '');
@@ -380,7 +377,7 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
-        function switchDelegateHall(newHall) {
+        window.switchDelegateHall = function(newHall) {
             document.getElementById('quizRadarBanner').classList.add('hidden'); 
             document.getElementById('globalHijackOverlay').classList.add('hidden');
             liveHall = newHall;
@@ -391,7 +388,7 @@
             subscribeToHall(newHall); 
             updateLiveDisplay(true);
             updatePersistentFooter();
-        }
+        };
 
         function subscribeToHall(hall_id) {
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
@@ -468,7 +465,7 @@
             let cleanKey = (liveHall + "_" + questionText).replace(/\W/g, '');
             localStorage.setItem('marked_' + cleanKey, option); 
             localStorage.setItem('answered_' + cleanKey, 'true');
-            updateLiveDisplay(true); // Freeze immediately visually
+            updateLiveDisplay(true); 
             
             try {
                 await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: (option === correctOption) }]);
@@ -511,8 +508,10 @@
         async function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
+            // FIXED: Dynamically highlight the active layout button cleanly
             document.querySelectorAll('.feed-btn').forEach(btn => {
-                btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 " + (btn.dataset.hall === liveHall ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700");
+                let btnHall = btn.getAttribute('onclick').match(/'([^']+)'/)[1];
+                btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 " + (btnHall === liveHall ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700");
             });
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
@@ -543,7 +542,7 @@
                     if (!savedPhone) {
                         nowPlayingHtml = `
                             <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-6 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-4 py-10">
-                                <i class="fas fa-id-card text-5xl text-indigo-400 mb-4 animate-bounce"></i>
+                                <i class="fas fa-id-card text-5xl text-indigo-400 mb-4 animate-pulse"></i>
                                 <h2 class="text-2xl font-black text-white mb-2">Login Required to Play</h2>
                                 <p class="text-slate-300 mb-6 text-xs max-w-xs mx-auto">Input your mobile identifier token inside the box above or below to instantly unlock the running conference question module.</p>
                                 <div class="max-w-xs mx-auto">
@@ -588,7 +587,6 @@
                         }
                     } 
                     else {
-                        // AUTO-REVEAL & INLINE LEADERBOARD
                         let mathResults = await fetchMathLeaderboard(liveHall);
                         let sorted = mathResults.sorted;
                         let myRank = sorted.findIndex(x => x[0] === savedPhone);
@@ -602,7 +600,7 @@
                                     ${currentEvent.options.map((opt, idx) => {
                                         let isCorrect = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
                                         let selected = (opt.trim().toLowerCase() === mySelection.trim().toLowerCase());
-                                        let itemClass = isCorrect ? "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-1 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                                        let itemClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black ring-1 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let labelMarker = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[9px] font-black uppercase ml-auto">Correct Answer</span>` : selected ? `<span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded text-[9px] ml-auto">Your Guess</span>` : '';
                                         return `<div class="border p-2.5 rounded-xl text-xs flex items-center ${itemClass}"><span class="bg-slate-950 px-2 py-0.5 rounded mr-3 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
                                     }).join('')}
@@ -634,7 +632,7 @@
                                 <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
                             ${pSess}
-                            <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tight mb-8">${currentEvent.title}</h1>
                             ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-4 rounded-2xl border border-slate-700/80 shadow-inner"><div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0"><i class="fas fa-microphone"></i></div><div><span class="block text-[10px] uppercase text-slate-400 font-bold mb-0.5">Speaker</span><span class="text-lg sm:text-xl font-extrabold text-white">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
                 }
@@ -679,7 +677,6 @@
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
-            // GLOBAL RADAR FOR ALL HALLS
             supabaseClient.channel('global-radar-feed')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
