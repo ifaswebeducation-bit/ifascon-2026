@@ -40,7 +40,6 @@
             <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span>:</span>
                 
-                <!-- Dynamic Hall Selector -->
                 <div id="adminHallNav" class="flex flex-wrap gap-1 hidden">
                     <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
                     <button onclick="switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Diabetic</button>
@@ -54,18 +53,27 @@
                 <button onclick="logoutManager()" class="ml-auto md:ml-4 text-xs text-rose-400 font-bold border border-rose-900 px-3 py-1 rounded hover:bg-rose-900/50 transition">Logout</button>
             </div>
 
-            <div class="flex items-center gap-2 flex-wrap ml-auto">
+            <div class="flex items-center gap-2 flex-wrap ml-auto w-full md:w-auto mt-2 md:mt-0">
                 <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-xs">⬅ Prev</button>
                 <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-xs">Next Talk ➔</button>
                 <button onclick="resumeAutoSync()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 active:scale-95 transition text-xs">Resume Auto</button>
             </div>
         </div>
+
+        <!-- NEW: Quick Jump Engine -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
+            <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
+                <option value="">-- Select an event to jump timeline directly --</option>
+            </select>
+        </div>
         
-        <div class="flex flex-col lg:flex-row gap-6">
-            <!-- Left Side: Quiz & Leaderboard -->
+        <div class="flex flex-col lg:flex-row gap-6 pt-1">
+            <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
-                <div id="quizControlBar" class="flex flex-col gap-2 pt-1">
-                    <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
+                
+                <div id="quizControlBar" class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
                         <div class="flex gap-2 w-full md:w-auto">
                             <select id="symposiumFilter" onchange="renderQuizCockpit()" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full md:w-48 shadow-inner">
@@ -75,17 +83,20 @@
                             <button onclick="terminateActiveQuiz()" class="bg-rose-600 text-white hover:bg-rose-500 px-4 py-2 rounded-lg font-bold active:scale-95 transition text-xs flex-shrink-0 shadow-lg">Clear Active Quiz</button>
                         </div>
                     </div>
-                    <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-40 overflow-y-auto pr-2">
-                        <!-- Smart Buttons Inject Here -->
-                    </div>
+                    <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto pr-2"></div>
+                </div>
+
+                <!-- NEW: Sponsor Quick Play Media Buttons -->
+                <div class="flex items-start gap-3 pt-3 border-t border-slate-800 flex-col sm:flex-row">
+                    <span class="text-xs font-bold text-purple-400 uppercase tracking-wider pt-1 flex-shrink-0"><i class="fas fa-play-circle mr-1.5"></i>Sponsor Media:</span>
+                    <div id="sponsorAdsContainer" class="flex flex-wrap gap-2 w-full"></div>
                 </div>
 
                 <div class="flex items-center gap-3 pt-3 border-t border-slate-800 flex-wrap">
-                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Leaderboard Engine:</span>
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Leaderboard:</span>
                     <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
                     <button onclick="forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-4 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
                     
-                    <!-- Admin Only Global Controls -->
                     <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto">
                         <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2 py-1.5 rounded outline-none font-bold">
                             <option value="22a">Day 1: Hall A</option>
@@ -101,10 +112,10 @@
                 </div>
             </div>
 
-            <!-- Right Side: Master Audit Log (Admin Only) -->
+            <!-- Right Side: Master Audit Log -->
             <div id="adminAuditPanel" class="w-full lg:w-1/3 hidden flex-col">
                 <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2"><i class="fas fa-satellite-dish mr-1"></i> Live Command Feed:</span>
-                <div id="auditLogContainer" class="bg-slate-950 border border-slate-700 rounded-lg p-3 h-40 overflow-y-auto audit-scroll flex flex-col gap-1.5 text-[11px] font-mono text-slate-300 shadow-inner">
+                <div id="auditLogContainer" class="bg-slate-950 border border-slate-700 rounded-lg p-3 h-48 overflow-y-auto audit-scroll flex flex-col gap-1.5 text-[11px] font-mono text-slate-300 shadow-inner">
                     <div class="text-slate-500 italic">Listening for floor commands...</div>
                 </div>
             </div>
@@ -119,7 +130,6 @@
         <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close TV Board</button>
     </div>
 
-    <!-- Main TV Output Area -->
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-30">
             <div class="loader mb-4"></div>
@@ -174,25 +184,21 @@
         let liveUpdateTimer = null;
         let tickerTimer = null;
 
-        // RBAC Context
         let myName = "";
         let myRole = "";
         let myAllowedHalls = [];
 
-        // --- AUTHENTICATION & RBAC ---
+        // --- AUTH & RBAC ---
         async function verifyGatePass() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
-            
             if (data) {
                 localStorage.setItem('mgr_pin', pin);
                 localStorage.setItem('mgr_name', data.name);
                 localStorage.setItem('mgr_role', data.role);
                 localStorage.setItem('mgr_hall', data.assigned_hall);
                 loadManagerContext();
-            } else {
-                alert('Invalid PIN or account not found in database.');
-            }
+            } else { alert('Invalid PIN or account not found.'); }
         }
 
         function loadManagerContext() {
@@ -203,7 +209,6 @@
             myRole = localStorage.getItem('mgr_role');
             let assignedHallRaw = localStorage.getItem('mgr_hall');
             
-            // Handle Multi-Hall Parsing
             myAllowedHalls = assignedHallRaw.split(',').map(s => s.trim());
 
             document.getElementById('mgrNameDisplay').innerText = myName;
@@ -220,50 +225,33 @@
             } 
             else if (myRole === 'floor_manager') {
                 document.getElementById('adminHallNav').classList.remove('hidden');
-                
-                // Hide halls this manager does not have access to
                 document.querySelectorAll('#adminHallNav .feed-btn').forEach(btn => {
-                    if (!myAllowedHalls.includes(btn.dataset.hall)) {
-                        btn.classList.add('hidden');
-                    }
+                    if (!myAllowedHalls.includes(btn.dataset.hall)) btn.classList.add('hidden');
                 });
-
-                // Auto-switch to their first allowed hall if their current URL isn't allowed
-                if (!myAllowedHalls.includes(liveHall)) {
-                    liveHall = myAllowedHalls[0];
-                }
-
+                if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
-            
             logAction("Logged into system.");
             fetchLiveSchedule();
         }
 
-        function logoutManager() {
-            localStorage.clear();
-            location.reload();
-        }
-
-        async function logAction(actionDesc) {
-            await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]);
-        }
+        function logoutManager() { localStorage.clear(); location.reload(); }
+        async function logAction(actionDesc) { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }
 
         function initAuditLogListener() {
             supabaseClient.channel('custom-audit-channel')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
                     let cont = document.getElementById('auditLogContainer');
                     let time = new Date(payload.new.created_at).toLocaleTimeString();
-                    cont.innerHTML = `<div class="border-b border-slate-800 pb-1 mb-1"><span class="text-slate-500">[${time}]</span> <span class="text-amber-300 font-bold">${payload.new.manager_name}</span> &gt; ${payload.new.action} <span class="text-slate-500">(${payload.new.hall_id})</span></div>` + cont.innerHTML;
+                    cont.innerHTML = `<div class="border-b border-slate-800 pb-1.5 mb-1.5"><span class="text-slate-500">[${time}]</span> <span class="text-amber-300 font-bold">${payload.new.manager_name}</span> &gt; ${payload.new.action} <span class="text-slate-500">(${payload.new.hall_id})</span></div>` + cont.innerHTML;
                 }).subscribe();
         }
 
-        // --- MATH ENGINE & TV LEADERBOARD ---
+        // --- MATH ENGINE ---
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
                 if (error) throw error;
-                
                 let filteredData = data;
                 let titleText = "";
 
@@ -277,7 +265,6 @@
 
                 let scores = {};
                 filteredData.forEach(r => { scores[r.phone] = 0; }); 
-                
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
@@ -285,13 +272,8 @@
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
                 });
-                
-                Object.values(qGroups).forEach(responses => {
-                    responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); });
-                });
-                
-                let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
-                return { sorted, titleText };
+                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
+                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText };
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
@@ -299,31 +281,23 @@
             let type = presetType || document.getElementById('boardTypeSelect').value;
             document.getElementById('leaderboardModal').classList.remove('hidden');
             document.getElementById('leaderboardList').innerHTML = '<div class="loader mt-6"></div>';
-            
             let mathResults = await fetchMathLeaderboard(type);
             document.getElementById('lbTitle').innerHTML = `<i class="fas fa-trophy mr-4 text-amber-400"></i> ${mathResults.titleText}`;
             document.getElementById('lbSub').innerText = "Real-time Rankings Computed";
-            
             let sorted = mathResults.sorted;
-            
-            if (sorted.length === 0) {
-                document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No scores logged yet.</div>';
-                return;
-            }
+            if (sorted.length === 0) { document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No scores logged yet.</div>'; return; }
             document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
                 let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
                 let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
                 return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${ob}</div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
             }).join('');
         };
-
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
-        // --- PARSING & SCHEDULE LOGIC ---
+        // --- PARSING ---
         async function fetchLiveSchedule() {
             let fetchedData = {};
             let quizzesLoaded = [];
-            
             for (const [key, link] of Object.entries(sheetLinks)) {
                 try {
                     const response = await fetch(link);
@@ -333,39 +307,26 @@
                     if (key === 'quizzes') {
                         parsedCsv.forEach(r => {
                             if(!r[0] || r[2] === undefined || r[2].toLowerCase().includes('question')) return;
-                            quizzesLoaded.push({ 
-                                hall_id: (r[0] || "").trim(), symposium: (r[1] || "").trim(), 
-                                title: (r[2] || "").trim(), options: [r[3], r[4], r[5], r[6]].map(x => (x || "").trim()).filter(Boolean), 
-                                correct: (r[7] || "").trim(), type: 'quiz'
-                            });
+                            quizzesLoaded.push({ hall_id: (r[0] || "").trim(), symposium: (r[1] || "").trim(), title: (r[2] || "").trim(), options: [r[3], r[4], r[5], r[6]].map(x => (x || "").trim()).filter(Boolean), correct: (r[7] || "").trim(), type: 'quiz' });
                         });
                     } else if (key === 'ao') {
                         const allAo = parseRawData(parsedCsv, "21 Aug");
                         let sem = [], dia = [], mis = [];
-                        let isWs = false, track = 'diabetic';
                         allAo.forEach(ev => {
                             let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) isWs = true;
-                            if (isWs) {
-                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) track = 'diabetic';
-                                else if (matchStr.includes('mis') || matchStr.includes('arthrex')) track = 'mis';
-                                if (track === 'diabetic') { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
-                                else { ev.hall = "MIS Hall"; mis.push(ev); }
-                            } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
+                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) { (matchStr.includes('diabetic') || matchStr.includes('nebula')) ? dia.push(ev) : mis.push(ev); } 
+                            else { sem.push(ev); }
                         });
                         fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
                         fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
                         fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
-                    } else {
-                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
-                    }
+                    } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; }
                 } catch(err) { console.error(err); }
             }
             
             appData = fetchedData;
             globalQuizzes = quizzesLoaded;
             
-            // Populate Dropdown
             let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
             let dd = document.getElementById('symposiumFilter');
             dd.innerHTML = `<option value="ALL">Show All Symposiums</option>`;
@@ -381,16 +342,16 @@
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
             return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
                 let h = parseInt(p1, 10);
-                let ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12;
-                h = h ? h : 12; 
-                let paddedH = h < 10 ? '0' + h : h;
-                return paddedH + ':' + p2 + ' ' + ampm;
+                return (h % 12 || 12) + ':' + p2 + ' ' + (h >= 12 ? 'PM' : 'AM');
             });
         }
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
+            
+            // Regex to aggressively catch break keywords and ad/sponsor labels
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
                 r = r.map(x => (x || "").trim());
@@ -403,19 +364,20 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration", "registration"];
-                let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
+                let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 
-                if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
+                if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
+                    
+                    // Cleanup standard names, but let Sponsor/Ad names pass through exactly as typed
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
                     
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     
-                    // FULL AD ENGINE SUPPORT
+                    // EXTRACT LINK
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', chairpersons: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
@@ -444,8 +406,7 @@
                     current_session = topic; 
                     
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    let display_time = convertTo12HourFormat(time_raw);
-                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: display_time, title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
+                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
                 }
 
@@ -453,14 +414,106 @@
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    
-                    let display_time = convertTo12HourFormat(time_raw);
-                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    events.push({ type: 'presentation', time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
             });
             return events;
         }
+
+        // --- TIMELINE JUMP & POPULATE ---
+        function populateEventJump() {
+            let select = document.getElementById('eventJumpSelect');
+            let adsContainer = document.getElementById('sponsorAdsContainer');
+            let events = appData[liveHall].events;
+            
+            select.innerHTML = '<option value="">-- Select an event to jump timeline directly --</option>';
+            let adsHtml = '';
+
+            // Filter out events that can't really be played
+            const playable = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+
+            playable.forEach((ev, playableIndex) => {
+                let prefix = ev.type === 'break' ? '☕ ' : (ev.type === 'session' ? '📚 ' : '🎤 ');
+                if (ev.adLink) prefix = '▶️ [MEDIA] ';
+                
+                select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
+
+                // If it has a link and is technically a break, it's media! Map it to a quick button.
+                if (ev.adLink) {
+                    adsHtml += `<button onclick="jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
+                }
+            });
+
+            if(adsHtml === '') adsHtml = '<span class="text-slate-500 text-xs italic py-1">No sponsor media scheduled here. Add rows labeled "Sponsor" or "Ad" with a link.</span>';
+            adsContainer.innerHTML = adsHtml;
+        }
+
+        window.jumpToEvent = async function(idx) {
+            if(idx === "") return;
+            manualOverrideIndex = parseInt(idx);
+            updateLiveDisplay(true);
+            
+            // Grab the title to log it cleanly
+            let events = appData[liveHall].events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            let evTitle = events[manualOverrideIndex] ? events[manualOverrideIndex].title : `Index ${idx}`;
+            
+            logAction(`Timeline JUMP: Forced play of "${evTitle}"`);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            
+            // Reset dropdown to placeholder visually
+            document.getElementById('eventJumpSelect').value = "";
+        };
+
+        // --- COMMANDS ---
+        window.renderQuizCockpit = function(activeSympName = "") {
+            let container = document.getElementById('quizButtonsContainer');
+            let filter = document.getElementById('symposiumFilter').value;
+            let search = document.getElementById('quizSearch').value.toLowerCase();
+            
+            let hallQuizzes = globalQuizzes.filter(q => q.hall_id === liveHall);
+            if (filter !== 'ALL') { hallQuizzes = hallQuizzes.filter(q => q.symposium === filter); }
+            if (search) { hallQuizzes = hallQuizzes.filter(q => q.title.toLowerCase().includes(search)); }
+
+            if (hallQuizzes.length > 0) {
+                let groups = {};
+                hallQuizzes.forEach(q => {
+                    let symp = q.symposium || 'Uncategorized';
+                    if(!groups[symp]) groups[symp] = [];
+                    groups[symp].push(q);
+                });
+
+                let dashHtml = ``;
+                for(let [symp, qs] of Object.entries(groups)) {
+                    let isRecommended = (activeSympName && symp.toLowerCase().trim() === activeSympName);
+                    let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
+                    let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
+                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
+
+                    dashHtml += `
+                        <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
+                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate">${symp}</span> ${badge}</div>
+                            <div class="flex flex-col gap-2">`;
+                    qs.forEach(q => {
+                        let globalIdx = globalQuizzes.findIndex(gx => gx === q);
+                        let safeTitle = q.title.replace(/'/g, "\\'");
+                        dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, '${safeTitle}')" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
+                    });
+                    dashHtml += `   </div></div>`;
+                }
+                container.innerHTML = dashHtml;
+            } else {
+                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found matching criteria for this hall.</div>`;
+            }
+        };
+
+        window.launchQuizByGlobalIndex = async function(idx, title) {
+            manualOverrideIndex = -(idx + 1);
+            let isoTime = new Date().toISOString();
+            quizStartTimeStamp = isoTime; 
+            updateLiveDisplay(true);
+            logAction(`Launched Quiz: ${title}`);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
+        };
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
@@ -494,9 +547,7 @@
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev; 
-                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') {
-                            currentEvent = playableEvents[i-1];
-                        }
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') { currentEvent = playableEvents[i-1]; }
                         if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; 
                         break;
                     } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
@@ -504,59 +555,6 @@
             }
             return { currentEvent, nextEvent };
         }
-
-        // --- COMMANDS ---
-        window.renderQuizCockpit = function(activeSympName = "") {
-            let container = document.getElementById('quizButtonsContainer');
-            let filter = document.getElementById('symposiumFilter').value;
-            let search = document.getElementById('quizSearch').value.toLowerCase();
-            
-            let hallQuizzes = globalQuizzes.filter(q => q.hall_id === liveHall);
-            
-            if (filter !== 'ALL') { hallQuizzes = hallQuizzes.filter(q => q.symposium === filter); }
-            if (search) { hallQuizzes = hallQuizzes.filter(q => q.title.toLowerCase().includes(search)); }
-
-            if (hallQuizzes.length > 0) {
-                let groups = {};
-                hallQuizzes.forEach(q => {
-                    let symp = q.symposium || 'Uncategorized';
-                    if(!groups[symp]) groups[symp] = [];
-                    groups[symp].push(q);
-                });
-
-                let dashHtml = ``;
-                for(let [symp, qs] of Object.entries(groups)) {
-                    let isRecommended = (activeSympName && symp.toLowerCase().trim() === activeSympName);
-                    let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
-                    let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
-                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
-
-                    dashHtml += `
-                        <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
-                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate">${symp}</span> ${badge}</div>
-                            <div class="flex flex-col gap-2">`;
-                    qs.forEach(q => {
-                        let globalIdx = globalQuizzes.findIndex(gx => gx === q);
-                        let safeTitle = q.title.replace(/'/g, "\\'");
-                        dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, '${safeTitle}')" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
-                    });
-                    dashHtml += `   </div>
-                        </div>`;
-                }
-                container.innerHTML = dashHtml;
-            } else {
-                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center">No questions found matching criteria for this hall.</div>`;
-            }
-        };
-
-        window.launchQuizByGlobalIndex = async function(idx, title) {
-            manualOverrideIndex = -(idx + 1);
-            let isoTime = new Date().toISOString();
-            quizStartTimeStamp = isoTime; 
-            updateLiveDisplay(true);
-            logAction(`Launched Quiz: ${title}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
-        };
 
         async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
@@ -578,7 +576,7 @@
             
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
-            logAction(`Timeline shifted to Index: ${newIndex}`);
+            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
@@ -590,50 +588,39 @@
 
         async function resumeAutoSync() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            logAction(`Resumed Auto-Sync`);
+            logAction(`Resumed Auto-Sync mode`);
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
         window.forceLeaderboardLocal = async function(type) {
-            logAction(`Forced TV Leaderboard override: ${type}`);
+            logAction(`Forced Leaderboard TV output: ${type}`);
             await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
         };
 
         function switchHallFeed(newHall) {
             if (myRole === 'floor_manager' && !myAllowedHalls.includes(newHall) && localStorage.getItem('mgr_hall') !== 'ALL') {
-                alert("Access Denied: You are not authorized for this hall.");
-                return;
+                alert("Access Denied: You are not authorized for this hall."); return;
             }
+            liveHall = newHall; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
+            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', newHall); window.history.pushState({}, '', newUrl); } catch(e) {}
             
-            liveHall = newHall; manualOverrideIndex = null; quizStartTimeStamp = null;
-            lastRenderHash = ""; 
-            
-            try { 
-                const newUrl = new URL(window.location); 
-                newUrl.searchParams.set('hall', newHall); 
-                window.history.pushState({}, '', newUrl); 
-            } catch(e) {}
-            
+            // Re-populate the Jump Engine for the new hall
+            populateEventJump();
             updateLiveDisplay(true);
         }
 
         function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
             
-            // Safely highlight the active hall button
             document.querySelectorAll('.feed-btn').forEach(btn => {
                 let targetHall = btn.dataset.hall;
-                if (targetHall === liveHall) {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md";
-                } else {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700";
-                }
+                if (targetHall === liveHall) { btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md"; } 
+                else { btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"; }
             });
 
             document.getElementById('headerTitle').innerText = data.title;
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
 
-            // Re-render Quiz Cockpit to match Live Session
             let activeSymp = (currentEvent && currentEvent.parent_session) ? currentEvent.parent_session.toLowerCase().trim() : "";
             renderQuizCockpit(activeSymp);
 
@@ -641,7 +628,7 @@
             if (!forceRender && newHash === lastRenderHash) return;
             lastRenderHash = newHash;
 
-            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
+            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8 shadow-inner"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
             
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
@@ -692,7 +679,7 @@
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
 
-                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -700,7 +687,7 @@
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
-                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
@@ -710,7 +697,7 @@
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl mb-8">
                             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
                                 <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5"></span> LIVE NOW</span>
-                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
+                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50 shadow-inner"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
                             ${pSess}
                             <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
@@ -722,9 +709,9 @@
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-300 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
 
@@ -732,31 +719,22 @@
         }
 
         function initLiveKiosk() {
+            populateEventJump(); // Populate on boot
+            
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
-                if (data) { 
-                    manualOverrideIndex = data.override_index; 
-                    quizStartTimeStamp = data.quiz_start_time;
-                }
+                if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
                 updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => {
-                        manualOverrideIndex = payload.new.override_index;
-                        quizStartTimeStamp = payload.new.quiz_start_time;
-                        updateLiveDisplay(true); 
-                    }
+                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
-            liveUpdateTimer = setInterval(() => {
-                if (manualOverrideIndex === null || manualOverrideIndex >= 0) {
-                    updateLiveDisplay(false);
-                }
-            }, 15000);
+            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); }, 15000);
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
@@ -767,20 +745,13 @@
                     let secondsLeft = 45 - diff;
                     
                     if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) {
-                            window.quizExpiredRendered = true;
-                            updateLiveDisplay(true); 
-                        }
+                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
                     } else {
                         window.quizExpiredRendered = false;
                         let timerEl = document.getElementById('quizCountdownTimer');
-                        if (timerEl && timerEl.dataset.expired === "false") {
-                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
-                        }
+                        if (timerEl && timerEl.dataset.expired === "false") { timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`; }
                     }
-                } else {
-                    window.quizExpiredRendered = false;
-                }
+                } else { window.quizExpiredRendered = false; }
             }, 1000);
         }
 
