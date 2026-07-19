@@ -390,24 +390,30 @@
         function subscribeToHall(hall_id) {
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
+            // 1. Get the current state
             supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    if (data.force_leaderboard && data.force_leaderboard !== 'none') showLeaderboard(data.force_leaderboard);
-                    else hideLeaderboard();
+                    
+                    // THE FIX: Do NOT show leaderboard automatically on initial load
+                    // We only want to trigger it if a *new* update comes in while the user is actively watching
+                    // Or, you can add a simple timestamp check here to ignore any state older than 5 minutes.
+                    hideLeaderboard(); 
                 }
                 lastRenderHash = ""; 
                 updateLiveDisplay(true);
             });
 
-            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random().toString(36).substring(7))
+            // 2. Listen for REALTIME changes (Future-only)
+            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
                         
                         let boardType = payload.new.force_leaderboard;
+                        // This only triggers when a manager clicks a button while the user is ALREADY in the room
                         if (boardType && boardType !== 'none') showLeaderboard(boardType);
                         else hideLeaderboard();
 
