@@ -23,19 +23,19 @@
 
     <!-- THE GLOBAL HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse"></i>
+        <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
         <p id="hijackMessage" class="text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
         <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-xl font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4">Jump to Hall & Play</button>
-        <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5">Ignore, stay in current hall</button>
+        <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
     </div>
 
     <!-- Identity Banner -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
         <div id="identityLoggedOutState" class="w-full flex flex-row items-center gap-3">
             <i class="fas fa-user-circle text-2xl text-slate-500"></i>
-            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white max-w-[180px] font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-            <button onclick="saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-lg transition ml-auto shadow-md">Login to Play</button>
+            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white max-w-[180px] font-mono outline-none focus:border-indigo-500 shadow-inner" placeholder="Mobile Number">
+            <button onclick="saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-lg transition ml-auto shadow-md active:scale-95">Login to Play</button>
         </div>
         <div id="identityLoggedInState" class="w-full hidden flex flex-row items-center justify-between">
             <div class="flex items-center gap-2 text-sm font-semibold text-emerald-400">
@@ -61,9 +61,28 @@
         </div>
 
         <div id="staticHeader" class="hidden">
-            <div class="mb-6 pb-4 border-b border-slate-800">
+            <!-- NEW THUMB-FRIENDLY MOBILE UI -->
+            <div class="mb-5 pb-4 border-b border-slate-800">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
-                <div class="flex flex-wrap items-center gap-2" id="hallButtonNav">
+                
+                <!-- MOBILE DROPDOWN (Native Wheel on iOS/Android) -->
+                <div class="block md:hidden relative">
+                    <select id="mobileHallSelect" onchange="switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base">
+                        <option value="ao_seminar">21 Aug: AO Seminar</option>
+                        <option value="workshop_diabetic">21 Aug: Diabetic Foot</option>
+                        <option value="workshop_mis">21 Aug: MIS</option>
+                        <option value="22a">22 Aug: Hall A</option>
+                        <option value="22b">22 Aug: Hall B</option>
+                        <option value="23a">23 Aug: Hall A</option>
+                        <option value="23b">23 Aug: Hall B</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-indigo-400">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <!-- DESKTOP / IPAD PILLS -->
+                <div class="hidden md:flex flex-wrap items-center gap-2" id="desktopHallNav">
                     <button onclick="switchDelegateHall('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: AO Seminar</button>
                     <button onclick="switchDelegateHall('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: Diabetic Foot</button>
                     <button onclick="switchDelegateHall('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: MIS</button>
@@ -130,7 +149,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v65'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v70'; 
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
         // --- AMNESIA FIX & SYNC ---
@@ -264,6 +283,8 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
                 r = r.map(x => (x || "").trim());
@@ -276,21 +297,18 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                const breaks = ["break", "lunch", "banquet", "gbm", "valedictory", "inauguration", "registration"];
-                let isBreakRow = breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session");
+                let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 
-                if (isBreakRow || /\btea\b|\bcoffee\b/.test(row_text)) {
+                if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (/\btea\b|\bcoffee\b/.test(row_text)) text = "Tea / Coffee Break";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     
-                    // FULL AD ENGINE SUPPORT
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    
                     events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
@@ -343,6 +361,62 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
+        // --- NAVIGATION & Sync ---
+        window.switchDelegateHall = function(newHall) {
+            let radar = document.getElementById('quizRadarBanner');
+            if (radar) radar.classList.add('hidden'); 
+            
+            let hijack = document.getElementById('globalHijackOverlay');
+            if (hijack) hijack.classList.add('hidden');
+            
+            hideLeaderboard(); 
+            
+            liveHall = newHall;
+            remoteOverrideIndex = null;
+            quizStartTimeStamp = null;
+            lastRenderHash = ""; 
+            
+            try { 
+                const newUrl = new URL(window.location); 
+                newUrl.searchParams.set('hall', newHall); 
+                window.history.pushState({}, '', newUrl); 
+            } catch (e) {}
+            
+            subscribeToHall(newHall); 
+            updateLiveDisplay(true);
+            updatePersistentFooter();
+        };
+
+        function subscribeToHall(hall_id) {
+            if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
+            
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
+                if (data) { 
+                    remoteOverrideIndex = data.override_index; 
+                    quizStartTimeStamp = data.quiz_start_time;
+                    if (data.force_leaderboard && data.force_leaderboard !== 'none') showLeaderboard(data.force_leaderboard);
+                    else hideLeaderboard();
+                }
+                lastRenderHash = ""; 
+                updateLiveDisplay(true);
+            });
+
+            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random().toString(36).substring(7))
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
+                    (payload) => { 
+                        remoteOverrideIndex = payload.new.override_index; 
+                        quizStartTimeStamp = payload.new.quiz_start_time;
+                        
+                        let boardType = payload.new.force_leaderboard;
+                        if (boardType && boardType !== 'none') showLeaderboard(boardType);
+                        else hideLeaderboard();
+
+                        lastRenderHash = ""; 
+                        updateLiveDisplay(true); 
+                    }
+                ).subscribe();
+        }
+
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -379,66 +453,6 @@
                 }
             }
             return { currentEvent, nextEvent };
-        }
-
-        // --- NAVIGATION & ENGINE ---
-        window.switchDelegateHall = function(newHall) {
-            // Safely hide all overlays
-            let radar = document.getElementById('quizRadarBanner');
-            if (radar) radar.classList.add('hidden'); 
-            
-            let hijack = document.getElementById('globalHijackOverlay');
-            if (hijack) hijack.classList.add('hidden');
-            
-            hideLeaderboard(); // Destroy modal on exit
-            
-            liveHall = newHall;
-            remoteOverrideIndex = null;
-            quizStartTimeStamp = null;
-            lastRenderHash = ""; 
-            
-            // Try/Catch prevents crashes when testing locally (file:// URL)
-            try { 
-                const newUrl = new URL(window.location); 
-                newUrl.searchParams.set('hall', newHall); 
-                window.history.pushState({}, '', newUrl); 
-            } catch (e) {
-                console.warn("Running locally: Skipped URL bar update to prevent crash.");
-            }
-            
-            subscribeToHall(newHall); 
-            updateLiveDisplay(true);
-            updatePersistentFooter();
-        };
-
-        function subscribeToHall(hall_id) {
-            if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
-            
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
-                if (data) { 
-                    remoteOverrideIndex = data.override_index; 
-                    quizStartTimeStamp = data.quiz_start_time;
-                    if (data.force_leaderboard && data.force_leaderboard !== 'none') showLeaderboard(data.force_leaderboard);
-                    else hideLeaderboard();
-                }
-                lastRenderHash = ""; 
-                updateLiveDisplay(true);
-            });
-
-            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id + '-' + Math.random().toString(36).substring(7))
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
-                    (payload) => { 
-                        remoteOverrideIndex = payload.new.override_index; 
-                        quizStartTimeStamp = payload.new.quiz_start_time;
-                        
-                        let boardType = payload.new.force_leaderboard;
-                        if (boardType && boardType !== 'none') showLeaderboard(boardType);
-                        else hideLeaderboard();
-
-                        lastRenderHash = ""; 
-                        updateLiveDisplay(true); 
-                    }
-                ).subscribe();
         }
 
         async function fetchMathLeaderboard(type) {
@@ -485,7 +499,6 @@
             localStorage.setItem('marked_' + cleanKey, option); 
             localStorage.setItem('answered_' + cleanKey, 'true');
             
-            // Instantly freeze visually
             updateLiveDisplay(true); 
             
             try {
@@ -525,7 +538,7 @@
         async function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
-            // Safe button highlighting without Regex
+            // Safe button highlighting for Desktop
             document.querySelectorAll('.feed-btn').forEach(btn => {
                 let targetHall = btn.dataset.hall;
                 if (targetHall === liveHall) {
@@ -534,6 +547,10 @@
                     btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700";
                 }
             });
+            
+            // Sync Mobile Dropdown Value
+            let mobileSelect = document.getElementById('mobileHallSelect');
+            if (mobileSelect) { mobileSelect.value = liveHall; }
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
@@ -568,7 +585,7 @@
                                 <p class="text-slate-300 mb-8 text-sm max-w-sm mx-auto">Enter your mobile identifier token inside the box below to instantly unlock the running conference quiz.</p>
                                 <div class="max-w-sm mx-auto">
                                     <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-4 text-white text-center text-xl mb-6 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); syncMyAnswers().then(() => { updateLiveDisplay(true); updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition">Submit & Join</button>
+                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); syncMyAnswers().then(() => { updateLiveDisplay(true); updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
                                 </div>
                             </div>`;
                     } 
@@ -599,14 +616,13 @@
                                             let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '"');
                                             let sCor = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '"');
                                             let sTit = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '"');
-                                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                                         }).join('')}
                                     </div>
                                 </div>`;
                         }
                     } 
                     else {
-                        // AUTO-REVEAL TIMER FIX + INLINE LEADERBOARD
                         let mathResults = await fetchMathLeaderboard(liveHall);
                         let sorted = mathResults.sorted;
                         let myRank = sorted.findIndex(x => x[0] === phone);
@@ -661,7 +677,7 @@
                             if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
                         } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; }
 
-                        html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-mug-hot mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700">${currentEvent.display_time}</span></div>${media}</div>`;
+                        html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700 shadow-inner">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
                         const lowTitle = currentEvent.title.toLowerCase();
@@ -733,14 +749,13 @@
             document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
                 let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
                 let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
-                return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${ob}</div><div class="text-2xl font-black text-emerald-400">${item[1]} pts</div></div>`;
+                return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-xl font-bold text-white"><i class="fas fa-medal mr-3 ${trophy}"></i>${ob}</div><div class="text-2xl font-black text-emerald-400">${item[1]} pts</div></div>`;
             }).join('');
         };
 
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
         function initLiveDashboard() { 
-            // Global Hijack Radar Listener
             supabaseClient.channel('global-radar-feed')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
@@ -777,7 +792,6 @@
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = 45 - diff;
                     
-                    // The Safe Timer Auto-Reveal Fix
                     if (secondsLeft <= 0) {
                         if (!window.quizExpiredRendered) {
                             window.quizExpiredRendered = true;
