@@ -14,6 +14,10 @@
         .tab-btn.active { color: #4f46e5; border-top-color: #4f46e5; background-color: #f1f5f9; }
         .workshop-btn.active { background-color: #e11d48; color: #ffffff; border-color: #be123c; shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3); }
         
+        /* Hide scrollbar for bottom nav but keep functionality */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
         /* Loading Spinner */
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -52,13 +56,15 @@
         </div>
     </main>
 
-    <nav class="fixed bottom-0 w-full bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] border-t border-slate-200 flex justify-around z-50 pb-safe">
-        <button onclick="showTab('ao_seminar')" id="tab-ao_seminar" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50 leading-tight" disabled>21 Aug<br><span class="text-[9px] text-indigo-600 block mt-0.5">AO Trauma Seminar</span></button>
-        <button onclick="showTab('ao_workshops')" id="tab-ao_workshops" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50 leading-tight" disabled>21 Aug<br><span class="text-[9px] text-rose-600 block mt-0.5">Workshops (Select 1)</span></button>
-        <button onclick="showTab('22a')" id="tab-22a" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>22 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 1 &bull; Hall A</span></button>
-        <button onclick="showTab('22b')" id="tab-22b" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>22 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 1 &bull; Hall B</span></button>
-        <button onclick="showTab('23a')" id="tab-23a" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>23 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 2 &bull; Hall A</span></button>
-        <button onclick="showTab('23b')" id="tab-23b" class="tab-btn flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>23 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 2 &bull; Hall B</span></button>
+    <nav class="fixed bottom-0 w-full bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.05)] border-t border-slate-200 flex overflow-x-auto hide-scrollbar justify-start sm:justify-around z-50 pb-safe">
+        <button onclick="showTab('ao_seminar')" id="tab-ao_seminar" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50 leading-tight" disabled>21 Aug<br><span class="text-[9px] text-indigo-600 block mt-0.5">AO Trauma Seminar</span></button>
+        <button onclick="showTab('ao_workshops')" id="tab-ao_workshops" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-500 transition opacity-50 leading-tight" disabled>21 Aug<br><span class="text-[9px] text-rose-600 block mt-0.5">Workshops (Select 1)</span></button>
+        <button onclick="showTab('22a')" id="tab-22a" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>22 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 1 &bull; Hall A</span></button>
+        <button onclick="showTab('22b')" id="tab-22b" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>22 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 1 &bull; Hall B</span></button>
+        <button onclick="showTab('22c')" id="tab-22c" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>22 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 1 &bull; Hall C</span></button>
+        <button onclick="showTab('23a')" id="tab-23a" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>23 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 2 &bull; Hall A</span></button>
+        <button onclick="showTab('23b')" id="tab-23b" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>23 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 2 &bull; Hall B</span></button>
+        <button onclick="showTab('23c')" id="tab-23c" class="tab-btn flex-shrink-0 min-w-[75px] flex-1 py-2.5 px-1 text-[10px] sm:text-xs font-bold border-t-2 border-transparent text-slate-600 transition opacity-50 leading-tight" disabled>23 Aug<br><span class="text-[9px] text-indigo-400 block mt-0.5">Day 2 &bull; Hall C</span></button>
     </nav>
 
     <script>
@@ -71,8 +77,10 @@
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
-            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
         };
 
         const configTitles = {
@@ -80,19 +88,21 @@
             'ao_workshops': "21st August' 2026 - Concurrent Workshops (16:15 - 18:00)",
             '22a': "22nd August' 2026 - Day 1 Hall A",
             '22b': "22nd August' 2026 - Day 1 Hall B",
+            '22c': "22nd August' 2026 - Day 1 Hall C",
             '23a': "23rd August' 2026 - Day 2 Hall A",
-            '23b': "23rd August' 2026 - Day 2 Hall B"
+            '23b': "23rd August' 2026 - Day 2 Hall B",
+            '23c': "23rd August' 2026 - Day 2 Hall C"
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v11'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v12'; 
         const container = document.getElementById('contentContainer');
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearSearch');
         const downloadContainer = document.getElementById('downloadContainer');
         const downloadBtn = document.getElementById('downloadBtn');
         let currentTab = 'ao_seminar';
-        let activeWorkshopTrack = 'diabetic'; // Default workshop shown when opening the tab
+        let activeWorkshopTrack = 'diabetic'; 
 
         async function initializeApp() {
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -132,7 +142,7 @@
                                 let seminarEvents = [];
                                 let workshopEvents = [];
                                 let isWorkshopSection = false;
-                                let currentTrack = 'diabetic'; // Automatically tag workshop rows
+                                let currentTrack = 'diabetic'; 
 
                                 allAoEvents.forEach(ev => {
                                     const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
@@ -143,7 +153,6 @@
 
                                     if (isWorkshopSection) {
                                         ev.hall = "Workshops";
-                                        // Detect if row belongs to Diabetic Foot or MIS
                                         if (matchString.includes('diabetic') || matchString.includes('nebula')) {
                                             currentTrack = 'diabetic';
                                         } else if (matchString.includes('mis') || matchString.includes('arthrex')) {
@@ -202,7 +211,7 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
                 if (row_text.includes("ifascon 2026")) return;
-                if ((row_text.includes("hall a") || row_text.includes("hall b")) && !col0 && !col1) return;
+                if ((row_text.includes("hall a") || row_text.includes("hall b") || row_text.includes("hall c")) && !col0 && !col1) return;
 
                 const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "inauguration", "gbm", "valedictory"];
                 if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
@@ -297,7 +306,6 @@
             }
         }
 
-        // --- NEW: Filter Workshop Toggles ---
         function filterWorkshop(track) {
             activeWorkshopTrack = track;
             document.querySelectorAll('.workshop-btn').forEach(btn => btn.classList.remove('active'));
@@ -323,7 +331,6 @@
             const data = appData[tabKey];
             if (!data) return;
 
-            // --- If Workshops Tab is selected, inject the two clickable selector buttons! ---
             if (tabKey === 'ao_workshops') {
                 container.innerHTML = `
                     <div class="mb-4 pb-2 border-b border-slate-200">
@@ -342,7 +349,7 @@
                     </div>
                     <div id="workshopListContainer"></div>
                 `;
-                filterWorkshop(activeWorkshopTrack); // Render initial workshop track
+                filterWorkshop(activeWorkshopTrack); 
                 container.scrollTop = 0;
                 return;
             }
