@@ -149,7 +149,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v75'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v79'; 
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
         // --- Utility Functions ---
@@ -634,6 +634,13 @@
                     } 
                     else if (secondsLeft > 0) {
                         if (hasAnswered) {
+                            let optionNodes = currentEvent.options.map((opt, idx) => {
+                                let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
+                                let itemClass = isSel ? 'border-indigo-500 bg-indigo-950/40 text-white font-bold ring-1 ring-indigo-500/50' : 'border-slate-800 bg-slate-900/40 text-slate-500 opacity-60';
+                                let badgeHtml = isSel ? '<span class="bg-indigo-600 text-white px-3 py-1 rounded text-xs uppercase font-black ml-auto shadow">Your Selection</span>' : '';
+                                return `<div class="border p-4 sm:p-5 rounded-2xl text-base flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1.5 rounded-md text-sm mr-4 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${badgeHtml}</div>`;
+                            }).join('');
+
                             html = `
                                 <div class="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-emerald-500/40 shadow-2xl mb-8">
                                     <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
@@ -641,15 +648,17 @@
                                         <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-xl font-black px-4 py-1.5 rounded-xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
                                     </div>
                                     <h2 class="text-2xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h2>
-                                    <div class="flex flex-col gap-3">
-                                        ${currentEvent.options.map((opt, idx) => {
-                                            let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
-                                            return `<div class="border p-4 sm:p-5 rounded-2xl text-base flex items-center ${isSel ? 'border-indigo-500 bg-indigo-950/40 text-white font-bold ring-1 ring-indigo-500/50' : 'border-slate-800 bg-slate-900/40 text-slate-500 opacity-60'}"><span class="bg-slate-950 px-3 py-1.5 rounded-md text-sm mr-4 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${isSel ? `<span class="bg-indigo-600 text-white px-3 py-1 rounded text-xs uppercase font-black ml-auto shadow">Your Selection</span>` : ''}</div>`;
-                                        }).join('')}
-                                    </div>
+                                    <div class="flex flex-col gap-3">${optionNodes}</div>
                                     <div class="mt-8 text-center text-sm text-slate-400 font-medium animate-pulse">Waiting for timer to expire...</div>
                                 </div>`;
                         } else {
+                            let optionNodes = currentEvent.options.map((opt, idx) => {
+                                let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                            }).join('');
+
                             html = `
                                 <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 sm:p-8 shadow-2xl mb-8">
                                     <div class="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
@@ -657,14 +666,7 @@
                                         <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-xl font-black px-4 py-1.5 rounded-xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
                                     </div>
                                     <h2 class="text-2xl sm:text-3xl font-black text-white leading-snug mb-8">${currentEvent.title}</h2>
-                                    <div class="flex flex-col gap-3">
-                                        ${currentEvent.options.map((opt, idx) => {
-                                            let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                            let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                            let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
-                                        }).join('')}
-                                    </div>
+                                    <div class="flex flex-col gap-3">${optionNodes}</div>
                                 </div>`;
                         }
                     } 
@@ -674,47 +676,46 @@
                         let myRank = sorted.findIndex(x => x[0] === phone);
                         let top5 = sorted.slice(0, 5);
 
+                        let optionNodes = currentEvent.options.map((opt, idx) => {
+                            let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
+                            let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
+                            
+                            let itemClass = "";
+                            let labelMarker = "";
+
+                            if (isCor && isSel) {
+                                itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
+                                labelMarker = '<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>';
+                            } else if (isCor && !isSel) {
+                                itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
+                                labelMarker = '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>';
+                            } else if (!isCor && isSel) {
+                                itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
+                                labelMarker = '<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>';
+                            } else {
+                                itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                            }
+
+                            return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
+                        }).join('');
+
+                        let top5Nodes = top5.map((item, idx) => `
+                            <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
+                                <span><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> &bull; <span class="ml-2">${item[0].substring(0,2)}******${item[0].slice(-2)}</span></span>
+                                <span class="text-emerald-400 font-black tracking-wide">${item[1]} pts</span>
+                            </div>
+                        `).join('');
+
                         html = `
                             <div class="bg-slate-950 rounded-3xl border-2 border-red-600/40 p-6 sm:p-8 shadow-2xl mb-8">
                                 <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-6 inline-block shadow"><i class="fas fa-stopwatch mr-2"></i> Time Up!</span>
                                 <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
-                                <div class="flex flex-col gap-3 mb-8">
-                                    ${currentEvent.options.map((opt, idx) => {
-                                        let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
-                                        let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
-                                        
-                                        let itemClass = "";
-                                        let labelMarker = "";
-
-                                        if (isCor && isSel) {
-                                            itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
-                                            labelMarker = \`<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>\`;
-                                        } else if (isCor && !isSel) {
-                                            itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
-                                            labelMarker = \`<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>\`;
-                                        } else if (!isCor && isSel) {
-                                            itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
-                                            labelMarker = \`<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>\`;
-                                        } else {
-                                            itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                            labelMarker = "";
-                                        }
-
-                                        return \`<div class="border p-4 rounded-2xl text-sm flex items-center \${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">\${String.fromCharCode(65+idx)}</span>\${opt}\${labelMarker}</div>\`;
-                                    }).join('')}
-                                </div>
+                                <div class="flex flex-col gap-3 mb-8">${optionNodes}</div>
                                 
                                 <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-inner relative overflow-hidden">
                                     <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl"></div>
                                     <h4 class="text-amber-500 font-black text-sm uppercase tracking-widest mb-4 flex items-center"><i class="fas fa-trophy mr-3 text-lg"></i>Live Hall Results</h4>
-                                    <div class="flex flex-col gap-2 relative z-10">
-                                        ${top5.map((item, idx) => `
-                                            <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
-                                                <span><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> &bull; <span class="ml-2">${item[0].substring(0,2)}******${item[0].slice(-2)}</span></span>
-                                                <span class="text-emerald-400 font-black tracking-wide">${item[1]} pts</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
+                                    <div class="flex flex-col gap-2 relative z-10">${top5Nodes}</div>
                                     ${myRank > 4 ? `
                                         <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-white font-black flex justify-between items-center bg-slate-800/80 px-4 py-3 rounded-xl border border-slate-600 shadow-lg relative z-10">
                                             <span>🎯 YOUR RANK: <span class="text-amber-400 ml-1">#${myRank+1}</span></span>
