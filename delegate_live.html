@@ -179,7 +179,7 @@
 
         const CACHE_KEY = 'ifascon_schedule_cache_delegate_v87'; 
 
-        // --- FIX: MISSING LEADERBOARD FUNCTIONS ---
+        // --- FIX: LEADERBOARD FUNCTIONS ---
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
             if (modal) modal.classList.add('hidden');
@@ -360,9 +360,11 @@
             });
         }
 
+        // --- HALL C FIX IN PARSER ---
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
@@ -376,11 +378,35 @@
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 
                 // HALL C LEAK BLOCKER
-                if (hallTitle && !hallTitle.toLowerCase().includes('hall c')) {
+                if (hallTitle && !isHallC) {
                     if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
                 }
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+
+                // --- HALL C CUSTOM PARSER ---
+                if (isHallC) {
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
+                    let topic = col3;
+                    
+                    if (!topic && !time_raw) return; 
+                    if (!topic) topic = "Session"; 
+                    
+                    let display_time = convertTo12HourFormat(time_raw);
+
+                    if (breakRegex.test(topic.toLowerCase())) {
+                        let text = topic;
+                        if (topic.toLowerCase().includes("registration")) text = "Registration";
+                        else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
+                        else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
+                        
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
+                    } else {
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
+                    }
+                    return; // Skip normal parsing for Hall C rows
+                }
+                // -----------------------------
 
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 
