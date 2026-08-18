@@ -149,11 +149,12 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v72'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v74'; 
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
-        // Utility normalizers
+        // --- Utility Functions ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
         function normalizeHallId(val) {
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
@@ -164,6 +165,20 @@
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             return str;
+        }
+
+        // SMART ANSWER CHECKER
+        function checkIfCorrect(optionText, correctAnswer, index) {
+            let optClean = cleanText(optionText).toLowerCase();
+            let corClean = cleanText(correctAnswer).toLowerCase();
+            let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
+            
+            return optClean === corClean || 
+                   corClean === letter || 
+                   corClean === `option ${letter}` || 
+                   corClean === `option-${letter}` ||
+                   corClean === `${letter}.` ||
+                   corClean === `${letter})`;
         }
 
         // --- AMNESIA FIX & SYNC ---
@@ -241,7 +256,6 @@
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
                     if (key === 'quizzes') {
-                        // Offset detector for hidden timestamps/IDs
                         let colOffset = 0;
                         if (parsedCsv.length > 1) {
                             let firstRow = parsedCsv[1];
@@ -520,17 +534,17 @@
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        window.submitDelegateQuiz = async function(option, correctOption, questionText) {
+        window.submitDelegateQuiz = async function(optionText, correctAnswer, questionText, optIdx) {
             let phone = localStorage.getItem('delegate_phone');
             if (!phone) { alert("Please login first to submit."); return; }
 
             let cleanKey = (liveHall + "_" + questionText).replace(/\W/g, '');
-            localStorage.setItem('marked_' + cleanKey, option); 
+            localStorage.setItem('marked_' + cleanKey, optionText); 
             localStorage.setItem('answered_' + cleanKey, 'true');
             
             updateLiveDisplay(true); 
             
-            let isCorrect = (cleanText(option).toLowerCase() === cleanText(correctOption).toLowerCase());
+            let isCorrect = checkIfCorrect(optionText, correctAnswer, optIdx);
             
             try {
                 await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: isCorrect }]);
@@ -622,7 +636,10 @@
                         if (hasAnswered) {
                             html = `
                                 <div class="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-emerald-500/40 shadow-2xl mb-8">
-                                    <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider block w-max mb-5"><i class="fas fa-lock mr-2"></i> Submission Frozen</span>
+                                    <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+                                        <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow"><i class="fas fa-lock mr-2"></i> Submission Frozen</span>
+                                        <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-xl font-black px-4 py-1.5 rounded-xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
+                                    </div>
                                     <h2 class="text-2xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h2>
                                     <div class="flex flex-col gap-3">
                                         ${currentEvent.options.map((opt, idx) => {
@@ -630,7 +647,7 @@
                                             return `<div class="border p-4 sm:p-5 rounded-2xl text-base flex items-center ${isSel ? 'border-indigo-500 bg-indigo-950/40 text-white font-bold ring-1 ring-indigo-500/50' : 'border-slate-800 bg-slate-900/40 text-slate-500 opacity-60'}"><span class="bg-slate-950 px-3 py-1.5 rounded-md text-sm mr-4 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${isSel ? `<span class="bg-indigo-600 text-white px-3 py-1 rounded text-xs uppercase font-black ml-auto shadow">Your Selection</span>` : ''}</div>`;
                                         }).join('')}
                                     </div>
-                                    <div class="mt-8 text-center text-sm text-slate-400 font-medium animate-pulse">Awaiting live desk timer breakdown execution...</div>
+                                    <div class="mt-8 text-center text-sm text-slate-400 font-medium animate-pulse">Waiting for timer to expire...</div>
                                 </div>`;
                         } else {
                             html = `
@@ -645,7 +662,7 @@
                                             let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                                             let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                                             let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                                            return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                                         }).join('')}
                                     </div>
                                 </div>`;
@@ -663,7 +680,7 @@
                                 <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
                                 <div class="flex flex-col gap-3 mb-8">
                                     ${currentEvent.options.map((opt, idx) => {
-                                        let isCor = (cleanText(opt).toLowerCase() === cleanText(currentEvent.correct).toLowerCase());
+                                        let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
                                         let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
                                         let itemClass = isCor ? "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let labelMarker = isCor ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow">Correct Answer</span>` : (isSel ? `<span class="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1 rounded-md text-[10px] font-bold uppercase ml-auto">Your Guess</span>` : '');
