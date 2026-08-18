@@ -204,6 +204,12 @@
             let letter = String.fromCharCode(65 + index).toLowerCase(); 
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
 
         // --- State Variables ---
         let appData = {};
