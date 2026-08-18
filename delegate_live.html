@@ -53,7 +53,7 @@
     <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
-            <p class="text-slate-400 font-semibold text-lg animate-pulse">Loading Conference Dashboard...</p>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Conference Dashboard...</p>
         </div>
 
         <div id="staticHeader" class="hidden">
@@ -123,14 +123,14 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS WITH YOUR QUIZ LINK
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
-            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv', // <--- PASTE YOUR 22C CSV LINK HERE
+            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
-            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'  // <--- PASTE YOUR 23C CSV LINK HERE
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
         };
 
         const configTitles = {
@@ -159,7 +159,7 @@
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
-            let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
+            let letter = String.fromCharCode(65 + index).toLowerCase(); 
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
@@ -177,7 +177,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v85'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v87'; 
 
         // --- AMNESIA FIX & SYNC ---
         window.syncMyAnswers = async function() {
@@ -232,6 +232,7 @@
                 if(!link || link.trim() === '') continue;
                 try {
                     const response = await fetch(link);
+                    if(!response.ok) continue;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
@@ -247,14 +248,15 @@
                             if (idx === 0 || !r || r.length < 3) return;
                             
                             let rawHall = cleanText(r[0 + colOffset]);
+                            let rawSymp = cleanText(r[1 + colOffset]);
                             let rawTitle = cleanText(r[2 + colOffset]);
-                            
+
                             if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
 
                             quizzesLoaded.push({ 
                                 type: 'quiz', 
                                 hall_id: normalizeHallId(rawHall), 
-                                symposium: cleanText(r[1 + colOffset]) || 'General', 
+                                symposium: rawSymp || 'General', 
                                 title: rawTitle, 
                                 options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
                                 correct: cleanText(r[7 + colOffset]) 
@@ -282,15 +284,22 @@
                     }
                 } catch(err) {}
             }
-            if (Object.keys(fetchedData).length > 0) {
-                appData = fetchedData;
-                globalQuizzes = quizzesLoaded;
-                localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-                if (!isBackground && document.getElementById('loadingState')) { 
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden'); 
-                    window.initLiveDashboard(); 
-                } else { window.updateLiveDisplay(true); }
+            
+            if(Object.keys(fetchedData).length === 0) {
+                document.getElementById('loadingText').innerText = "Network Error. Check CSV Links.";
+                return;
+            }
+
+            appData = fetchedData;
+            globalQuizzes = quizzesLoaded;
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
+            
+            if (!isBackground && document.getElementById('loadingState')) { 
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('staticHeader').classList.remove('hidden'); 
+                window.initLiveDashboard(); 
+            } else { 
+                window.updateLiveDisplay(true); 
             }
         };
 
@@ -522,9 +531,13 @@
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        window.submitDelegateQuiz = async function(optionText, correctAnswer, questionText, optIdx) {
+        window.submitDelegateQuiz = async function(encOpt, encCor, encTit, optIdx) {
             let phone = localStorage.getItem('delegate_phone');
             if (!phone) { alert("Please login first to submit."); return; }
+
+            let optionText = decodeURIComponent(encOpt);
+            let correctAnswer = decodeURIComponent(encCor);
+            let questionText = decodeURIComponent(encTit);
 
             let cleanKey = (liveHall + "_" + questionText).replace(/\W/g, '');
             localStorage.setItem('marked_' + cleanKey, optionText); 
@@ -638,9 +651,9 @@
                                 </div>`;
                         } else {
                             let optionNodes = currentEvent.options.map((opt, idx) => {
-                                let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                let sOpt = encodeURIComponent(opt);
+                                let sCor = encodeURIComponent(currentEvent.correct);
+                                let sTit = encodeURIComponent(currentEvent.title);
                                 return `<button onclick="window.submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                             }).join('');
 
@@ -772,43 +785,14 @@
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
-                        <div class="flex-1">
-                            <span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-2 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span>
-                            <h4 class="text-lg sm:text-xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>
-                            ${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-sm sm:text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
-                        </div>
-                        <div class="sm:text-right flex-shrink-0">
-                            <span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span>
-                        </div>
+                    <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
+                        <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
 
             document.getElementById('dynamicContentWrapper').innerHTML = html + upNextHtml;
         };
-
-        window.showLeaderboard = async function(presetType) {
-            let type = presetType || liveHall;
-            document.getElementById('leaderboardModal').classList.remove('hidden');
-            document.getElementById('leaderboardList').innerHTML = '<div class="loader mt-6"></div>';
-            
-            let mathResults = await fetchMathLeaderboard(type);
-            document.getElementById('lbSub').innerText = mathResults.titleText;
-            
-            let sorted = mathResults.sorted;
-            
-            if (sorted.length === 0) {
-                document.getElementById('leaderboardList').innerHTML = '<div class="text-center text-slate-400 text-xl font-bold py-10">No scores logged for this sector yet.</div>';
-                return;
-            }
-            document.getElementById('leaderboardList').innerHTML = sorted.map((item, index) => {
-                let ob = item[0].substring(0, 2) + '******' + item[0].slice(-2);
-                let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
-                return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-xl font-bold text-white"><i class="fas fa-medal mr-3 ${trophy}"></i>${ob}</div><div class="text-2xl font-black text-emerald-400">${item[1]} pts</div></div>`;
-            }).join('');
-        };
-
-        window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
         window.initLiveDashboard = function() { 
             supabaseClient.channel('global-radar-feed')
@@ -868,7 +852,31 @@
             window.updatePersistentFooter();
         };
 
-        window.initializeApp();
+        async function bootApp() {
+            try {
+                window.refreshIdentityStateUI();
+                try { await window.syncMyAnswers(); } catch(e){}
+                document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                
+                const cachedData = localStorage.getItem(CACHE_KEY);
+                if (cachedData) {
+                    let parsed = JSON.parse(cachedData);
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
+                    document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('staticHeader').classList.remove('hidden');
+                    window.initLiveDashboard();
+                    window.fetchLiveSchedule(true);
+                } else { 
+                    window.fetchLiveSchedule(false); 
+                }
+            } catch(e) {
+                console.error("Boot Error", e);
+                window.fetchLiveSchedule(false);
+            }
+        }
+
+        bootApp();
     </script>
 </body>
 </html>
