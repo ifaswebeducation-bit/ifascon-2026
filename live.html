@@ -175,20 +175,7 @@
         };
         const allHallsList = Object.keys(configTitles);
 
-        let appData = {};
-        let globalQuizzes = [];
-        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
-        let manualOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let lastRenderHash = ""; 
-        let liveUpdateTimer = null;
-        let tickerTimer = null;
-
-        let myName = "";
-        let myRole = "";
-        let myAllowedHalls = [];
-
-        // --- Utility Functions ---
+        // --- Core Utils ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         
         function normalizeHallId(val) {
@@ -204,22 +191,29 @@
             return str;
         }
 
+        // --- State Variables ---
+        let appData = {};
+        let globalQuizzes = [];
+        let liveHall = normalizeHallId(new URLSearchParams(window.location.search).get('hall')) || '22a';
+        let manualOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let lastRenderHash = ""; 
+        let liveUpdateTimer = null;
+        let tickerTimer = null;
+        let myName = "";
+        let myRole = "";
+        let myAllowedHalls = [];
+
         // SMART ANSWER CHECKER
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
-            let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
-            
-            return optClean === corClean || 
-                   corClean === letter || 
-                   corClean === `option ${letter}` || 
-                   corClean === `option-${letter}` ||
-                   corClean === `${letter}.` ||
-                   corClean === `${letter})`;
+            let letter = String.fromCharCode(65 + index).toLowerCase(); 
+            return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
         // --- AUTH & RBAC ---
-        async function verifyGatePass() {
+        window.verifyGatePass = async function() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
             if (data) {
@@ -261,11 +255,11 @@
                 if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
-            logAction("Logged into system.");
+            try { logAction("Logged into system."); } catch(e){}
             fetchLiveSchedule();
         }
 
-        function logoutManager() { localStorage.clear(); location.reload(); }
+        window.logoutManager = function() { localStorage.clear(); location.reload(); }
         async function logAction(actionDesc) { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }
 
         function initAuditLogListener() {
@@ -372,7 +366,7 @@
                         fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
                         fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
                     } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; }
-                } catch(err) {}
+                } catch(err) { console.error("Error fetching schedule data"); }
             }
             
             appData = fetchedData;
@@ -467,7 +461,8 @@
             return events;
         }
 
-        function populateEventJump() {
+        // --- COMMANDS ---
+        window.populateEventJump = function() {
             let select = document.getElementById('eventJumpSelect');
             let adsContainer = document.getElementById('sponsorAdsContainer');
             if (!appData[liveHall]) return;
@@ -595,9 +590,68 @@
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
+            try { logAction(`Launched Quiz: ${title}`); } catch(e){}
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         };
 
+        window.terminateActiveQuiz = async function() {
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            updateLiveDisplay(true);
+            try { logAction(`Cleared active quiz on screen`); } catch(e){}
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        };
+
+        window.resumeAutoSync = async function() {
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            updateLiveDisplay(true);
+            try { logAction(`Resumed Auto-Sync mode`); } catch(e){}
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        };
+
+        window.manualShift = async function(step) {
+            const data = appData[liveHall]; if (!data) return;
+            const playableEvents = data.events.filter(e => {
+                if (e.type === 'presentation' || e.type === 'break') return true;
+                if (e.isOration && (e.speaker || '').trim() !== '') return true; 
+                return false;
+            });
+            
+            if (manualOverrideIndex === null || manualOverrideIndex < 0) {
+                const { currentEvent } = getLiveStatus(data.events);
+                manualOverrideIndex = playableEvents.indexOf(currentEvent);
+                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
+            }
+            
+            let newIndex = manualOverrideIndex + step;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
+            
+            manualOverrideIndex = newIndex;
+            updateLiveDisplay(true);
+            try { logAction(`Timeline Shift: Manually moved to Index ${newIndex}`); } catch(e){}
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        };
+
+        window.forceLeaderboardLocal = async function(type) {
+            try { logAction(`Forced Leaderboard TV output: ${type}`); } catch(e){}
+            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
+        };
+
+        window.switchHallFeed = function(newHall) {
+            let normalizedNew = normalizeHallId(newHall);
+            if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
+                alert("Access Denied: You are not authorized for this hall."); return;
+            }
+            liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
+            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
+            
+            populateEventJump();
+            updateLiveDisplay(true);
+        }
+
+        // --- Core UI & Live Control ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -630,55 +684,6 @@
                 }
             }
             return { currentEvent, nextEvent };
-        }
-
-        async function manualShift(step) {
-            const data = appData[liveHall]; if (!data) return;
-            const playableEvents = data.events.filter(e => {
-                if (e.type === 'presentation' || e.type === 'break') return true;
-                if (e.isOration && (e.speaker || '').trim() !== '') return true; 
-                return false;
-            });
-            
-            if (manualOverrideIndex === null || manualOverrideIndex < 0) {
-                const { currentEvent } = getLiveStatus(data.events);
-                manualOverrideIndex = playableEvents.indexOf(currentEvent);
-                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
-            }
-            
-            let newIndex = manualOverrideIndex + step;
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
-            
-            manualOverrideIndex = newIndex;
-            updateLiveDisplay(true);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-        }
-
-        async function terminateActiveQuiz() {
-            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall);
-        }
-
-        async function resumeAutoSync() {
-            manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-        }
-
-        window.forceLeaderboardLocal = async function(type) {
-            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
-        };
-
-        function switchHallFeed(newHall) {
-            let normalizedNew = normalizeHallId(newHall);
-            if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
-                alert("Access Denied: You are not authorized for this hall."); return;
-            }
-            liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
-            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
-            
-            populateEventJump();
-            updateLiveDisplay(true);
         }
 
         function updateLiveDisplay(forceRender = false) {
@@ -734,7 +739,7 @@
                                     ${currentEvent.options.map((opt, i) => {
                                         let isCorrect = checkIfCorrect(opt, currentEvent.correct, i);
                                         let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                        let badge = isCorrect ? '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>' : '';
+                                        let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
                                     }).join('')}
                                 </div>
