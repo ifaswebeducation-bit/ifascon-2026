@@ -161,7 +161,7 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', 
+            'quizzes': 'YOUR_CORRECT_QUIZ_CSV_LINK_HERE', // <--- REPLACE THIS LINK
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -170,13 +170,8 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August 2026 - AO Seminar", 
-            'workshop_diabetic': "21st August 2026 - Diabetic Foot Workshop", 
-            'workshop_mis': "21st August 2026 - MIS Workshop",
-            '22a': "22nd August 2026 - Hall A", 
-            '22b': "22nd August 2026 - Hall B", 
-            '23a': "23rd August 2026 - Hall A", 
-            '23b': "23rd August 2026 - Hall B"
+            'ao_seminar': "21st August 2026 - AO Seminar", 'workshop_diabetic': "21st August 2026 - Diabetic Foot Workshop", 'workshop_mis': "21st August 2026 - MIS Workshop",
+            '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B"
         };
         const allHallsList = Object.keys(configTitles);
 
@@ -193,13 +188,9 @@
         let myRole = "";
         let myAllowedHalls = [];
 
-        // Clean string utility (removes non-breaking spaces and collapses multi-spaces)
-        function cleanText(val) {
-            if (!val) return "";
-            return val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-        }
-
-        // Helper to normalize hall strings across all formats
+        // --- Utility Functions ---
+        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -211,6 +202,20 @@
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             return str;
+        }
+
+        // SMART ANSWER CHECKER
+        function checkIfCorrect(optionText, correctAnswer, index) {
+            let optClean = cleanText(optionText).toLowerCase();
+            let corClean = cleanText(correctAnswer).toLowerCase();
+            let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
+            
+            return optClean === corClean || 
+                   corClean === letter || 
+                   corClean === `option ${letter}` || 
+                   corClean === `option-${letter}` ||
+                   corClean === `${letter}.` ||
+                   corClean === `${letter})`;
         }
 
         // --- AUTH & RBAC ---
@@ -334,9 +339,7 @@
                         if (parsedCsv.length > 1) {
                             let firstRow = parsedCsv[1];
                             let cell0 = cleanText(firstRow[0]);
-                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) {
-                                colOffset = 1;
-                            }
+                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
                         }
 
                         parsedCsv.forEach((r, idx) => {
@@ -348,20 +351,12 @@
 
                             if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
 
-                            let normalizedHall = normalizeHallId(rawHall);
-
-                            let optA = cleanText(r[3 + colOffset]);
-                            let optB = cleanText(r[4 + colOffset]);
-                            let optC = cleanText(r[5 + colOffset]);
-                            let optD = cleanText(r[6 + colOffset]);
-                            let rawCorrect = cleanText(r[7 + colOffset]);
-
                             quizzesLoaded.push({ 
-                                hall_id: normalizedHall, 
+                                hall_id: normalizeHallId(rawHall), 
                                 symposium: rawSymp || 'General', 
                                 title: rawTitle, 
-                                options: [optA, optB, optC, optD].filter(Boolean), 
-                                correct: rawCorrect, 
+                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
+                                correct: cleanText(r[7 + colOffset]), 
                                 type: 'quiz' 
                             });
                         });
@@ -377,12 +372,19 @@
                         fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
                         fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
                     } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; }
-                } catch(err) { console.error("Error fetching schedule data for: " + key, err); }
+                } catch(err) { console.error("Error fetching schedule data"); }
             }
             
             appData = fetchedData;
             globalQuizzes = quizzesLoaded;
             
+            let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
+            let dd = document.getElementById('symposiumFilter');
+            if (dd) {
+                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
+                symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
+            }
+
             document.getElementById('loadingState').classList.add('hidden');
             document.getElementById('staticHeader').classList.remove('hidden');
             initLiveKiosk();
@@ -480,9 +482,7 @@
             playable.forEach((ev, playableIndex) => {
                 let prefix = ev.type === 'break' ? '☕ ' : (ev.type === 'session' ? '📚 ' : '🎤 ');
                 if (ev.adLink) prefix = '▶️ [MEDIA] ';
-                
                 select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
-
                 if (ev.adLink) {
                     adsHtml += `<button onclick="jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
                 }
@@ -496,13 +496,7 @@
             if(idx === "") return;
             manualOverrideIndex = parseInt(idx);
             updateLiveDisplay(true);
-            
-            let events = appData[liveHall].events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
-            let evTitle = events[manualOverrideIndex] ? events[manualOverrideIndex].title : `Index ${idx}`;
-            
-            logAction(`Timeline JUMP: Forced play of "${evTitle}"`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-            
             document.getElementById('eventJumpSelect').value = "";
         };
 
@@ -518,7 +512,6 @@
 
             let targetHall = cleanText(liveHall).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            // 1. Get Hall-Matching Quizzes
             let hallQuizzes = globalQuizzes.filter(q => {
                 if (!q.hall_id) return true;
                 let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -534,12 +527,8 @@
                 return false;
             });
 
-            // 2. If no hall-specific questions found, fallback to all quizzes
-            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
-                hallQuizzes = [...globalQuizzes];
-            }
+            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) hallQuizzes = [...globalQuizzes];
 
-            // 3. Dynamically Populate Symposium Dropdown Options for Current Hall
             if (filterEl) {
                 let currentVal = filterEl.value;
                 let availableSymps = [...new Set(hallQuizzes.map(q => cleanText(q.symposium)))].filter(Boolean);
@@ -548,23 +537,19 @@
                 let isMatch = availableSymps.length === (currentOptions.length - 1) && availableSymps.every(s => currentOptions.includes(s));
                 if (!isMatch) {
                     let optsHtml = `<option value="ALL">All Symposiums</option>`;
-                    availableSymps.forEach(s => {
-                        optsHtml += `<option value="${s}">${s}</option>`;
-                    });
+                    availableSymps.forEach(s => { optsHtml += `<option value="${s}">${s}</option>`; });
                     filterEl.innerHTML = optsHtml;
                     filterEl.value = currentOptions.includes(currentVal) ? currentVal : 'ALL';
                     filter = filterEl.value;
                 }
             }
 
-            // 4. Filter by Symposium (Normalized Matching)
             let displayQuizzes = hallQuizzes;
             if (filter && filter !== 'ALL') {
                 let cleanFilter = cleanText(filter).toLowerCase();
                 displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanFilter);
             }
 
-            // 5. Filter by Search
             if (search) {
                 displayQuizzes = displayQuizzes.filter(q => 
                     cleanText(q.title).toLowerCase().includes(search) || 
@@ -572,7 +557,6 @@
                 );
             }
 
-            // 6. Render Buttons Grouped by Canonical Symposium
             if (displayQuizzes.length > 0) {
                 let groups = {};
                 displayQuizzes.forEach(q => {
@@ -678,24 +662,20 @@
             
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
-            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
         async function terminateActiveQuiz() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            logAction(`Cleared active quiz on screen`);
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null }).eq('hall_id', liveHall);
         }
 
         async function resumeAutoSync() {
             manualOverrideIndex = null; quizStartTimeStamp = null; updateLiveDisplay(true);
-            logAction(`Resumed Auto-Sync mode`);
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         }
 
         window.forceLeaderboardLocal = async function(type) {
-            logAction(`Forced Leaderboard TV output: ${type}`);
             await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
         };
 
@@ -762,7 +742,7 @@
                                 <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
                                 <div class="flex flex-col gap-4">
                                     ${currentEvent.options.map((opt, i) => {
-                                        let isCorrect = (cleanText(opt).toLowerCase() === cleanText(currentEvent.correct).toLowerCase());
+                                        let isCorrect = checkIfCorrect(opt, currentEvent.correct, i);
                                         let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
