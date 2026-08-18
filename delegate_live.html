@@ -149,7 +149,7 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v74'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v75'; 
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
 
         // --- Utility Functions ---
@@ -682,9 +682,25 @@
                                     ${currentEvent.options.map((opt, idx) => {
                                         let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
                                         let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
-                                        let itemClass = isCor ? "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                        let labelMarker = isCor ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow">Correct Answer</span>` : (isSel ? `<span class="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1 rounded-md text-[10px] font-bold uppercase ml-auto">Your Guess</span>` : '');
-                                        return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
+                                        
+                                        let itemClass = "";
+                                        let labelMarker = "";
+
+                                        if (isCor && isSel) {
+                                            itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
+                                            labelMarker = \`<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>\`;
+                                        } else if (isCor && !isSel) {
+                                            itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
+                                            labelMarker = \`<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>\`;
+                                        } else if (!isCor && isSel) {
+                                            itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
+                                            labelMarker = \`<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>\`;
+                                        } else {
+                                            itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                                            labelMarker = "";
+                                        }
+
+                                        return \`<div class="border p-4 rounded-2xl text-sm flex items-center \${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">\${String.fromCharCode(65+idx)}</span>\${opt}\${labelMarker}</div>\`;
                                     }).join('')}
                                 </div>
                                 
