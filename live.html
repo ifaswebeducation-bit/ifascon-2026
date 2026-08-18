@@ -193,17 +193,17 @@
         let myRole = "";
         let myAllowedHalls = [];
 
-        // Helper to normalize hall keys regardless of sheet input variations
+        // Helper to normalize hall strings across formats (e.g., 'Hall A', '22a', 'Day 1 - Hall A')
         function normalizeHallId(val) {
             if (!val) return "";
-            let str = val.toString().toLowerCase().trim();
-            if (str.includes('ao')) return 'ao_seminar';
-            if (str.includes('diabetic')) return 'workshop_diabetic';
+            let str = val.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
+            if (str.includes('diabet')) return 'workshop_diabetic';
             if (str.includes('mis')) return 'workshop_mis';
-            if (str.includes('22') && str.includes('a')) return '22a';
-            if (str.includes('22') && str.includes('b')) return '22b';
-            if (str.includes('23') && str.includes('a')) return '23a';
-            if (str.includes('23') && str.includes('b')) return '23b';
+            if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
+            if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
+            if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
+            if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             return str;
         }
 
@@ -324,24 +324,32 @@
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
                     if (key === 'quizzes') {
+                        // Offset detector in case of S.No / ID / Timestamp in Column A
+                        let colOffset = 0;
+                        if (parsedCsv.length > 1) {
+                            let firstRow = parsedCsv[1];
+                            if (/^\d{1,4}$/.test((firstRow[0] || "").toString().trim()) || (firstRow[0] || "").toString().includes('/')) {
+                                colOffset = 1;
+                            }
+                        }
+
                         parsedCsv.forEach((r, idx) => {
                             if (idx === 0 || !r || r.length < 3) return; // skip header
                             
-                            let rawHall = (r[0] || "").toString().trim();
-                            let rawSymp = (r[1] || "").toString().trim();
-                            let rawTitle = (r[2] || "").toString().trim();
+                            let rawHall = (r[0 + colOffset] || "").toString().trim();
+                            let rawSymp = (r[1 + colOffset] || "").toString().trim();
+                            let rawTitle = (r[2 + colOffset] || "").toString().trim();
 
-                            if (!rawHall || !rawTitle) return;
-                            if (rawHall.toLowerCase() === 'hall' || rawTitle.toLowerCase() === 'question') return;
+                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
 
                             let normalizedHall = normalizeHallId(rawHall);
 
                             quizzesLoaded.push({ 
                                 hall_id: normalizedHall, 
-                                symposium: rawSymp, 
+                                symposium: rawSymp || 'General', 
                                 title: rawTitle, 
-                                options: [r[3], r[4], r[5], r[6]].map(x => (x || "").toString().trim()).filter(Boolean), 
-                                correct: (r[7] || "").toString().trim(), 
+                                options: [r[3 + colOffset], r[4 + colOffset], r[5 + colOffset], r[6 + colOffset]].map(x => (x || "").toString().trim()).filter(Boolean), 
+                                correct: (r[7 + colOffset] || "").toString().trim(), 
                                 type: 'quiz' 
                             });
                         });
@@ -366,7 +374,7 @@
             let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
             let dd = document.getElementById('symposiumFilter');
             if (dd) {
-                dd.innerHTML = `<option value="ALL">Show All Symposiums</option>`;
+                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
                 symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
             }
 
@@ -493,28 +501,64 @@
             document.getElementById('eventJumpSelect').value = "";
         };
 
-        // --- COMMANDS ---
+        // --- SMART QUIZ COCKPIT RENDERER ---
         window.renderQuizCockpit = function(activeSympName = "") {
             let container = document.getElementById('quizButtonsContainer');
-            let filter = document.getElementById('symposiumFilter').value;
-            let search = document.getElementById('quizSearch').value.toLowerCase();
-            
-            let targetHall = normalizeHallId(liveHall);
-            let hallQuizzes = globalQuizzes.filter(q => q.hall_id === targetHall);
-            if (filter !== 'ALL') { hallQuizzes = hallQuizzes.filter(q => q.symposium === filter); }
-            if (search) { hallQuizzes = hallQuizzes.filter(q => q.title.toLowerCase().includes(search)); }
+            if (!container) return;
 
+            let filterEl = document.getElementById('symposiumFilter');
+            let filter = filterEl ? filterEl.value : 'ALL';
+            let searchEl = document.getElementById('quizSearch');
+            let search = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+            let targetHall = (liveHall || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            // 1. Filter by Hall (Fuzzy & Flexible matching)
+            let hallQuizzes = globalQuizzes.filter(q => {
+                if (!q.hall_id) return true;
+                let qHall = q.hall_id.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                if (qHall === targetHall || qHall === 'all') return true;
+                if (targetHall.includes('22a') && (qHall === '22a' || qHall === 'halla' || qHall === 'a')) return true;
+                if (targetHall.includes('22b') && (qHall === '22b' || qHall === 'hallb' || qHall === 'b')) return true;
+                if (targetHall.includes('23a') && (qHall === '23a' || qHall === 'halla' || qHall === 'a')) return true;
+                if (targetHall.includes('23b') && (qHall === '23b' || qHall === 'hallb' || qHall === 'b')) return true;
+                if (targetHall.includes('ao') && qHall.includes('ao')) return true;
+                if (targetHall.includes('diabet') && qHall.includes('diabet')) return true;
+                if (targetHall.includes('mis') && qHall.includes('mis')) return true;
+                return false;
+            });
+
+            // 2. Fallback: If no strict hall match found, make all quizzes available
+            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
+                hallQuizzes = [...globalQuizzes];
+            }
+
+            // 3. Filter by Symposium
+            if (filter && filter !== 'ALL') {
+                hallQuizzes = hallQuizzes.filter(q => (q.symposium || '').trim().toLowerCase() === filter.trim().toLowerCase());
+            }
+
+            // 4. Filter by Search
+            if (search) {
+                hallQuizzes = hallQuizzes.filter(q => 
+                    (q.title || '').toLowerCase().includes(search) || 
+                    (q.symposium || '').toLowerCase().includes(search)
+                );
+            }
+
+            // 5. Render Buttons Grouped by Symposium
             if (hallQuizzes.length > 0) {
                 let groups = {};
                 hallQuizzes.forEach(q => {
-                    let symp = q.symposium || 'Uncategorized';
-                    if(!groups[symp]) groups[symp] = [];
+                    let symp = (q.symposium || 'General Symposium').trim();
+                    if (!groups[symp]) groups[symp] = [];
                     groups[symp].push(q);
                 });
 
-                let dashHtml = ``;
-                for(let [symp, qs] of Object.entries(groups)) {
-                    let isRecommended = (activeSympName && symp.toLowerCase().trim() === activeSympName.toLowerCase().trim());
+                let dashHtml = '';
+                for (let [symp, qs] of Object.entries(groups)) {
+                    let isRecommended = activeSympName && symp.toLowerCase().includes(activeSympName.toLowerCase());
                     let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
                     let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
                     let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
@@ -524,15 +568,15 @@
                             <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate">${symp}</span> ${badge}</div>
                             <div class="flex flex-col gap-2">`;
                     qs.forEach(q => {
-                        let globalIdx = globalQuizzes.findIndex(gx => gx === q);
-                        let safeTitle = q.title.replace(/'/g, "\\'");
+                        let globalIdx = globalQuizzes.indexOf(q);
+                        let safeTitle = (q.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, '${safeTitle}')" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
                     });
                     dashHtml += `   </div></div>`;
                 }
                 container.innerHTML = dashHtml;
             } else {
-                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found matching criteria for this hall.</div>`;
+                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No matching questions found for current search/filter.</div>`;
             }
         };
 
