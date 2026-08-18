@@ -372,7 +372,7 @@
                         fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
                         fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
                     } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; }
-                } catch(err) { console.error("Error fetching schedule data"); }
+                } catch(err) {}
             }
             
             appData = fetchedData;
@@ -467,7 +467,6 @@
             return events;
         }
 
-        // --- TIMELINE JUMP & POPULATE ---
         function populateEventJump() {
             let select = document.getElementById('eventJumpSelect');
             let adsContainer = document.getElementById('sponsorAdsContainer');
@@ -500,7 +499,6 @@
             document.getElementById('eventJumpSelect').value = "";
         };
 
-        // --- SMART QUIZ COCKPIT RENDERER ---
         window.renderQuizCockpit = function(activeSympName = "") {
             let container = document.getElementById('quizButtonsContainer');
             if (!container) return;
@@ -597,16 +595,8 @@
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
-            logAction(`Launched Quiz: ${title}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         };
-
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
-            if (parts.length < 2) return null;
-            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-        }
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
@@ -744,7 +734,7 @@
                                     ${currentEvent.options.map((opt, i) => {
                                         let isCorrect = checkIfCorrect(opt, currentEvent.correct, i);
                                         let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                        let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
+                                        let badge = isCorrect ? '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>' : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
                                     }).join('')}
                                 </div>
@@ -755,11 +745,11 @@
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
-                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`; }
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
+                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
