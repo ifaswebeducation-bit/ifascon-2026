@@ -133,7 +133,7 @@
         let lastRenderHash = "";
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS LINK
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -149,8 +149,22 @@
 
         let appData = {};
         let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v70'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v72'; 
         let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
+
+        // Utility normalizers
+        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        function normalizeHallId(val) {
+            let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
+            if (str.includes('diabet')) return 'workshop_diabetic';
+            if (str.includes('mis')) return 'workshop_mis';
+            if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
+            if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
+            if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
+            if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
+            return str;
+        }
 
         // --- AMNESIA FIX & SYNC ---
         async function syncMyAnswers() {
@@ -216,7 +230,7 @@
             } else { fetchLiveSchedule(false); }
         }
 
-        // --- FETCH & PARSE ---
+        // --- FETCH & PARSE WITH SMART CSV LOGIC ---
         async function fetchLiveSchedule(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
@@ -224,14 +238,32 @@
                 try {
                     const response = await fetch(link);
                     const csvText = await response.text();
-                    let parsedCsv = Papa.parse(csvText, { header: false }).data;
+                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
                     if (key === 'quizzes') {
-                        parsedCsv.forEach(r => {
-                            if(!r[0] || r[2] === undefined || r[2].toLowerCase().includes('question')) return;
+                        // Offset detector for hidden timestamps/IDs
+                        let colOffset = 0;
+                        if (parsedCsv.length > 1) {
+                            let firstRow = parsedCsv[1];
+                            let cell0 = cleanText(firstRow[0]);
+                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
+                        }
+
+                        parsedCsv.forEach((r, idx) => {
+                            if (idx === 0 || !r || r.length < 3) return;
+                            
+                            let rawHall = cleanText(r[0 + colOffset]);
+                            let rawTitle = cleanText(r[2 + colOffset]);
+                            
+                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
+
                             quizzesLoaded.push({ 
-                                type: 'quiz', hall_id: (r[0] || "").trim(), symposium: (r[1] || "").trim(), 
-                                title: (r[2] || "").trim(), options: [r[3], r[4], r[5], r[6]].map(x => (x || "").trim()).filter(Boolean), correct: (r[7] || "").trim() 
+                                type: 'quiz', 
+                                hall_id: normalizeHallId(rawHall), 
+                                symposium: cleanText(r[1 + colOffset]) || 'General', 
+                                title: rawTitle, 
+                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
+                                correct: cleanText(r[7 + colOffset]) 
                             });
                         });
                     } else if (key === 'ao') {
@@ -274,8 +306,7 @@
             return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
                 let h = parseInt(p1, 10);
                 let ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12;
-                h = h ? h : 12; 
+                h = h % 12; h = h ? h : 12; 
                 let paddedH = h < 10 ? '0' + h : h;
                 return paddedH + ':' + p2 + ' ' + ampm;
             });
@@ -287,7 +318,7 @@
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
-                r = r.map(x => (x || "").trim());
+                r = r.map(x => cleanText(x));
                 let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
                 let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
@@ -307,7 +338,6 @@
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
-                    
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
@@ -356,7 +386,7 @@
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
-            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
             if (parts.length < 2) return null;
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
@@ -371,18 +401,18 @@
             
             hideLeaderboard(); 
             
-            liveHall = newHall;
+            liveHall = normalizeHallId(newHall);
             remoteOverrideIndex = null;
             quizStartTimeStamp = null;
             lastRenderHash = ""; 
             
             try { 
                 const newUrl = new URL(window.location); 
-                newUrl.searchParams.set('hall', newHall); 
+                newUrl.searchParams.set('hall', liveHall); 
                 window.history.pushState({}, '', newUrl); 
             } catch (e) {}
             
-            subscribeToHall(newHall); 
+            subscribeToHall(liveHall); 
             updateLiveDisplay(true);
             updatePersistentFooter();
         };
@@ -390,22 +420,16 @@
         function subscribeToHall(hall_id) {
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
-            // 1. Get the current state
             supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    
-                    // THE FIX: Do NOT show leaderboard automatically on initial load
-                    // We only want to trigger it if a *new* update comes in while the user is actively watching
-                    // Or, you can add a simple timestamp check here to ignore any state older than 5 minutes.
                     hideLeaderboard(); 
                 }
                 lastRenderHash = ""; 
                 updateLiveDisplay(true);
             });
 
-            // 2. Listen for REALTIME changes (Future-only)
             window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
@@ -413,7 +437,6 @@
                         quizStartTimeStamp = payload.new.quiz_start_time;
                         
                         let boardType = payload.new.force_leaderboard;
-                        // This only triggers when a manager clicks a button while the user is ALREADY in the room
                         if (boardType && boardType !== 'none') showLeaderboard(boardType);
                         else hideLeaderboard();
 
@@ -507,8 +530,10 @@
             
             updateLiveDisplay(true); 
             
+            let isCorrect = (cleanText(option).toLowerCase() === cleanText(correctOption).toLowerCase());
+            
             try {
-                await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: (option === correctOption) }]);
+                await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: isCorrect }]);
             } catch(e) {}
             
             updatePersistentFooter();
@@ -544,7 +569,6 @@
         async function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
-            // Safe button highlighting for Desktop
             document.querySelectorAll('.feed-btn').forEach(btn => {
                 let targetHall = btn.dataset.hall;
                 if (targetHall === liveHall) {
@@ -554,7 +578,6 @@
                 }
             });
             
-            // Sync Mobile Dropdown Value
             let mobileSelect = document.getElementById('mobileHallSelect');
             if (mobileSelect) { mobileSelect.value = liveHall; }
 
@@ -603,7 +626,7 @@
                                     <h2 class="text-2xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h2>
                                     <div class="flex flex-col gap-3">
                                         ${currentEvent.options.map((opt, idx) => {
-                                            let isSel = (opt.trim().toLowerCase() === mySelection.trim().toLowerCase());
+                                            let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
                                             return `<div class="border p-4 sm:p-5 rounded-2xl text-base flex items-center ${isSel ? 'border-indigo-500 bg-indigo-950/40 text-white font-bold ring-1 ring-indigo-500/50' : 'border-slate-800 bg-slate-900/40 text-slate-500 opacity-60'}"><span class="bg-slate-950 px-3 py-1.5 rounded-md text-sm mr-4 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${isSel ? `<span class="bg-indigo-600 text-white px-3 py-1 rounded text-xs uppercase font-black ml-auto shadow">Your Selection</span>` : ''}</div>`;
                                         }).join('')}
                                     </div>
@@ -619,9 +642,9 @@
                                     <h2 class="text-2xl sm:text-3xl font-black text-white leading-snug mb-8">${currentEvent.title}</h2>
                                     <div class="flex flex-col gap-3">
                                         ${currentEvent.options.map((opt, idx) => {
-                                            let sOpt = opt.replace(/'/g, "\\'").replace(/"/g, '"');
-                                            let sCor = currentEvent.correct.replace(/'/g, "\\'").replace(/"/g, '"');
-                                            let sTit = currentEvent.title.replace(/'/g, "\\'").replace(/"/g, '"');
+                                            let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                            let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                            let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                                             return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                                         }).join('')}
                                     </div>
@@ -640,8 +663,8 @@
                                 <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
                                 <div class="flex flex-col gap-3 mb-8">
                                     ${currentEvent.options.map((opt, idx) => {
-                                        let isCor = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
-                                        let isSel = (opt.trim().toLowerCase() === mySelection.trim().toLowerCase());
+                                        let isCor = (cleanText(opt).toLowerCase() === cleanText(currentEvent.correct).toLowerCase());
+                                        let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
                                         let itemClass = isCor ? "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/30" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let labelMarker = isCor ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow">Correct Answer</span>` : (isSel ? `<span class="bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1 rounded-md text-[10px] font-bold uppercase ml-auto">Your Guess</span>` : '');
                                         return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
