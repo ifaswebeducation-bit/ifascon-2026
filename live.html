@@ -161,7 +161,7 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- PASTE YOUR QUIZ LINK HERE
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS LINK
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -175,22 +175,8 @@
         };
         const allHallsList = Object.keys(configTitles);
 
-        let appData = {};
-        let globalQuizzes = [];
-        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
-        let manualOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let lastRenderHash = ""; 
-        let liveUpdateTimer = null;
-        let tickerTimer = null;
-
-        let myName = "";
-        let myRole = "";
-        let myAllowedHalls = [];
-
-        // --- Utility Functions ---
+        // 1. --- CORE UTILS (Must run before anything else) ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
-        
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -203,8 +189,6 @@
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             return str;
         }
-
-        // SMART ANSWER CHECKER
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
@@ -212,8 +196,26 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
-        // --- AUTH & RBAC ---
-        async function verifyGatePass() {
+        // 2. --- GLOBALS & SAFELY PARSED LIVE HALL ---
+        let appData = {};
+        let globalQuizzes = [];
+        
+        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
+        if(!liveHall || liveHall === "") liveHall = '22a'; 
+        
+        let manualOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let lastRenderHash = ""; 
+        let liveUpdateTimer = null;
+        let tickerTimer = null;
+
+        let myName = "";
+        let myRole = "";
+        let myAllowedHalls = [];
+
+        // 3. --- AUTH & RBAC ---
+        window.verifyGatePass = async function() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
             if (data) {
@@ -223,7 +225,7 @@
                 localStorage.setItem('mgr_hall', data.assigned_hall);
                 loadManagerContext();
             } else { alert('Invalid PIN or account not found.'); }
-        }
+        };
 
         function loadManagerContext() {
             let pin = localStorage.getItem('mgr_pin');
@@ -259,8 +261,12 @@
             fetchLiveSchedule();
         }
 
-        function logoutManager() { localStorage.clear(); location.reload(); }
-        async function logAction(actionDesc) { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }
+        window.logoutManager = function() { localStorage.clear(); location.reload(); }
+        
+        window.logAction = async function(actionDesc) { 
+            if(!myName) return;
+            try { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }catch(e){}
+        };
 
         function initAuditLogListener() {
             supabaseClient.channel('custom-audit-channel')
@@ -319,7 +325,7 @@
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
         // --- PARSING ---
-        async function fetchLiveSchedule() {
+        window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
             for (const [key, link] of Object.entries(sheetLinks)) {
@@ -381,7 +387,7 @@
 
             document.getElementById('loadingState').classList.add('hidden');
             document.getElementById('staticHeader').classList.remove('hidden');
-            initLiveKiosk();
+            window.initLiveKiosk();
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -489,7 +495,7 @@
         window.jumpToEvent = async function(idx) {
             if(idx === "") return;
             manualOverrideIndex = parseInt(idx);
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
             logAction(`Timeline JUMP: Forced play of Index ${idx}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
@@ -590,7 +596,7 @@
             manualOverrideIndex = -(idx + 1);
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
             logAction(`Launched Quiz: ${title}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         };
@@ -598,7 +604,7 @@
         window.terminateActiveQuiz = async function() {
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
             logAction("Cleared active quiz on screen");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
@@ -606,7 +612,7 @@
         window.resumeAutoSync = async function() {
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
             logAction("Resumed Auto-Sync mode");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
@@ -630,7 +636,7 @@
             if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
             
             manualOverrideIndex = newIndex;
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
             logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
@@ -683,10 +689,10 @@
             try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
             
             populateEventJump();
-            updateLiveDisplay(true);
+            window.updateLiveDisplay(true);
         }
 
-        function updateLiveDisplay(forceRender = false) {
+        window.updateLiveDisplay = function(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
             
             document.querySelectorAll('.feed-btn').forEach(btn => {
@@ -739,7 +745,7 @@
                                     ${currentEvent.options.map((opt, i) => {
                                         let isCorrect = checkIfCorrect(opt, currentEvent.correct, i);
                                         let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                        let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
+                                        let badge = isCorrect ? '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>' : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
                                     }).join('')}
                                 </div>
@@ -795,23 +801,23 @@
             document.getElementById('dynamicContentWrapper').innerHTML = nowPlayingHtml + upNextHtml;
         }
 
-        function initLiveKiosk() {
-            populateEventJump();
+        window.initLiveKiosk = function() {
+            window.populateEventJump();
             
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
                 if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
-                updateLiveDisplay(true);
+                window.updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
+                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; window.updateLiveDisplay(true); }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
-            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); }, 15000);
+            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) window.updateLiveDisplay(false); }, 15000);
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
@@ -822,7 +828,7 @@
                     let secondsLeft = 45 - diff;
                     
                     if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
+                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; window.updateLiveDisplay(true); }
                     } else {
                         window.quizExpiredRendered = false;
                         let timerEl = document.getElementById('quizCountdownTimer');
