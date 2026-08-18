@@ -193,10 +193,16 @@
         let myRole = "";
         let myAllowedHalls = [];
 
-        // Helper to normalize hall strings across formats (e.g., 'Hall A', '22a', 'Day 1 - Hall A')
+        // Clean string utility (removes non-breaking spaces and collapses multi-spaces)
+        function cleanText(val) {
+            if (!val) return "";
+            return val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+
+        // Helper to normalize hall strings across all formats
         function normalizeHallId(val) {
             if (!val) return "";
-            let str = val.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+            let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
             if (str.includes('diabet')) return 'workshop_diabetic';
             if (str.includes('mis')) return 'workshop_mis';
@@ -324,32 +330,38 @@
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
                     if (key === 'quizzes') {
-                        // Offset detector in case of S.No / ID / Timestamp in Column A
                         let colOffset = 0;
                         if (parsedCsv.length > 1) {
                             let firstRow = parsedCsv[1];
-                            if (/^\d{1,4}$/.test((firstRow[0] || "").toString().trim()) || (firstRow[0] || "").toString().includes('/')) {
+                            let cell0 = cleanText(firstRow[0]);
+                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) {
                                 colOffset = 1;
                             }
                         }
 
                         parsedCsv.forEach((r, idx) => {
-                            if (idx === 0 || !r || r.length < 3) return; // skip header
+                            if (idx === 0 || !r || r.length < 3) return;
                             
-                            let rawHall = (r[0 + colOffset] || "").toString().trim();
-                            let rawSymp = (r[1 + colOffset] || "").toString().trim();
-                            let rawTitle = (r[2 + colOffset] || "").toString().trim();
+                            let rawHall = cleanText(r[0 + colOffset]);
+                            let rawSymp = cleanText(r[1 + colOffset]);
+                            let rawTitle = cleanText(r[2 + colOffset]);
 
                             if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
 
                             let normalizedHall = normalizeHallId(rawHall);
 
+                            let optA = cleanText(r[3 + colOffset]);
+                            let optB = cleanText(r[4 + colOffset]);
+                            let optC = cleanText(r[5 + colOffset]);
+                            let optD = cleanText(r[6 + colOffset]);
+                            let rawCorrect = cleanText(r[7 + colOffset]);
+
                             quizzesLoaded.push({ 
                                 hall_id: normalizedHall, 
                                 symposium: rawSymp || 'General', 
                                 title: rawTitle, 
-                                options: [r[3 + colOffset], r[4 + colOffset], r[5 + colOffset], r[6 + colOffset]].map(x => (x || "").toString().trim()).filter(Boolean), 
-                                correct: (r[7 + colOffset] || "").toString().trim(), 
+                                options: [optA, optB, optC, optD].filter(Boolean), 
+                                correct: rawCorrect, 
                                 type: 'quiz' 
                             });
                         });
@@ -371,13 +383,6 @@
             appData = fetchedData;
             globalQuizzes = quizzesLoaded;
             
-            let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
-            let dd = document.getElementById('symposiumFilter');
-            if (dd) {
-                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
-                symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
-            }
-
             document.getElementById('loadingState').classList.add('hidden');
             document.getElementById('staticHeader').classList.remove('hidden');
             initLiveKiosk();
@@ -398,7 +403,7 @@
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
-                r = r.map(x => (x || "").trim());
+                r = r.map(x => cleanText(x));
                 let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
                 let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
@@ -507,16 +512,16 @@
             if (!container) return;
 
             let filterEl = document.getElementById('symposiumFilter');
-            let filter = filterEl ? filterEl.value : 'ALL';
+            let filter = filterEl ? cleanText(filterEl.value) : 'ALL';
             let searchEl = document.getElementById('quizSearch');
-            let search = searchEl ? searchEl.value.toLowerCase().trim() : '';
+            let search = searchEl ? cleanText(searchEl.value).toLowerCase() : '';
 
-            let targetHall = (liveHall || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+            let targetHall = cleanText(liveHall).toLowerCase().replace(/[^a-z0-9]/g, '');
 
-            // 1. Filter by Hall (Fuzzy & Flexible matching)
+            // 1. Get Hall-Matching Quizzes
             let hallQuizzes = globalQuizzes.filter(q => {
                 if (!q.hall_id) return true;
-                let qHall = q.hall_id.toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+                let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
                 
                 if (qHall === targetHall || qHall === 'all') return true;
                 if (targetHall.includes('22a') && (qHall === '22a' || qHall === 'halla' || qHall === 'a')) return true;
@@ -529,54 +534,77 @@
                 return false;
             });
 
-            // 2. Fallback: If no strict hall match found, make all quizzes available
+            // 2. If no hall-specific questions found, fallback to all quizzes
             if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
                 hallQuizzes = [...globalQuizzes];
             }
 
-            // 3. Filter by Symposium
-            if (filter && filter !== 'ALL') {
-                hallQuizzes = hallQuizzes.filter(q => (q.symposium || '').trim().toLowerCase() === filter.trim().toLowerCase());
+            // 3. Dynamically Populate Symposium Dropdown Options for Current Hall
+            if (filterEl) {
+                let currentVal = filterEl.value;
+                let availableSymps = [...new Set(hallQuizzes.map(q => cleanText(q.symposium)))].filter(Boolean);
+                let currentOptions = Array.from(filterEl.options).map(o => o.value);
+                
+                let isMatch = availableSymps.length === (currentOptions.length - 1) && availableSymps.every(s => currentOptions.includes(s));
+                if (!isMatch) {
+                    let optsHtml = `<option value="ALL">All Symposiums</option>`;
+                    availableSymps.forEach(s => {
+                        optsHtml += `<option value="${s}">${s}</option>`;
+                    });
+                    filterEl.innerHTML = optsHtml;
+                    filterEl.value = currentOptions.includes(currentVal) ? currentVal : 'ALL';
+                    filter = filterEl.value;
+                }
             }
 
-            // 4. Filter by Search
+            // 4. Filter by Symposium (Normalized Matching)
+            let displayQuizzes = hallQuizzes;
+            if (filter && filter !== 'ALL') {
+                let cleanFilter = cleanText(filter).toLowerCase();
+                displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanFilter);
+            }
+
+            // 5. Filter by Search
             if (search) {
-                hallQuizzes = hallQuizzes.filter(q => 
-                    (q.title || '').toLowerCase().includes(search) || 
-                    (q.symposium || '').toLowerCase().includes(search)
+                displayQuizzes = displayQuizzes.filter(q => 
+                    cleanText(q.title).toLowerCase().includes(search) || 
+                    cleanText(q.symposium).toLowerCase().includes(search)
                 );
             }
 
-            // 5. Render Buttons Grouped by Symposium
-            if (hallQuizzes.length > 0) {
+            // 6. Render Buttons Grouped by Canonical Symposium
+            if (displayQuizzes.length > 0) {
                 let groups = {};
-                hallQuizzes.forEach(q => {
-                    let symp = (q.symposium || 'General Symposium').trim();
+                displayQuizzes.forEach(q => {
+                    let symp = cleanText(q.symposium) || 'General Symposium';
                     if (!groups[symp]) groups[symp] = [];
                     groups[symp].push(q);
                 });
 
                 let dashHtml = '';
+                let cleanActiveSymp = cleanText(activeSympName).toLowerCase();
+
                 for (let [symp, qs] of Object.entries(groups)) {
-                    let isRecommended = activeSympName && symp.toLowerCase().includes(activeSympName.toLowerCase());
+                    let cleanSymp = cleanText(symp).toLowerCase();
+                    let isRecommended = cleanActiveSymp && (cleanSymp.includes(cleanActiveSymp) || cleanActiveSymp.includes(cleanSymp));
                     let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
                     let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
                     let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
 
                     dashHtml += `
                         <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
-                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate">${symp}</span> ${badge}</div>
+                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div>
                             <div class="flex flex-col gap-2">`;
                     qs.forEach(q => {
                         let globalIdx = globalQuizzes.indexOf(q);
-                        let safeTitle = (q.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        let safeTitle = cleanText(q.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                         dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, '${safeTitle}')" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
                     });
                     dashHtml += `   </div></div>`;
                 }
                 container.innerHTML = dashHtml;
             } else {
-                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No matching questions found for current search/filter.</div>`;
+                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found matching criteria for this selection.</div>`;
             }
         };
 
@@ -591,7 +619,7 @@
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
-            const parts = timeStr.split('-')[0].trim().split(/[.:]/);
+            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
             if (parts.length < 2) return null;
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
@@ -695,7 +723,7 @@
             document.getElementById('headerTitle').innerText = data.title;
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
 
-            let activeSymp = (currentEvent && currentEvent.parent_session) ? currentEvent.parent_session.toLowerCase().trim() : "";
+            let activeSymp = (currentEvent && currentEvent.parent_session) ? cleanText(currentEvent.parent_session) : "";
             renderQuizCockpit(activeSymp);
 
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + manualOverrideIndex;
@@ -734,7 +762,7 @@
                                 <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
                                 <div class="flex flex-col gap-4">
                                     ${currentEvent.options.map((opt, i) => {
-                                        let isCorrect = (opt.trim().toLowerCase() === currentEvent.correct.trim().toLowerCase());
+                                        let isCorrect = (cleanText(opt).toLowerCase() === cleanText(currentEvent.correct).toLowerCase());
                                         let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
                                         let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
                                         return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
