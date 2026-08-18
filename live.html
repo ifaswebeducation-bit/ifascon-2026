@@ -161,7 +161,7 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS LINK
+            'quizzes': 'YOUR_CORRECT_QUIZ_CSV_LINK_HERE', // <--- PASTE YOUR QUIZ LINK HERE
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
@@ -175,7 +175,20 @@
         };
         const allHallsList = Object.keys(configTitles);
 
-        // --- Core Utils ---
+        let appData = {};
+        let globalQuizzes = [];
+        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a';
+        let manualOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let lastRenderHash = ""; 
+        let liveUpdateTimer = null;
+        let tickerTimer = null;
+
+        let myName = "";
+        let myRole = "";
+        let myAllowedHalls = [];
+
+        // --- Utility Functions ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         
         function normalizeHallId(val) {
@@ -191,29 +204,16 @@
             return str;
         }
 
-        // --- State Variables ---
-        let appData = {};
-        let globalQuizzes = [];
-        let liveHall = normalizeHallId(new URLSearchParams(window.location.search).get('hall')) || '22a';
-        let manualOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let lastRenderHash = ""; 
-        let liveUpdateTimer = null;
-        let tickerTimer = null;
-        let myName = "";
-        let myRole = "";
-        let myAllowedHalls = [];
-
         // SMART ANSWER CHECKER
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
-            let letter = String.fromCharCode(65 + index).toLowerCase(); 
+            let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
         // --- AUTH & RBAC ---
-        window.verifyGatePass = async function() {
+        async function verifyGatePass() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
             if (data) {
@@ -255,11 +255,11 @@
                 if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
-            try { logAction("Logged into system."); } catch(e){}
+            logAction("Logged into system.");
             fetchLiveSchedule();
         }
 
-        window.logoutManager = function() { localStorage.clear(); location.reload(); }
+        function logoutManager() { localStorage.clear(); location.reload(); }
         async function logAction(actionDesc) { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }
 
         function initAuditLogListener() {
@@ -490,6 +490,7 @@
             if(idx === "") return;
             manualOverrideIndex = parseInt(idx);
             updateLiveDisplay(true);
+            logAction(`Timeline JUMP: Forced play of Index ${idx}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
         };
@@ -590,7 +591,7 @@
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
-            try { logAction(`Launched Quiz: ${title}`); } catch(e){}
+            logAction(`Launched Quiz: ${title}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
         };
 
@@ -598,7 +599,7 @@
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
-            try { logAction(`Cleared active quiz on screen`); } catch(e){}
+            logAction("Cleared active quiz on screen");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
 
@@ -606,7 +607,7 @@
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
-            try { logAction(`Resumed Auto-Sync mode`); } catch(e){}
+            logAction("Resumed Auto-Sync mode");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
 
@@ -630,28 +631,15 @@
             
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
-            try { logAction(`Timeline Shift: Manually moved to Index ${newIndex}`); } catch(e){}
+            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
         };
 
         window.forceLeaderboardLocal = async function(type) {
-            try { logAction(`Forced Leaderboard TV output: ${type}`); } catch(e){}
+            logAction(`Forced Leaderboard TV output: ${type}`);
             await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
         };
 
-        window.switchHallFeed = function(newHall) {
-            let normalizedNew = normalizeHallId(newHall);
-            if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
-                alert("Access Denied: You are not authorized for this hall."); return;
-            }
-            liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
-            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
-            
-            populateEventJump();
-            updateLiveDisplay(true);
-        }
-
-        // --- Core UI & Live Control ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -684,6 +672,18 @@
                 }
             }
             return { currentEvent, nextEvent };
+        }
+
+        window.switchHallFeed = function(newHall) {
+            let normalizedNew = normalizeHallId(newHall);
+            if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
+                alert("Access Denied: You are not authorized for this hall."); return;
+            }
+            liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
+            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
+            
+            populateEventJump();
+            updateLiveDisplay(true);
         }
 
         function updateLiveDisplay(forceRender = false) {
