@@ -21,7 +21,6 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
-    <!-- THE GLOBAL HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
         <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
@@ -30,66 +29,64 @@
         <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
     </div>
 
-    <!-- Identity Banner -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
         <div id="identityLoggedOutState" class="w-full flex flex-row items-center gap-3">
             <i class="fas fa-user-circle text-2xl text-slate-500"></i>
             <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white max-w-[180px] font-mono outline-none focus:border-indigo-500 shadow-inner" placeholder="Mobile Number">
-            <button onclick="saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-lg transition ml-auto shadow-md active:scale-95">Login to Play</button>
+            <button onclick="window.saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-lg transition ml-auto shadow-md active:scale-95">Login to Play</button>
         </div>
         <div id="identityLoggedInState" class="w-full hidden flex flex-row items-center justify-between">
             <div class="flex items-center gap-2 text-sm font-semibold text-emerald-400">
                 <i class="fas fa-check-circle"></i> <span>ID: <span id="identityBannerLabel" class="font-mono text-white tracking-widest"></span></span>
             </div>
-            <button onclick="clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-3 py-1.5 border border-slate-700 hover:border-rose-900 rounded-md transition"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+            <button onclick="window.clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-3 py-1.5 border border-slate-700 hover:border-rose-900 rounded-md transition"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
         </div>
     </div>
 
-    <!-- Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="lbTitle" class="text-3xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg text-center"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
         <p id="lbSub" class="text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-6 text-center">Calculating Data...</p>
         <div id="leaderboardList" class="w-full max-w-md flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2"></div>
-        <button onclick="hideLeaderboard()" class="mt-8 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition">Close</button>
+        <button onclick="window.hideLeaderboard()" class="mt-8 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition">Close</button>
     </div>
 
     <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
-        
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
             <p class="text-slate-400 font-semibold text-lg animate-pulse">Loading Conference Dashboard...</p>
         </div>
 
         <div id="staticHeader" class="hidden">
-            <!-- NEW THUMB-FRIENDLY MOBILE UI -->
             <div class="mb-5 pb-4 border-b border-slate-800">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
                 
-                <!-- MOBILE DROPDOWN (Native Wheel on iOS/Android) -->
                 <div class="block md:hidden relative">
-                    <select id="mobileHallSelect" onchange="switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base">
+                    <select id="mobileHallSelect" onchange="window.switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base">
                         <option value="ao_seminar">21 Aug: AO Seminar</option>
                         <option value="workshop_diabetic">21 Aug: Diabetic Foot</option>
                         <option value="workshop_mis">21 Aug: MIS</option>
                         <option value="22a">22 Aug: Hall A</option>
                         <option value="22b">22 Aug: Hall B</option>
+                        <option value="22c">22 Aug: Hall C</option>
                         <option value="23a">23 Aug: Hall A</option>
                         <option value="23b">23 Aug: Hall B</option>
+                        <option value="23c">23 Aug: Hall C</option>
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-indigo-400">
                         <i class="fas fa-chevron-down"></i>
                     </div>
                 </div>
 
-                <!-- DESKTOP / IPAD PILLS -->
                 <div class="hidden md:flex flex-wrap items-center gap-2" id="desktopHallNav">
-                    <button onclick="switchDelegateHall('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: AO Seminar</button>
-                    <button onclick="switchDelegateHall('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: Diabetic Foot</button>
-                    <button onclick="switchDelegateHall('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: MIS</button>
-                    <button onclick="switchDelegateHall('22a')" data-hall="22a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall A</button>
-                    <button onclick="switchDelegateHall('22b')" data-hall="22b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall B</button>
-                    <button onclick="switchDelegateHall('23a')" data-hall="23a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall A</button>
-                    <button onclick="switchDelegateHall('23b')" data-hall="23b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall B</button>
+                    <button onclick="window.switchDelegateHall('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: AO Seminar</button>
+                    <button onclick="window.switchDelegateHall('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: Diabetic Foot</button>
+                    <button onclick="window.switchDelegateHall('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: MIS</button>
+                    <button onclick="window.switchDelegateHall('22a')" data-hall="22a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall A</button>
+                    <button onclick="window.switchDelegateHall('22b')" data-hall="22b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall B</button>
+                    <button onclick="window.switchDelegateHall('22c')" data-hall="22c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall C</button>
+                    <button onclick="window.switchDelegateHall('23a')" data-hall="23a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall A</button>
+                    <button onclick="window.switchDelegateHall('23b')" data-hall="23b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall B</button>
+                    <button onclick="window.switchDelegateHall('23c')" data-hall="23c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall C</button>
                 </div>
             </div>
 
@@ -115,7 +112,6 @@
         <div id="dynamicContentWrapper"></div>
     </main>
 
-    <!-- Dynamic Hall Footer -->
     <div id="persistentLeaderboard" class="w-full bg-slate-950 border-t border-slate-800 p-3 flex-shrink-0 z-40 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-4 items-center shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.5)]">
         <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span>
         <span class="text-slate-500 text-xs font-semibold ml-2">Syncing data...</span>
@@ -126,63 +122,65 @@
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        let remoteOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let tickerTimer = null;
-        let liveUpdateTimer = null;
-        let lastRenderHash = "";
-
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS LINK
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS WITH YOUR QUIZ LINK
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv', // <--- PASTE YOUR 22C CSV LINK HERE
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
-            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'  // <--- PASTE YOUR 23C CSV LINK HERE
         };
 
         const configTitles = {
             'ao_seminar': "21st August 2026 - AO Seminar", 'workshop_diabetic': "21st August 2026 - Diabetic Foot", 'workshop_mis': "21st August 2026 - MIS Workshop",
-            '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B"
+            '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '22c': "22nd August 2026 - Hall C",
+            '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
         };
-        const buttonLabels = { 'ao_seminar': "AO Sem", 'workshop_diabetic': "Diabetic", 'workshop_mis': "MIS", '22a': "Hall A", '22b': "Hall B", '23a': "Hall A", '23b': "Hall B" };
+        const buttonLabels = { 'ao_seminar': "AO Sem", 'workshop_diabetic': "Diabetic", 'workshop_mis': "MIS", '22a': "Hall A", '22b': "Hall B", '22c': "Hall C", '23a': "Hall A", '23b': "Hall B", '23c': "Hall C" };
 
-        let appData = {};
-        let globalQuizzes = [];
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v79'; 
-        let liveHall = new URLSearchParams(window.location.search).get('hall') || '22a'; 
-
-        // --- Utility Functions ---
+        // 1. --- CORE UTILS (Must run first) ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
-        
         function normalizeHallId(val) {
+            if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
             if (str.includes('diabet')) return 'workshop_diabetic';
             if (str.includes('mis')) return 'workshop_mis';
             if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
             if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
+            if (str.includes('22c') || (str.includes('22') && str.includes('c'))) return '22c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
+            if (str.includes('23c') || (str.includes('23') && str.includes('c'))) return '23c';
             return str;
         }
-
-        // SMART ANSWER CHECKER
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
             let letter = String.fromCharCode(65 + index).toLowerCase(); // a, b, c, d
-            
-            return optClean === corClean || 
-                   corClean === letter || 
-                   corClean === `option ${letter}` || 
-                   corClean === `option-${letter}` ||
-                   corClean === `${letter}.` ||
-                   corClean === `${letter})`;
+            return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
+        // 2. --- GLOBALS & STATE ---
+        let appData = {};
+        let globalQuizzes = [];
+        
+        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
+        if(!liveHall || liveHall === "") liveHall = '22a'; 
+        
+        let remoteOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let tickerTimer = null;
+        let liveUpdateTimer = null;
+        let lastRenderHash = "";
+
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v85'; 
+
         // --- AMNESIA FIX & SYNC ---
-        async function syncMyAnswers() {
+        window.syncMyAnswers = async function() {
             let phone = localStorage.getItem('delegate_phone');
             if(!phone) return;
             const { data } = await supabaseClient.from('quiz_responses').select('question, hall_id').eq('phone', phone);
@@ -192,9 +190,9 @@
                     localStorage.setItem('answered_' + cleanKey, 'true');
                 });
             }
-        }
+        };
 
-        function refreshIdentityStateUI() {
+        window.refreshIdentityStateUI = function() {
             let num = localStorage.getItem('delegate_phone');
             let loggedInView = document.getElementById('identityLoggedInState');
             let loggedOutView = document.getElementById('identityLoggedOutState');
@@ -206,50 +204,32 @@
                 loggedInView.classList.add('hidden');
                 loggedOutView.classList.remove('hidden');
             }
-        }
+        };
 
         window.saveTopBannerIdentity = async function() {
             let val = document.getElementById('topPhoneRegisterInput').value.trim();
             if (val.length >= 7) {
                 localStorage.setItem('delegate_phone', val);
-                refreshIdentityStateUI();
-                await syncMyAnswers();
-                updateLiveDisplay(true);
-                updatePersistentFooter();
+                window.refreshIdentityStateUI();
+                await window.syncMyAnswers();
+                window.updateLiveDisplay(true);
+                window.updatePersistentFooter();
             } else { alert('Please supply a valid telephone number.'); }
         };
 
         window.clearDelegateIdentity = function() {
             localStorage.removeItem('delegate_phone');
-            refreshIdentityStateUI();
-            updateLiveDisplay(true);
-            updatePersistentFooter();
+            window.refreshIdentityStateUI();
+            window.updateLiveDisplay(true);
+            window.updatePersistentFooter();
         };
 
-        async function initializeApp() {
-            refreshIdentityStateUI();
-            await syncMyAnswers();
-            document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                try {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden');
-                    initLiveDashboard();
-                    fetchLiveSchedule(true);
-                } catch (e) { fetchLiveSchedule(false); }
-            } else { fetchLiveSchedule(false); }
-        }
-
         // --- FETCH & PARSE WITH SMART CSV LOGIC ---
-        async function fetchLiveSchedule(isBackground = false) {
+        window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
             for (const [key, link] of Object.entries(sheetLinks)) {
+                if(!link || link.trim() === '') continue;
                 try {
                     const response = await fetch(link);
                     const csvText = await response.text();
@@ -309,10 +289,10 @@
                 if (!isBackground && document.getElementById('loadingState')) { 
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('staticHeader').classList.remove('hidden'); 
-                    initLiveDashboard(); 
-                } else { updateLiveDisplay(true); }
+                    window.initLiveDashboard(); 
+                } else { window.updateLiveDisplay(true); }
             }
-        }
+        };
 
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
@@ -340,6 +320,12 @@
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                
+                // HALL C LEAK BLOCKER
+                if (hallTitle && !hallTitle.toLowerCase().includes('hall c')) {
+                    if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
+                }
+
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
@@ -413,7 +399,7 @@
             let hijack = document.getElementById('globalHijackOverlay');
             if (hijack) hijack.classList.add('hidden');
             
-            hideLeaderboard(); 
+            window.hideLeaderboard(); 
             
             liveHall = normalizeHallId(newHall);
             remoteOverrideIndex = null;
@@ -426,22 +412,22 @@
                 window.history.pushState({}, '', newUrl); 
             } catch (e) {}
             
-            subscribeToHall(liveHall); 
-            updateLiveDisplay(true);
-            updatePersistentFooter();
+            window.subscribeToHall(liveHall); 
+            window.updateLiveDisplay(true);
+            window.updatePersistentFooter();
         };
 
-        function subscribeToHall(hall_id) {
+        window.subscribeToHall = function(hall_id) {
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
             supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    hideLeaderboard(); 
+                    window.hideLeaderboard(); 
                 }
                 lastRenderHash = ""; 
-                updateLiveDisplay(true);
+                window.updateLiveDisplay(true);
             });
 
             window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id)
@@ -451,14 +437,14 @@
                         quizStartTimeStamp = payload.new.quiz_start_time;
                         
                         let boardType = payload.new.force_leaderboard;
-                        if (boardType && boardType !== 'none') showLeaderboard(boardType);
-                        else hideLeaderboard();
+                        if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
+                        else window.hideLeaderboard();
 
                         lastRenderHash = ""; 
-                        updateLiveDisplay(true); 
+                        window.updateLiveDisplay(true); 
                     }
                 ).subscribe();
-        }
+        };
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
@@ -508,10 +494,12 @@
 
                 if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
                 else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => d.hall_id === '22a' || d.hall_id === '22b'); titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Leaderboard"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders"; }
                 else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
                 else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => d.hall_id === '23a' || d.hall_id === '23b'); titleText = "Day 2 Cumulative Leaders"; }
+                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Leaderboard"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders"; }
                 else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
@@ -542,18 +530,15 @@
             localStorage.setItem('marked_' + cleanKey, optionText); 
             localStorage.setItem('answered_' + cleanKey, 'true');
             
-            updateLiveDisplay(true); 
+            window.updateLiveDisplay(true); 
             
             let isCorrect = checkIfCorrect(optionText, correctAnswer, optIdx);
             
-            try {
-                await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: isCorrect }]);
-            } catch(e) {}
-            
-            updatePersistentFooter();
+            try { await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: isCorrect }]); } catch(e) {}
+            window.updatePersistentFooter();
         };
 
-        async function updatePersistentFooter() {
+        window.updatePersistentFooter = async function() {
             let phone = localStorage.getItem('delegate_phone');
             let el = document.getElementById('persistentLeaderboard');
             if (!el) return;
@@ -578,9 +563,9 @@
                 <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-slate-400 uppercase text-[9px] tracking-wider mr-2">${hallName}</span> ${localText}</span>
                 <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-amber-600 uppercase text-[9px] tracking-wider mr-2">Overall Conf</span> ${grandText}</span>
             `;
-        }
+        };
 
-        async function updateLiveDisplay(forceRender = false) {
+        window.updateLiveDisplay = function(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
 
             document.querySelectorAll('.feed-btn').forEach(btn => {
@@ -628,7 +613,7 @@
                                 <p class="text-slate-300 mb-8 text-sm max-w-sm mx-auto">Enter your mobile identifier token inside the box below to instantly unlock the running conference quiz.</p>
                                 <div class="max-w-sm mx-auto">
                                     <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-4 text-white text-center text-xl mb-6 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); refreshIdentityStateUI(); syncMyAnswers().then(() => { updateLiveDisplay(true); updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
+                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); window.refreshIdentityStateUI(); window.syncMyAnswers().then(() => { window.updateLiveDisplay(true); window.updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
                                 </div>
                             </div>`;
                     } 
@@ -656,7 +641,7 @@
                                 let sOpt = cleanText(opt).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                                 let sCor = cleanText(currentEvent.correct).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                                 let sTit = cleanText(currentEvent.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                                return `<button onclick="submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
+                                return `<button onclick="window.submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
                             }).join('');
 
                             html = `
@@ -671,63 +656,70 @@
                         }
                     } 
                     else {
-                        let mathResults = await fetchMathLeaderboard(liveHall);
-                        let sorted = mathResults.sorted;
-                        let myRank = sorted.findIndex(x => x[0] === phone);
-                        let top5 = sorted.slice(0, 5);
-
-                        let optionNodes = currentEvent.options.map((opt, idx) => {
-                            let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
-                            let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
+                        html = `<div id="liveLeaderboardInjectPoint"></div>`;
+                        
+                        setTimeout(async () => {
+                            let injectPoint = document.getElementById('liveLeaderboardInjectPoint');
+                            if(!injectPoint) return;
                             
-                            let itemClass = "";
-                            let labelMarker = "";
+                            let mathResults = await fetchMathLeaderboard(liveHall);
+                            let sorted = mathResults.sorted;
+                            let myRank = sorted.findIndex(x => x[0] === phone);
+                            let top5 = sorted.slice(0, 5);
 
-                            if (isCor && isSel) {
-                                itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
-                                labelMarker = '<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>';
-                            } else if (isCor && !isSel) {
-                                itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
-                                labelMarker = '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>';
-                            } else if (!isCor && isSel) {
-                                itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
-                                labelMarker = '<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>';
-                            } else {
-                                itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                            }
-
-                            return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
-                        }).join('');
-
-                        let top5Nodes = top5.map((item, idx) => `
-                            <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
-                                <span><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> &bull; <span class="ml-2">${item[0].substring(0,2)}******${item[0].slice(-2)}</span></span>
-                                <span class="text-emerald-400 font-black tracking-wide">${item[1]} pts</span>
-                            </div>
-                        `).join('');
-
-                        html = `
-                            <div class="bg-slate-950 rounded-3xl border-2 border-red-600/40 p-6 sm:p-8 shadow-2xl mb-8">
-                                <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-6 inline-block shadow"><i class="fas fa-stopwatch mr-2"></i> Time Up!</span>
-                                <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
-                                <div class="flex flex-col gap-3 mb-8">${optionNodes}</div>
+                            let optionNodes = currentEvent.options.map((opt, idx) => {
+                                let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
+                                let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
                                 
-                                <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-inner relative overflow-hidden">
-                                    <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl"></div>
-                                    <h4 class="text-amber-500 font-black text-sm uppercase tracking-widest mb-4 flex items-center"><i class="fas fa-trophy mr-3 text-lg"></i>Live Hall Results</h4>
-                                    <div class="flex flex-col gap-2 relative z-10">${top5Nodes}</div>
-                                    ${myRank > 4 ? `
-                                        <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-white font-black flex justify-between items-center bg-slate-800/80 px-4 py-3 rounded-xl border border-slate-600 shadow-lg relative z-10">
-                                            <span>🎯 YOUR RANK: <span class="text-amber-400 ml-1">#${myRank+1}</span></span>
-                                            <span class="text-emerald-400">${sorted[myRank][1]} pts</span>
-                                        </div>
-                                    ` : (myRank !== -1 ? `
-                                        <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-emerald-400 font-black text-center bg-emerald-900/20 px-4 py-3 rounded-xl border border-emerald-500/30 relative z-10">
-                                            🎯 Incredible! You are currently in the Top 5!
-                                        </div>
-                                    ` : '')}
+                                let itemClass = "";
+                                let labelMarker = "";
+
+                                if (isCor && isSel) {
+                                    itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
+                                    labelMarker = '<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>';
+                                } else if (isCor && !isSel) {
+                                    itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
+                                    labelMarker = '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>';
+                                } else if (!isCor && isSel) {
+                                    itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
+                                    labelMarker = '<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>';
+                                } else {
+                                    itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                                }
+
+                                return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
+                            }).join('');
+
+                            let top5Nodes = top5.map((item, idx) => `
+                                <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
+                                    <span><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> &bull; <span class="ml-2">${item[0].substring(0,2)}******${item[0].slice(-2)}</span></span>
+                                    <span class="text-emerald-400 font-black tracking-wide">${item[1]} pts</span>
                                 </div>
-                            </div>`;
+                            `).join('');
+
+                            injectPoint.innerHTML = `
+                                <div class="bg-slate-950 rounded-3xl border-2 border-red-600/40 p-6 sm:p-8 shadow-2xl mb-8">
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-6 inline-block shadow"><i class="fas fa-stopwatch mr-2"></i> Time Up!</span>
+                                    <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
+                                    <div class="flex flex-col gap-3 mb-8">${optionNodes}</div>
+                                    
+                                    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-inner relative overflow-hidden">
+                                        <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl"></div>
+                                        <h4 class="text-amber-500 font-black text-sm uppercase tracking-widest mb-4 flex items-center"><i class="fas fa-trophy mr-3 text-lg"></i>Live Hall Results</h4>
+                                        <div class="flex flex-col gap-2 relative z-10">${top5Nodes}</div>
+                                        ${myRank > 4 ? `
+                                            <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-white font-black flex justify-between items-center bg-slate-800/80 px-4 py-3 rounded-xl border border-slate-600 shadow-lg relative z-10">
+                                                <span>🎯 YOUR RANK: <span class="text-amber-400 ml-1">#${myRank+1}</span></span>
+                                                <span class="text-emerald-400">${sorted[myRank][1]} pts</span>
+                                            </div>
+                                        ` : (myRank !== -1 ? `
+                                            <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-emerald-400 font-black text-center bg-emerald-900/20 px-4 py-3 rounded-xl border border-emerald-500/30 relative z-10">
+                                                🎯 Incredible! You are currently in the Top 5!
+                                            </div>
+                                        ` : '')}
+                                    </div>
+                                </div>`;
+                        }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
                     if (currentEvent.adLink) {
@@ -793,7 +785,7 @@
             }
 
             document.getElementById('dynamicContentWrapper').innerHTML = html + upNextHtml;
-        }
+        };
 
         window.showLeaderboard = async function(presetType) {
             let type = presetType || liveHall;
@@ -818,7 +810,7 @@
 
         window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
 
-        function initLiveDashboard() { 
+        window.initLiveDashboard = function() { 
             supabaseClient.channel('global-radar-feed')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
@@ -826,12 +818,12 @@
                     let lBoard = payload.new.force_leaderboard;
                     
                     if (changedHall === liveHall) {
-                        if (lBoard && lBoard !== 'none') showLeaderboard(lBoard);
-                        else hideLeaderboard();
+                        if (lBoard && lBoard !== 'none') window.showLeaderboard(lBoard);
+                        else window.hideLeaderboard();
                     } else {
                         if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in ${buttonLabels[changedHall]}!`;
-                            document.getElementById('hijackJoinBtn').onclick = () => switchDelegateHall(changedHall);
+                            document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
                             document.getElementById('globalHijackOverlay').classList.remove('hidden');
                         } else if (oIdx === null || oIdx >= 0) {
                             document.getElementById('globalHijackOverlay').classList.add('hidden');
@@ -843,8 +835,8 @@
             if (tickerTimer) clearInterval(tickerTimer);
 
             liveUpdateTimer = setInterval(() => {
-                if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) { updateLiveDisplay(false); }
-                updatePersistentFooter(); 
+                if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) { window.updateLiveDisplay(false); }
+                window.updatePersistentFooter(); 
             }, 15000); 
             
             tickerTimer = setInterval(() => {
@@ -858,7 +850,7 @@
                     if (secondsLeft <= 0) {
                         if (!window.quizExpiredRendered) {
                             window.quizExpiredRendered = true;
-                            updateLiveDisplay(true); 
+                            window.updateLiveDisplay(true); 
                         }
                     } else {
                         window.quizExpiredRendered = false;
@@ -872,11 +864,11 @@
                 }
             }, 1000);
             
-            subscribeToHall(liveHall); 
-            updatePersistentFooter();
-        }
+            window.subscribeToHall(liveHall); 
+            window.updatePersistentFooter();
+        };
 
-        initializeApp();
+        window.initializeApp();
     </script>
 </body>
 </html>
