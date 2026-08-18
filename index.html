@@ -213,7 +213,7 @@
                 if (row_text.includes("ifascon 2026")) return;
                 if ((row_text.includes("hall a") || row_text.includes("hall b") || row_text.includes("hall c")) && !col0 && !col1) return;
 
-                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "inauguration", "gbm", "valedictory"];
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
                 if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session") && !row_text.includes("ao seminar")) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
@@ -236,7 +236,8 @@
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    // ADDED "ao seminar" here so it gets treated as a parent session
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop') || row_text.includes('ao seminar')) isSession = true;
                     else if (row_text.includes('oration')) { isSession = true; isOration = true; }
                 }
 
