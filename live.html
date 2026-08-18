@@ -28,7 +28,7 @@
             <h3 class="text-2xl font-black mb-2 text-white">Event Cockpit</h3>
             <p class="text-slate-400 text-sm mb-6">Enter your assigned secure PIN.</p>
             <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••">
-            <button onclick="window.verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Authenticate</button>
+            <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Authenticate</button>
         </div>
     </div>
 
@@ -41,31 +41,31 @@
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span>:</span>
                 
                 <div id="adminHallNav" class="flex flex-wrap gap-1 hidden">
-                    <button onclick="window.switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
-                    <button onclick="window.switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Diabetic</button>
-                    <button onclick="window.switchHallFeed('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">MIS</button>
-                    <button onclick="window.switchHallFeed('22a')" data-hall="22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22A</button>
-                    <button onclick="window.switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22B</button>
-                    <button onclick="window.switchHallFeed('22c')" data-hall="22c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22C</button>
-                    <button onclick="window.switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23A</button>
-                    <button onclick="window.switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23B</button>
-                    <button onclick="window.switchHallFeed('23c')" data-hall="23c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23C</button>
+                    <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
+                    <button onclick="switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Diabetic</button>
+                    <button onclick="switchHallFeed('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">MIS</button>
+                    <button onclick="switchHallFeed('22a')" data-hall="22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22A</button>
+                    <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22B</button>
+                    <button onclick="switchHallFeed('22c')" data-hall="22c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22C</button>
+                    <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23A</button>
+                    <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23B</button>
+                    <button onclick="switchHallFeed('23c')" data-hall="23c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23C</button>
                 </div>
                 <div id="floorManagerRoomLabel" class="text-xs font-black text-emerald-400 hidden uppercase tracking-widest bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-500/30 ml-2">Authorized Scope Only</div>
-                <button onclick="window.logoutManager()" class="ml-auto md:ml-4 text-xs text-rose-400 font-bold border border-rose-900 px-3 py-1 rounded hover:bg-rose-900/50 transition">Logout</button>
+                <button onclick="logoutManager()" class="ml-auto md:ml-4 text-xs text-rose-400 font-bold border border-rose-900 px-3 py-1 rounded hover:bg-rose-900/50 transition">Logout</button>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap ml-auto w-full md:w-auto mt-2 md:mt-0">
-                <button onclick="window.manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-xs">⬅ Prev</button>
-                <button onclick="window.manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-xs">Next Talk ➔</button>
-                <button onclick="window.resumeAutoSync()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 active:scale-95 transition text-xs">Resume Auto</button>
+                <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-xs">⬅ Prev</button>
+                <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-xs">Next Talk ➔</button>
+                <button onclick="resumeAutoSync()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 active:scale-95 transition text-xs">Resume Auto</button>
             </div>
         </div>
 
         <!-- Quick Jump Engine -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
-            <select id="eventJumpSelect" onchange="window.jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
+            <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
                 <option value="">-- Select an event to jump timeline directly --</option>
             </select>
         </div>
@@ -78,11 +78,11 @@
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
                         <div class="flex gap-2 w-full md:w-auto">
-                            <select id="symposiumFilter" onchange="window.renderQuizCockpit()" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full md:w-48 shadow-inner">
+                            <select id="symposiumFilter" onchange="renderQuizCockpit()" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full md:w-48 shadow-inner">
                                 <option value="ALL">All Symposiums</option>
                             </select>
-                            <input type="text" id="quizSearch" onkeyup="window.renderQuizCockpit()" placeholder="Search..." class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none w-full md:w-32 shadow-inner">
-                            <button onclick="window.terminateActiveQuiz()" class="bg-rose-600 text-white hover:bg-rose-500 px-4 py-2 rounded-lg font-bold active:scale-95 transition text-xs flex-shrink-0 shadow-lg">Clear Active Quiz</button>
+                            <input type="text" id="quizSearch" onkeyup="renderQuizCockpit()" placeholder="Search..." class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none w-full md:w-32 shadow-inner">
+                            <button onclick="terminateActiveQuiz()" class="bg-rose-600 text-white hover:bg-rose-500 px-4 py-2 rounded-lg font-bold active:scale-95 transition text-xs flex-shrink-0 shadow-lg">Clear Active Quiz</button>
                         </div>
                     </div>
                     <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto pr-2"></div>
@@ -96,8 +96,8 @@
 
                 <div class="flex items-center gap-3 pt-3 border-t border-slate-800 flex-wrap">
                     <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Leaderboard:</span>
-                    <button onclick="window.forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
-                    <button onclick="window.forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-4 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
+                    <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
+                    <button onclick="forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-4 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
                     
                     <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto">
                         <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2 py-1.5 rounded outline-none font-bold">
@@ -111,7 +111,7 @@
                             <option value="day2_cum">Day 2: Cumulative</option>
                             <option value="grand">Grand Overall</option>
                         </select>
-                        <button onclick="window.showLeaderboard(document.getElementById('boardTypeSelect').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold border border-indigo-500 active:scale-95 transition text-xs shadow">Show TV</button>
+                        <button onclick="showLeaderboard(document.getElementById('boardTypeSelect').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold border border-indigo-500 active:scale-95 transition text-xs shadow">Show TV</button>
                     </div>
                 </div>
             </div>
@@ -131,7 +131,7 @@
         <h2 id="lbTitle" class="text-4xl lg:text-6xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Performers</h2>
         <p id="lbSub" class="text-slate-400 font-bold tracking-widest uppercase mb-8">Calculating Live Database Weights...</p>
         <div id="leaderboardList" class="w-full max-w-3xl flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-4"></div>
-        <button onclick="window.hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close TV Board</button>
+        <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close TV Board</button>
     </div>
 
     <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
@@ -165,14 +165,14 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const sheetLinks = {
-            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv', // <--- REPLACE THIS WITH YOUR QUIZ LINK
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
             '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
             '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
-            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv', // <--- PASTE YOUR 22C CSV LINK HER
+            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
-            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'  // <--- PASTE YOUR 23C CSV LINK HERE
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
         };
 
         const configTitles = {
@@ -182,7 +182,7 @@
         };
         const allHallsList = Object.keys(configTitles);
 
-        // 1. --- CORE UTILS (Must run first) ---
+        // --- Core Utils ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
@@ -205,7 +205,7 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
-        // 2. --- GLOBALS & STATE ---
+        // --- State Variables ---
         let appData = {};
         let globalQuizzes = [];
         
@@ -223,8 +223,8 @@
         let myRole = "";
         let myAllowedHalls = [];
 
-        // 3. --- AUTH & RBAC ---
-        window.verifyGatePass = async function() {
+        // --- AUTH & RBAC ---
+        async function verifyGatePass() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
             if (data) {
@@ -234,7 +234,7 @@
                 localStorage.setItem('mgr_hall', data.assigned_hall);
                 loadManagerContext();
             } else { alert('Invalid PIN or account not found.'); }
-        };
+        }
 
         function loadManagerContext() {
             let pin = localStorage.getItem('mgr_pin');
@@ -266,16 +266,15 @@
                 if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
-            window.logAction("Logged into system.");
-            window.fetchLiveSchedule();
+            logAction("Logged into system.");
+            fetchLiveSchedule();
         }
 
-        window.logoutManager = function() { localStorage.clear(); location.reload(); };
-        
-        window.logAction = async function(actionDesc) { 
+        function logoutManager() { localStorage.clear(); location.reload(); }
+        async function logAction(actionDesc) { 
             if(!myName) return;
-            try { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); }catch(e){}
-        };
+            try { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); } catch(e){}
+        }
 
         function initAuditLogListener() {
             supabaseClient.channel('custom-audit-channel')
@@ -318,7 +317,7 @@
             } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
         }
 
-        window.showLeaderboard = async function(presetType) {
+        async function showLeaderboard(presetType) {
             let type = presetType || document.getElementById('boardTypeSelect').value;
             document.getElementById('leaderboardModal').classList.remove('hidden');
             document.getElementById('leaderboardList').innerHTML = '<div class="loader mt-6"></div>';
@@ -332,17 +331,18 @@
                 let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
                 return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${ob}</div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
             }).join('');
-        };
-        window.hideLeaderboard = function() { document.getElementById('leaderboardModal').classList.add('hidden'); };
+        }
+        function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
 
         // --- PARSING ---
-        window.fetchLiveSchedule = async function(isBackground = false) {
+        async function fetchLiveSchedule() {
             let fetchedData = {};
             let quizzesLoaded = [];
             for (const [key, link] of Object.entries(sheetLinks)) {
                 if(!link || link.trim() === '') continue;
                 try {
                     const response = await fetch(link);
+                    if(!response.ok) continue;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     
@@ -383,10 +383,17 @@
                         fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
                         fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
                         fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
-                    } else { fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; }
-                } catch(err) { console.error("Error fetching schedule data"); }
+                    } else { 
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
+                    }
+                } catch(err) { console.error(err); }
             }
             
+            if(Object.keys(fetchedData).length === 0) {
+                document.getElementById('loadingState').innerHTML = `<p class="text-white text-xl">Network error downloading schedule.</p>`;
+                return;
+            }
+
             appData = fetchedData;
             globalQuizzes = quizzesLoaded;
             
@@ -397,14 +404,10 @@
                 symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
             }
 
-            if (!isBackground && document.getElementById('loadingState')) {
-                document.getElementById('loadingState').classList.add('hidden');
-                document.getElementById('staticHeader').classList.remove('hidden');
-                window.initLiveKiosk();
-            } else {
-                window.updateLiveDisplay(true);
-            }
-        };
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('staticHeader').classList.remove('hidden');
+            initLiveKiosk();
+        }
 
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
@@ -490,7 +493,7 @@
         }
 
         // --- COMMANDS ---
-        window.populateEventJump = function() {
+        function populateEventJump() {
             let select = document.getElementById('eventJumpSelect');
             let adsContainer = document.getElementById('sponsorAdsContainer');
             if (!appData[liveHall]) return;
@@ -506,7 +509,7 @@
                 if (ev.adLink) prefix = '▶️ [MEDIA] ';
                 select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
                 if (ev.adLink) {
-                    adsHtml += `<button onclick="window.jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
+                    adsHtml += `<button onclick="jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
                 }
             });
 
@@ -514,16 +517,16 @@
             adsContainer.innerHTML = adsHtml;
         }
 
-        window.jumpToEvent = async function(idx) {
+        async function jumpToEvent(idx) {
             if(idx === "") return;
             manualOverrideIndex = parseInt(idx);
-            window.updateLiveDisplay(true);
-            window.logAction(`Timeline JUMP: Forced play of Index ${idx}`);
+            updateLiveDisplay(true);
+            logAction(`Timeline JUMP: Forced play of Index ${idx}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
-        };
+        }
 
-        window.renderQuizCockpit = function(activeSympName = "") {
+        function renderQuizCockpit(activeSympName = "") {
             let container = document.getElementById('quizButtonsContainer');
             if (!container) return;
 
@@ -605,8 +608,8 @@
                             <div class="flex flex-col gap-2">`;
                     qs.forEach(q => {
                         let globalIdx = globalQuizzes.indexOf(q);
-                        let safeTitle = cleanText(q.title).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        dashHtml += `<button onclick="window.launchQuizByGlobalIndex(${globalIdx}, '${safeTitle}')" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
+                        let safeTitle = encodeURIComponent(q.title);
+                        dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${safeTitle}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
                     });
                     dashHtml += `   </div></div>`;
                 }
@@ -614,34 +617,34 @@
             } else {
                 container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found matching criteria for this selection.</div>`;
             }
-        };
+        }
 
-        window.launchQuizByGlobalIndex = async function(idx, title) {
+        async function launchQuizByGlobalIndex(idx, title) {
             manualOverrideIndex = -(idx + 1);
             let isoTime = new Date().toISOString();
             quizStartTimeStamp = isoTime; 
-            window.updateLiveDisplay(true);
-            window.logAction(`Launched Quiz: ${title}`);
+            updateLiveDisplay(true);
+            logAction(`Launched Quiz: ${title}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
-        };
+        }
 
-        window.terminateActiveQuiz = async function() {
+        async function terminateActiveQuiz() {
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
-            window.updateLiveDisplay(true);
-            window.logAction("Cleared active quiz on screen");
+            updateLiveDisplay(true);
+            logAction("Cleared active quiz on screen");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-        };
+        }
 
-        window.resumeAutoSync = async function() {
+        async function resumeAutoSync() {
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
-            window.updateLiveDisplay(true);
-            window.logAction("Resumed Auto-Sync mode");
+            updateLiveDisplay(true);
+            logAction("Resumed Auto-Sync mode");
             await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-        };
+        }
 
-        window.manualShift = async function(step) {
+        async function manualShift(step) {
             const data = appData[liveHall]; if (!data) return;
             const playableEvents = data.events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -660,16 +663,17 @@
             if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
             
             manualOverrideIndex = newIndex;
-            window.updateLiveDisplay(true);
-            window.logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
+            updateLiveDisplay(true);
+            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
             await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
-        };
+        }
 
-        window.forceLeaderboardLocal = async function(type) {
-            window.logAction(`Forced Leaderboard TV output: ${type}`);
+        async function forceLeaderboardLocal(type) {
+            logAction(`Forced Leaderboard TV output: ${type}`);
             await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
-        };
+        }
 
+        // --- Core UI & Live Control ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -704,7 +708,7 @@
             return { currentEvent, nextEvent };
         }
 
-        window.switchHallFeed = function(newHall) {
+        function switchHallFeed(newHall) {
             let normalizedNew = normalizeHallId(newHall);
             if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
                 alert("Access Denied: You are not authorized for this hall."); return;
@@ -712,11 +716,11 @@
             liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
             try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
             
-            window.populateEventJump();
-            window.updateLiveDisplay(true);
+            populateEventJump();
+            updateLiveDisplay(true);
         }
 
-        window.updateLiveDisplay = function(forceRender = false) {
+        function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
             
             document.querySelectorAll('.feed-btn').forEach(btn => {
@@ -725,16 +729,11 @@
                 else { btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"; }
             });
 
-            let mobileSelect = document.getElementById('mobileHallSelect');
-            if (mobileSelect) { mobileSelect.value = liveHall; }
-
-            document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
-            document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
-
+            document.getElementById('headerTitle').innerText = data.title;
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
 
             let activeSymp = (currentEvent && currentEvent.parent_session) ? cleanText(currentEvent.parent_session) : "";
-            window.renderQuizCockpit(activeSymp);
+            renderQuizCockpit(activeSymp);
 
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + manualOverrideIndex;
             if (!forceRender && newHash === lastRenderHash) return;
@@ -828,25 +827,25 @@
             }
 
             document.getElementById('dynamicContentWrapper').innerHTML = nowPlayingHtml + upNextHtml;
-        };
+        }
 
-        window.initLiveKiosk = function() {
-            window.populateEventJump();
+        function initLiveKiosk() {
+            populateEventJump();
             
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
                 if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
-                window.updateLiveDisplay(true);
+                updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; window.updateLiveDisplay(true); }
+                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
-            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) window.updateLiveDisplay(false); }, 15000);
+            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); }, 15000);
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
@@ -857,7 +856,7 @@
                     let secondsLeft = 45 - diff;
                     
                     if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; window.updateLiveDisplay(true); }
+                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
                     } else {
                         window.quizExpiredRendered = false;
                         let timerEl = document.getElementById('quizCountdownTimer');
@@ -865,9 +864,23 @@
                     }
                 } else { window.quizExpiredRendered = false; }
             }, 1000);
-        };
+        }
 
+        // --- INIT SCRIPT ---
         if(localStorage.getItem('mgr_pin')) { loadManagerContext(); }
+        
+        // Define global functions so the HTML buttons can reach them safely
+        window.switchHallFeed = switchHallFeed;
+        window.populateEventJump = populateEventJump;
+        window.jumpToEvent = jumpToEvent;
+        window.renderQuizCockpit = renderQuizCockpit;
+        window.launchQuizByGlobalIndex = launchQuizByGlobalIndex;
+        window.terminateActiveQuiz = terminateActiveQuiz;
+        window.resumeAutoSync = resumeAutoSync;
+        window.manualShift = manualShift;
+        window.forceLeaderboardLocal = forceLeaderboardLocal;
+        window.updateLiveDisplay = updateLiveDisplay;
+        window.initLiveKiosk = initLiveKiosk;
     </script>
 </body>
 </html>
