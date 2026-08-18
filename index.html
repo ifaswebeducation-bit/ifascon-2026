@@ -214,7 +214,7 @@
                 if ((row_text.includes("hall a") || row_text.includes("hall b") || row_text.includes("hall c")) && !col0 && !col1) return;
 
                 const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "inauguration", "gbm", "valedictory"];
-                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session") && !row_text.includes("ao seminar")) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
