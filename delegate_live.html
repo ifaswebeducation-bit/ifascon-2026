@@ -620,13 +620,12 @@
 
                     if (!phone) {
                         html = `
-                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-6">
-                                <i class="fas fa-id-card text-6xl text-indigo-400 mb-6 animate-bounce"></i>
-                                <h2 class="text-3xl font-black text-white mb-3">Login Required to Play</h2>
-                                <p class="text-slate-300 mb-8 text-sm max-w-sm mx-auto">Enter your mobile identifier token inside the box below to instantly unlock the running conference quiz.</p>
-                                <div class="max-w-sm mx-auto">
-                                    <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-4 text-white text-center text-xl mb-6 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); window.refreshIdentityStateUI(); window.syncMyAnswers().then(() => { window.updateLiveDisplay(true); window.updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
+                            <div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl flex flex-col items-center text-center my-6">
+                                <i class="fas fa-user-circle text-6xl text-indigo-500 mb-4 animate-pulse"></i>
+                                <h3 class="text-2xl font-black text-white mb-2">Live Quiz Active!</h3>
+                                <p class="text-slate-400 mb-6">Enter your mobile number to participate in this live quiz and climb the leaderboard. You can also ignore this and change halls above.</p>
+                                   <input type="tel" id="delegatePhoneInline" class="w-full max-w-sm bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white text-center text-xl tracking-widest mb-4 font-mono shadow-inner outline-none focus:border-indigo-500" placeholder="Mobile Number">
+                                   <button onclick="let v = document.getElementById('delegatePhoneInline').value; if(v.length>6){ localStorage.setItem('delegate_phone', v); window.updateLiveDisplay(true); window.updatePersistentFooter(); }else{alert('Invalid number');}" class="w-full max-w-sm bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
                                 </div>
                             </div>`;
                     } 
