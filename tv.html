@@ -25,11 +25,7 @@
     <!-- SPLASH SCREEN / SLIDE OVERLAY FOR TV -->
     <div id="tvSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300">
         <div id="tvSplashContent" class="w-full h-full flex flex-col items-center justify-center">
-            <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
-                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
-            </div>
-            <h1 id="tvSplashTitle" class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8"></h1>
-            <p id="tvSplashSub" class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest"></p>
+            <!-- JS fills this dynamically -->
         </div>
     </div>
 
@@ -523,39 +519,33 @@
 
             let overlay = document.getElementById('tvSplashOverlay');
             let contentDiv = document.getElementById('tvSplashContent');
-            let titleEl = document.getElementById('tvSplashTitle');
-            let subEl = document.getElementById('tvSplashSub');
-            if (!overlay) return;
+            if (!overlay || !contentDiv) return;
 
-            // Prepare UI
             overlay.classList.remove('hidden');
-            
-            if (stateName === 'pre_conf') {
-                contentDiv.innerHTML = `
-                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
-                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
-                    </div>
-                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh</h1>
-                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">See you tomorrow!</p>
-                `;
-            } else if (stateName === 'post_day1') {
-                contentDiv.innerHTML = `
-                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
-                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
-                    </div>
-                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">Wait for the main conference which starts tomorrow at 8am</h1>
-                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">IFASCON 2026</p>
-                `;
-            } else if (stateName === 'post_day2') {
-                contentDiv.innerHTML = `
-                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
-                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
-                    </div>
-                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">The conference resumes at 8:00 a.m. tomorrow</h1>
-                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">IFASCON 2026</p>
-                `;
+
+            if (stateName.toLowerCase().endsWith('.jpeg') || stateName.toLowerCase().endsWith('.jpg') || stateName.toLowerCase().endsWith('.png')) {
+                overlay.className = "absolute inset-0 bg-black z-[400] flex items-center justify-center p-0 transition-opacity duration-300";
+                contentDiv.innerHTML = `<img src="${encodeURIComponent(stateName)}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/1920x1080?text=Slide+Not+Found'">`;
             } else {
-                overlay.classList.add('hidden');
+                overlay.className = "absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300";
+                let titleText = "", subText = "";
+                if (stateName === 'pre_conf') {
+                    titleText = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                    subText = "See you tomorrow!";
+                } else if (stateName === 'post_day1') {
+                    titleText = "Wait for the main conference which starts tomorrow at 8am";
+                    subText = "IFASCON 2026";
+                } else if (stateName === 'post_day2') {
+                    titleText = "The conference resumes at 8:00 a.m. tomorrow";
+                    subText = "IFASCON 2026";
+                }
+                contentDiv.innerHTML = `
+                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
+                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
+                    </div>
+                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">${titleText}</h1>
+                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">${subText}</p>
+                `;
             }
         }
 
