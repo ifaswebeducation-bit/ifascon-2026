@@ -142,7 +142,6 @@
             '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
         };
 
-        // 1. --- CORE UTILS ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
@@ -167,7 +166,6 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
-        // 2. --- GLOBALS & STATE ---
         let appData = {};
         let globalQuizzes = [];
         
@@ -181,9 +179,8 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v95'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v99'; 
 
-        // --- LEADERBOARD DISPLAY ---
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
             if (modal) modal.classList.add('hidden');
@@ -229,7 +226,6 @@
             }
         };
 
-        // --- IDENTITY & SYNC ---
         window.syncMyAnswers = async function() {
             let phone = localStorage.getItem('delegate_phone');
             if(!phone) return;
@@ -280,7 +276,6 @@
             window.updatePersistentFooter();
         };
 
-        // --- FETCH & PARSE WITH HALL C FIX ---
         window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
@@ -471,7 +466,6 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
-        // --- NAVIGATION & Sync ---
         window.switchDelegateHall = function(newHall) {
             let radar = document.getElementById('quizRadarBanner');
             if (radar) radar.classList.add('hidden'); 
@@ -538,27 +532,45 @@
                 return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
             }
             
-            const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
+            
             for (let i = 0; i < playableEvents.length; i++) {
                 const ev = playableEvents[i];
                 const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = null;
                 if (ev.time && ev.time.includes('-')) {
-                    let endParts = ev.time.split('-')[1].split('(')[0].trim().split(/[.:]/);
-                    if(endParts.length >= 2) evEnd = parseInt(endParts[0], 10) * 60 + parseInt(endParts[1], 10);
+                    let parts = ev.time.split('-');
+                    if (parts.length > 1) {
+                        evEnd = parseTimeToMinutes(parts[1]);
+                    }
                 }
-                if(evEnd === null && evStart !== null) evEnd = evStart + 15;
+                if (evEnd === null && evStart !== null) {
+                    evEnd = evStart + 15;
+                }
                 
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev; 
-                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') currentEvent = playableEvents[i-1];
-                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1]; 
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') { 
+                            currentEvent = playableEvents[i-1]; 
+                        }
+                        if (i + 1 < playableEvents.length) {
+                            nextEvent = playableEvents[i + 1]; 
+                        }
                         break;
-                    } else if (currentMins < evStart && !nextEvent) { nextEvent = ev; }
+                    } else if (currentMins < evStart) { 
+                        nextEvent = ev; 
+                        break; 
+                    }
                 }
             }
+            
+            if (!currentEvent && playableEvents.length > 0) {
+                currentEvent = playableEvents[playableEvents.length - 1];
+            }
+            
             return { currentEvent, nextEvent };
         }
 
@@ -704,7 +716,6 @@
                         secondsLeft = Math.max(0, 45 - diff);
                     }
 
-                    // STRICT AUTH CHECK: Both Name and Phone MUST exist
                     if (!phone || !name || phone.trim().length < 7 || name.trim().length < 2) {
                         html = `
                             <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-6">
