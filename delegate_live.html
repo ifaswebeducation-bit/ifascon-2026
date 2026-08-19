@@ -601,11 +601,26 @@
             if (!hall_id) return;
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, visible_halls, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    handlePayload(data.force_leaderboard);
+                    
+                    if (data.visible_halls && data.visible_halls.length > 0) {
+                        customVisibleHalls = data.visible_halls;
+                    }
+
+                    if (data.active_splash && data.active_splash !== 'live') {
+                        applySplashState(data.active_splash);
+                    } else {
+                        hideSplashState();
+                    }
+
+                    if (data.active_leaderboard && data.active_leaderboard !== 'none') {
+                        window.showLeaderboard(data.active_leaderboard);
+                    } else {
+                        window.hideLeaderboard();
+                    }
                 }
                 lastRenderHash = ""; 
                 window.updateLiveDisplay(true);
@@ -616,32 +631,28 @@
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        handlePayload(payload.new.force_leaderboard);
+                        
+                        if (payload.new.visible_halls && payload.new.visible_halls.length > 0) {
+                            customVisibleHalls = payload.new.visible_halls;
+                        }
+
+                        if (payload.new.active_splash && payload.new.active_splash !== 'live') {
+                            applySplashState(payload.new.active_splash);
+                        } else {
+                            hideSplashState();
+                        }
+
+                        if (payload.new.active_leaderboard && payload.new.active_leaderboard !== 'none') {
+                            window.showLeaderboard(payload.new.active_leaderboard);
+                        } else {
+                            window.hideLeaderboard();
+                        }
+
                         lastRenderHash = ""; 
                         window.updateLiveDisplay(true); 
                     }
                 ).subscribe();
         };
-
-        function handlePayload(val) {
-            if (!val || val === 'none') {
-                hideSplashState();
-                window.hideLeaderboard();
-                return;
-            }
-            if (val.startsWith('halls:')) {
-                let hStr = val.replace('halls:', '').trim();
-                customVisibleHalls = hStr.split(',').map(s => normalizeHallId(s.trim())).filter(Boolean);
-                window.updateLiveDisplay(true);
-                return;
-            }
-            if (val.startsWith('splash_')) {
-                applySplashState(val.replace('splash_', ''));
-                return;
-            }
-            hideSplashState();
-            window.showLeaderboard(val);
-        }
 
         function applySplashState(stateName) {
             let urlParams = new URLSearchParams(window.location.search);
@@ -656,7 +667,7 @@
             if (!overlay) return;
 
             if (stateName === 'pre_conf') {
-                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                titleEl.innerText = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
                 subEl.innerText = "See you tomorrow!";
                 overlay.classList.remove('hidden');
             } else if (stateName === 'post_day1') {
@@ -677,6 +688,14 @@
             if (overlay) overlay.classList.add('hidden');
         }
 
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+
+        // --- FIXED DATE-AWARE TIMELINE LOGIC ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -692,6 +711,20 @@
             }
             
             const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+            
+            let expectedDate = '2026-08-22';
+            if (liveHall.includes('ao') || liveHall.includes('diabet') || liveHall.includes('mis')) expectedDate = '2026-08-21';
+            if (liveHall.includes('23')) expectedDate = '2026-08-23';
+
+            // IF TODAY IS NOT THE DAY OF THE CONFERENCE, SHOW THE FIRST EVENT
+            if (todayStr !== expectedDate) {
+                return { currentEvent: playableEvents[0] || null, nextEvent: playableEvents[1] || null };
+            }
+
             const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
             
@@ -732,6 +765,7 @@
             
             return { currentEvent, nextEvent };
         }
+        // ------------------------------------------
 
         async function fetchMathLeaderboard(type) {
             try {
@@ -1167,14 +1201,23 @@
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
                     let oIdx = payload.new.override_index;
-                    let lBoard = payload.new.force_leaderboard;
+                    let lBoard = payload.new.active_leaderboard;
+                    let splash = payload.new.active_splash;
+                    let visHalls = payload.new.visible_halls;
                     
                     if (changedHall === liveHall) {
-                        handlePayload(lBoard);
+                        if (lBoard && lBoard !== 'none') showLeaderboard(lBoard);
+                        else hideLeaderboard();
+
+                        if (splash && splash !== 'live') applySplashState(splash);
+                        else hideSplashState();
+
+                        if (visHalls && visHalls.length > 0) {
+                            customVisibleHalls = visHalls;
+                            window.updateLiveDisplay(false);
+                        }
                     } else {
-                        if (lBoard && lBoard.startsWith('halls:')) {
-                            handlePayload(lBoard);
-                        } else if (oIdx !== null && oIdx < 0) {
+                        if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
                             document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
                             document.getElementById('globalHijackOverlay').classList.remove('hidden');
@@ -1226,19 +1269,7 @@
                 window.refreshIdentityStateUI();
                 try { await window.syncMyAnswers(); } catch(e){}
                 document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                
-                const cachedData = localStorage.getItem(CACHE_KEY);
-                if (cachedData) {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden');
-                    window.initLiveDashboard();
-                    window.fetchLiveSchedule(true);
-                } else { 
-                    window.fetchLiveSchedule(false); 
-                }
+                window.fetchLiveSchedule(false); 
             } catch(e) {
                 console.error("Boot Error", e);
                 window.fetchLiveSchedule(false);
