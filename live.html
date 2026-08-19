@@ -260,28 +260,39 @@
             document.getElementById('mgrRoleDisplay').innerText = myRole.replace('_', ' ').toUpperCase();
             document.getElementById('authGateFrame').classList.add('hidden');
             document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            document.getElementById('adminHallNav').classList.remove('hidden');
 
+            // 1. Hide quiz section completely for AV guys
             if (myRole === 'av_operator') {
                 let quizSec = document.getElementById('quizControlSection');
                 if (quizSec) quizSec.classList.add('hidden');
             }
 
-            if (myRole === 'admin' || myRole === 'quiz_master' || assignedHallRaw === 'ALL') {
-                document.getElementById('adminHallNav').classList.remove('hidden');
+            // 2. Setup Admin / Quiz Master specific tools
+            if (myRole === 'admin' || myRole === 'quiz_master') {
                 document.getElementById('adminAuditPanel').classList.remove('hidden');
                 document.getElementById('adminAuditPanel').classList.add('flex');
                 document.getElementById('adminGlobalBoardControls').classList.remove('hidden');
                 document.getElementById('adminGlobalBoardControls').classList.add('flex');
                 initAuditLogListener();
             } 
-            else if (myRole === 'floor_manager' || myRole === 'av_operator') {
-                document.getElementById('adminHallNav').classList.remove('hidden');
+            
+            // 3. Hall Filtering for non-admins if not ALL
+            if (assignedHallRaw !== 'ALL' && myRole !== 'admin') {
                 document.querySelectorAll('#adminHallNav .feed-btn').forEach(btn => {
-                    if (!myAllowedHalls.includes(btn.dataset.hall)) btn.classList.add('hidden');
+                    if (!myAllowedHalls.includes(btn.dataset.hall)) {
+                        btn.classList.add('hidden');
+                    }
                 });
-                if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
+                
+                // Ensure starting hall is allowed
+                if (!myAllowedHalls.includes(liveHall) && myAllowedHalls.length > 0) {
+                    liveHall = myAllowedHalls[0];
+                }
+                
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
+
             logAction(`Logged into system as [${myRole}]`);
             fetchLiveSchedule();
         }
@@ -432,6 +443,11 @@
                     else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
                 }
 
+                // FORCE "Hands-on" and "Demonstrations" to be playable presentations (prevents skipping)
+                if (col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration')) {
+                    isSession = false;
+                }
+
                 if (isSession) {
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
                     if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
@@ -446,11 +462,13 @@
                     return;
                 }
 
-                if (col1 || colTitle || isQA || isPlenary) {
+                if (col1 || colTitle || isQA || isPlenary || col3) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    events.push({ type: 'presentation', time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
             });
             return events;
@@ -745,11 +763,23 @@
 
         function switchHallFeed(newHall) {
             let normalizedNew = normalizeHallId(newHall);
-            if (myRole === 'floor_manager' && !myAllowedHalls.includes(normalizedNew) && localStorage.getItem('mgr_hall') !== 'ALL') {
-                alert("Access Denied: You are not authorized for this hall."); return;
+            let assignedHallRaw = localStorage.getItem('mgr_hall');
+            
+            if (myRole !== 'admin' && assignedHallRaw !== 'ALL' && !myAllowedHalls.includes(normalizedNew)) {
+                alert("Access Denied: You are not authorized for this hall."); 
+                return;
             }
-            liveHall = normalizedNew; manualOverrideIndex = null; quizStartTimeStamp = null; lastRenderHash = ""; 
-            try { const newUrl = new URL(window.location); newUrl.searchParams.set('hall', normalizedNew); window.history.pushState({}, '', newUrl); } catch(e) {}
+            
+            liveHall = normalizedNew; 
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            lastRenderHash = ""; 
+            try { 
+                const newUrl = new URL(window.location); 
+                newUrl.searchParams.set('hall', normalizedNew); 
+                window.history.pushState({}, '', newUrl); 
+            } catch(e) {}
+            
             populateEventJump();
             updateLiveDisplay(true);
         }
