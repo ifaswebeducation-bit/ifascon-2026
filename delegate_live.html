@@ -181,7 +181,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v90'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v95'; 
 
         // --- LEADERBOARD DISPLAY ---
         window.hideLeaderboard = function() {
@@ -606,8 +606,12 @@
 
         window.submitDelegateQuiz = async function(encOpt, encCor, encTit, optIdx) {
             let phone = localStorage.getItem('delegate_phone');
-            let name = localStorage.getItem('delegate_name') || 'Delegate';
-            if (!phone) { alert("Please login first to submit."); return; }
+            let name = localStorage.getItem('delegate_name');
+            if (!phone || !name || phone.trim().length < 7 || name.trim().length < 2) { 
+                alert("Please enter your Name and Mobile Number to play."); 
+                window.updateLiveDisplay(true);
+                return; 
+            }
 
             let optionText = decodeURIComponent(encOpt);
             let correctAnswer = decodeURIComponent(encCor);
@@ -622,8 +626,8 @@
             
             try { 
                 await supabaseClient.from('quiz_responses').insert([{ 
-                    phone: phone, 
-                    name: name, 
+                    phone: phone.trim(), 
+                    name: name.trim(), 
                     question: questionText, 
                     hall_id: liveHall, 
                     is_correct: isCorrect 
@@ -634,10 +638,11 @@
 
         window.updatePersistentFooter = async function() {
             let phone = localStorage.getItem('delegate_phone');
+            let name = localStorage.getItem('delegate_name');
             let el = document.getElementById('persistentLeaderboard');
             if (!el) return;
 
-            if (!phone) {
+            if (!phone || !name) {
                 el.innerHTML = `<span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span><span class="text-slate-500 text-[10px] sm:text-xs font-semibold ml-2">Login to track your position</span>`;
                 return;
             }
@@ -688,6 +693,7 @@
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
                     let phone = localStorage.getItem('delegate_phone');
+                    let name = localStorage.getItem('delegate_name');
                     let cleanKey = (liveHall + "_" + currentEvent.title).replace(/\W/g, '');
                     let hasAnswered = localStorage.getItem('answered_' + cleanKey);
                     let mySelection = localStorage.getItem('marked_' + cleanKey) || '';
@@ -698,7 +704,8 @@
                         secondsLeft = Math.max(0, 45 - diff);
                     }
 
-                    if (!phone) {
+                    // STRICT AUTH CHECK: Both Name and Phone MUST exist
+                    if (!phone || !name || phone.trim().length < 7 || name.trim().length < 2) {
                         html = `
                             <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-6">
                                 <i class="fas fa-id-card text-6xl text-indigo-400 mb-6 animate-bounce"></i>
