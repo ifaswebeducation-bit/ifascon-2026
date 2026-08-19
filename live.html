@@ -1040,14 +1040,22 @@
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
                     
-                    if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
-                    } else {
-                        window.quizExpiredRendered = false;
-                        let timerEl = document.getElementById('quizCountdownTimer');
-                        if (timerEl && timerEl.dataset.expired === "false") { timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`; }
+                    let timerEl = document.getElementById('quizCountdownTimer');
+                    if (timerEl) {
+                        if (secondsLeft <= 0) {
+                            timerEl.innerHTML = `<i class="fas fa-stopwatch mr-2"></i>Time Up!`;
+                            if (!window.cockpitExpiredTriggered) {
+                                window.cockpitExpiredTriggered = true;
+                                updateLiveDisplay(true); // Forces Cockpit to show the correct answers view instantly
+                            }
+                        } else {
+                            window.cockpitExpiredTriggered = false;
+                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
+                        }
                     }
-                } else { window.quizExpiredRendered = false; }
+                } else { 
+                    window.cockpitExpiredTriggered = false; 
+                }
             }, 1000);
         }
 
