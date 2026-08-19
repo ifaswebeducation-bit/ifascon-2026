@@ -20,7 +20,18 @@
         .custom-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950">
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950 relative">
+
+    <!-- SPLASH SCREEN / SLIDE OVERLAY FOR TV -->
+    <div id="tvSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300">
+        <div id="tvSplashContent" class="w-full h-full flex flex-col items-center justify-center">
+            <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
+                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
+            </div>
+            <h1 id="tvSplashTitle" class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8"></h1>
+            <p id="tvSplashSub" class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest"></p>
+        </div>
+    </div>
 
     <!-- SETUP WIZARD -->
     <div id="setupWizard" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 text-slate-100">
@@ -355,7 +366,9 @@
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
                 }
             });
             return events;
@@ -501,10 +514,62 @@
             if (modal) modal.classList.add('hidden');
         }
 
+        function applySplashState(stateName) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
+            let overlay = document.getElementById('tvSplashOverlay');
+            let contentDiv = document.getElementById('tvSplashContent');
+            let titleEl = document.getElementById('tvSplashTitle');
+            let subEl = document.getElementById('tvSplashSub');
+            if (!overlay) return;
+
+            // Prepare UI
+            overlay.classList.remove('hidden');
+            
+            if (stateName === 'pre_conf') {
+                contentDiv.innerHTML = `
+                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
+                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
+                    </div>
+                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh</h1>
+                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">See you tomorrow!</p>
+                `;
+            } else if (stateName === 'post_day1') {
+                contentDiv.innerHTML = `
+                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
+                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
+                    </div>
+                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">Wait for the main conference which starts tomorrow at 8am</h1>
+                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">IFASCON 2026</p>
+                `;
+            } else if (stateName === 'post_day2') {
+                contentDiv.innerHTML = `
+                    <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
+                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
+                    </div>
+                    <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">The conference resumes at 8:00 a.m. tomorrow</h1>
+                    <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">IFASCON 2026</p>
+                `;
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function hideSplashState() {
+            let overlay = document.getElementById('tvSplashOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        // --- FIXED DATE-AWARE TIMELINE LOGIC ---
         function getLiveStatusForHall(hallId, remoteIndex) {
             const data = appData[hallId];
             if (!data) return { currentEvent: null, nextEvent: null };
             const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
 
             if (remoteIndex !== null) {
                 if (remoteIndex < 0 && globalQuizzes.length > 0) {
@@ -514,6 +579,19 @@
             }
 
             const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+            
+            let expectedDate = '2026-08-22';
+            if (hallId.includes('ao') || hallId.includes('diabet') || hallId.includes('mis')) expectedDate = '2026-08-21';
+            if (hallId.includes('23')) expectedDate = '2026-08-23';
+
+            if (todayStr !== expectedDate) {
+                return { currentEvent: playableEvents[0], nextEvent: playableEvents[1] || null };
+            }
+
             const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
             
@@ -542,8 +620,11 @@
                     }
                 }
             }
+            if (!currentEvent) currentEvent = playableEvents[0];
+
             return { currentEvent, nextEvent };
         }
+        // ----------------------------------------
 
         function renderHallPanel(panelElId, hallId, stateObj, arrowDir, isSplit) {
             const container = document.getElementById(panelElId);
@@ -705,18 +786,9 @@
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
                         else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
-                        let societyLogoHtml = currentEvent.sponsorLogo ? `
-                            <div class="mb-6 flex justify-center">
-                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
-                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-20 sm:h-28 w-auto object-contain" alt="Society Logo">
-                                </div>
-                            </div>
-                        ` : '';
-
                         bodyHtml = `
                             <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-24'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner px-6">
-                                ${societyLogoHtml}
-                                ${!societyLogoHtml ? `<i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>` : ''}
+                                <i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>
                                 <h2 class="${isSplit ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-7xl'} font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
                                 <p class="${isSplit ? 'text-xl mt-3' : 'text-3xl sm:text-4xl mt-6'} text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
                             </div>`;
@@ -859,12 +931,16 @@
         }
 
         function subscribeToHallRealtime(hallId, stateSlot) {
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hallId).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, active_splash').eq('hall_id', hallId).single().then(({ data }) => {
                 if (data) {
                     stateSlot.remoteIndex = data.override_index;
                     stateSlot.quizStart = data.quiz_start_time;
                     stateSlot.expiredRendered = false;
-                    if (data.force_leaderboard && data.force_leaderboard !== 'none') showTVLeaderboard(data.force_leaderboard);
+                    
+                    if (data.active_splash && data.active_splash !== 'live') applySplashState(data.active_splash);
+                    else hideSplashState();
+
+                    if (data.active_leaderboard && data.active_leaderboard !== 'none') showTVLeaderboard(data.active_leaderboard);
                     else hideTVLeaderboard();
                 }
                 stateSlot.lastHash = "";
@@ -877,9 +953,15 @@
                         stateSlot.remoteIndex = payload.new.override_index;
                         stateSlot.quizStart = payload.new.quiz_start_time;
                         stateSlot.expiredRendered = false;
-                        let boardType = payload.new.force_leaderboard;
+                        
+                        let splash = payload.new.active_splash;
+                        if (splash && splash !== 'live') applySplashState(splash);
+                        else hideSplashState();
+
+                        let boardType = payload.new.active_leaderboard;
                         if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
                         else hideTVLeaderboard();
+                        
                         stateSlot.lastHash = "";
                         refreshDisplays();
                     }
