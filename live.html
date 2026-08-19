@@ -3,122 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>IFASCON 2026 - Live Dashboard</title>
+    <title>IFASCON 2026 - AV Cockpit</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
         .loader { border: 3px solid #334155; border-top: 3px solid #6366f1; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .animate-live { animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .animate-live { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .audit-scroll::-webkit-scrollbar { width: 4px; }
+        .audit-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
     </style>
 </head>
-<body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
+<body class="flex flex-col h-screen overflow-hidden bg-slate-900">
 
-    <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
-        <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
-        <p id="hijackMessage" class="text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
-        <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-xl font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4">Jump to Hall & Play</button>
-        <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
-    </div>
-
-    <!-- Top Identity Banner -->
-    <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
-        <div id="identityLoggedOutState" class="w-full flex flex-wrap items-center gap-2">
-            <i class="fas fa-user-circle text-2xl text-slate-500 hidden sm:inline"></i>
-            <input type="text" id="topNameRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-white flex-1 min-w-[120px] outline-none focus:border-indigo-500 shadow-inner" placeholder="Your Name">
-            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-white w-28 sm:w-36 font-mono outline-none focus:border-indigo-500 shadow-inner" placeholder="Mobile No.">
-            <button onclick="window.saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-lg transition ml-auto shadow-md active:scale-95">Login</button>
-        </div>
-        <div id="identityLoggedInState" class="w-full hidden flex flex-row items-center justify-between">
-            <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold text-emerald-400 truncate">
-                <i class="fas fa-check-circle flex-shrink-0"></i> <span class="truncate"><span id="identityBannerLabel" class="font-bold text-white tracking-wide"></span></span>
-            </div>
-            <button onclick="window.clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-3 py-1.5 border border-slate-700 hover:border-rose-900 rounded-md transition ml-2 flex-shrink-0"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+    <!-- Auth Gate -->
+    <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
+            <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
+            <h3 class="text-2xl font-black mb-2 text-white">Event Cockpit Login</h3>
+            <p class="text-slate-400 text-sm mb-6">Enter your assigned secure PIN.</p>
+            <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••">
+            <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Authenticate</button>
         </div>
     </div>
 
-    <!-- Leaderboard Modal -->
-    <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
-        <h2 id="lbTitle" class="text-3xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg text-center"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
-        <p id="lbSub" class="text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-6 text-center">Calculating Data...</p>
-        <div id="leaderboardList" class="w-full max-w-md flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2"></div>
-        <button onclick="window.hideLeaderboard()" class="mt-8 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-3 rounded-xl font-bold text-lg shadow-lg transition">Close</button>
-    </div>
-
-    <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
-        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
-            <div class="loader mb-4"></div>
-            <p class="text-slate-400 font-semibold text-lg animate-pulse" id="loadingText">Loading Conference Dashboard...</p>
-        </div>
-
-        <div id="staticHeader" class="hidden">
-            <div class="mb-5 pb-4 border-b border-slate-800">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
+    <!-- AV Command Center -->
+    <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
+        
+        <!-- Top Row: Hall Selector & Timeline Controls -->
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span> (<span id="mgrRoleDisplay" class="text-indigo-400"></span>):</span>
                 
-                <div class="block md:hidden relative">
-                    <select id="mobileHallSelect" onchange="window.switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base">
-                        <option value="ao_seminar">21 Aug: AO Seminar</option>
-                        <option value="workshop_diabetic">21 Aug: Diabetic Foot</option>
-                        <option value="workshop_mis">21 Aug: MIS</option>
-                        <option value="22a">22 Aug: Hall A</option>
-                        <option value="22b">22 Aug: Hall B</option>
-                        <option value="22c">22 Aug: Hall C</option>
-                        <option value="23a">23 Aug: Hall A</option>
-                        <option value="23b">23 Aug: Hall B</option>
-                        <option value="23c">23 Aug: Hall C</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-indigo-400">
-                        <i class="fas fa-chevron-down"></i>
+                <div id="adminHallNav" class="flex flex-wrap gap-1 hidden">
+                    <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
+                    <button onclick="switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Diabetic</button>
+                    <button onclick="switchHallFeed('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">MIS</button>
+                    <button onclick="switchHallFeed('22a')" data-hall="22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22A</button>
+                    <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22B</button>
+                    <button onclick="switchHallFeed('22c')" data-hall="22c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22C</button>
+                    <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23A</button>
+                    <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23B</button>
+                    <button onclick="switchHallFeed('23c')" data-hall="23c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23C</button>
+                </div>
+                <div id="floorManagerRoomLabel" class="text-xs font-black text-emerald-400 hidden uppercase tracking-widest bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-500/30 ml-2">Authorized Scope Only</div>
+                <button onclick="logoutManager()" class="ml-auto md:ml-4 text-xs text-rose-400 font-bold border border-rose-900 px-3 py-1 rounded hover:bg-rose-900/50 transition">Logout</button>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap ml-auto w-full md:w-auto mt-2 md:mt-0">
+                <button onclick="manualShift(-1)" class="bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-600 active:scale-95 transition text-xs">⬅ Prev</button>
+                <button onclick="manualShift(1)" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg font-bold shadow active:scale-95 transition text-xs">Next Talk ➔</button>
+                <button onclick="resumeAutoSync()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-3 py-1.5 rounded-lg font-bold border border-emerald-500/30 active:scale-95 transition text-xs">Resume Auto</button>
+            </div>
+        </div>
+
+        <!-- Quick Jump Engine -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
+            <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
+                <option value="">-- Select an event to jump timeline directly --</option>
+            </select>
+        </div>
+        
+        <div class="flex flex-col lg:flex-row gap-6 pt-1">
+            <!-- Left Side: Quiz & Media -->
+            <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
+                
+                <!-- Smart Quiz Launcher (Hidden for av_operator) -->
+                <div id="quizControlSection" class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
+                        <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <select id="symposiumFilter" onchange="renderQuizCockpit()" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full md:w-48 shadow-inner">
+                                <option value="ALL">All Symposiums</option>
+                            </select>
+                            <input type="text" id="quizSearch" onkeyup="renderQuizCockpit()" placeholder="Search..." class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none w-full md:w-32 shadow-inner">
+                            <button onclick="terminateActiveQuiz()" class="bg-rose-600 text-white hover:bg-rose-500 px-4 py-2 rounded-lg font-bold active:scale-95 transition text-xs flex-shrink-0 shadow-lg">Clear Active Quiz</button>
+                        </div>
                     </div>
+                    <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto pr-2"></div>
                 </div>
 
-                <div class="hidden md:flex flex-wrap items-center gap-2" id="desktopHallNav">
-                    <button onclick="window.switchDelegateHall('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: AO Seminar</button>
-                    <button onclick="window.switchDelegateHall('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: Diabetic Foot</button>
-                    <button onclick="window.switchDelegateHall('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: MIS</button>
-                    <button onclick="window.switchDelegateHall('22a')" data-hall="22a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall A</button>
-                    <button onclick="window.switchDelegateHall('22b')" data-hall="22b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall B</button>
-                    <button onclick="window.switchDelegateHall('22c')" data-hall="22c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall C</button>
-                    <button onclick="window.switchDelegateHall('23a')" data-hall="23a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall A</button>
-                    <button onclick="window.switchDelegateHall('23b')" data-hall="23b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall B</button>
-                    <button onclick="window.switchDelegateHall('23c')" data-hall="23c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall C</button>
+                <!-- Sponsor Quick Play Media Buttons -->
+                <div class="flex items-start gap-3 pt-3 border-t border-slate-800 flex-col sm:flex-row">
+                    <span class="text-xs font-bold text-purple-400 uppercase tracking-wider pt-1 flex-shrink-0"><i class="fas fa-play-circle mr-1.5"></i>Sponsor Media:</span>
+                    <div id="sponsorAdsContainer" class="flex flex-wrap gap-2 w-full"></div>
+                </div>
+
+                <!-- Leaderboard Controls Suite -->
+                <div class="flex items-center gap-2 pt-3 border-t border-slate-800 flex-wrap">
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1"><i class="fas fa-trophy mr-1.5"></i>Hall Board:</span>
+                    <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
+                    <button onclick="forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
+                    
+                    <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto flex-wrap mt-2 sm:mt-0">
+                        <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider"><i class="fas fa-globe mr-1"></i>All Halls:</span>
+                        <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2.5 py-1.5 rounded-lg outline-none font-bold">
+                            <option value="day1_cum">Day 1: Cumulative (All Halls)</option>
+                            <option value="day2_cum">Day 2: Cumulative (All Halls)</option>
+                            <option value="grand">Grand Overall Leaderboard</option>
+                            <option value="22a">Day 1: Hall A</option>
+                            <option value="22b">Day 1: Hall B</option>
+                            <option value="22c">Day 1: Hall C</option>
+                            <option value="23a">Day 2: Hall A</option>
+                            <option value="23b">Day 2: Hall B</option>
+                            <option value="23c">Day 2: Hall C</option>
+                        </select>
+                        <button onclick="pushLeaderboardGlobal(document.getElementById('boardTypeSelect').value)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-black border border-emerald-500 active:scale-95 transition text-xs shadow-lg"><i class="fas fa-broadcast-tower mr-1.5"></i>Push ALL Halls</button>
+                        <button onclick="clearLeaderboardGlobal()" class="bg-rose-700 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg font-black border border-rose-600 active:scale-95 transition text-xs shadow-lg"><i class="fas fa-ban mr-1.5"></i>Clear ALL Halls</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
-                <div class="flex-1 w-full sm:w-auto text-left">
-                    <span class="text-slate-400 text-sm font-semibold block mb-1" id="headerSub"></span>
-                    <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight font-sans" id="headerTitle"></h2>
+            <!-- Right Side: Master Audit Log -->
+            <div id="adminAuditPanel" class="w-full lg:w-1/3 hidden flex-col">
+                <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2"><i class="fas fa-satellite-dish mr-1"></i> Live Command Feed:</span>
+                <div id="auditLogContainer" class="bg-slate-950 border border-slate-700 rounded-lg p-3 h-48 overflow-y-auto audit-scroll flex flex-col gap-1.5 text-[11px] font-mono text-slate-300 shadow-inner">
+                    <div class="text-slate-500 italic">Listening for floor commands...</div>
                 </div>
-                <div class="flex-shrink-0 mx-2">
-                    <div class="bg-white/95 p-2 rounded-2xl shadow-xl inline-block">
-                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-28 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
-                    </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Leaderboard Modal -->
+    <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
+        <h2 id="tvLbTitle" class="text-4xl lg:text-6xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Performers</h2>
+        <p id="tvLbSub" class="text-slate-400 font-bold tracking-widest uppercase mb-8">Calculating Live Database Weights...</p>
+        <div id="tvLeaderboardList" class="w-full max-w-3xl flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-4"></div>
+        <button onclick="hideLeaderboard()" class="mt-10 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-4 rounded-xl font-bold text-xl shadow-lg transition">Close TV Board</button>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-6 sm:p-10 relative max-w-7xl mx-auto w-full" id="contentContainer">
+        <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-30">
+            <div class="loader mb-4"></div>
+            <p class="text-slate-400 font-semibold text-lg animate-pulse mt-4">Syncing Engine Schedule Database...</p>
+        </div>
+
+        <div id="staticHeader" class="hidden flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
+            <div class="flex-1 w-full sm:w-auto text-left">
+                <h2 id="headerTitle" class="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight font-sans"></h2>
+            </div>
+            <div class="flex-shrink-0 mx-4">
+                <div class="bg-white/95 p-3 rounded-2xl shadow-xl ring-1 ring-white/10 inline-block">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON'">
                 </div>
-                <div class="flex-1 w-full sm:w-auto flex justify-start sm:justify-end">
-                    <div class="bg-slate-800/50 border border-slate-700 px-4 py-2 rounded-xl flex items-center gap-3 shadow-inner">
-                        <i class="far fa-clock text-slate-500"></i>
-                        <div class="text-xl font-black text-white font-mono tracking-wider" id="liveDigitalClock"></div>
-                    </div>
+            </div>
+            <div class="flex-1 w-full flex justify-end">
+                <div class="bg-slate-800/80 border border-slate-700 px-6 py-4 rounded-2xl flex items-center shadow-lg">
+                    <div class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider" id="liveDigitalClock"></div>
                 </div>
             </div>
         </div>
 
         <div id="dynamicContentWrapper"></div>
     </main>
-
-    <div id="persistentLeaderboard" class="w-full bg-slate-950 border-t border-slate-800 p-3 flex-shrink-0 z-40 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-4 items-center shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.5)]">
-        <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span>
-        <span class="text-slate-500 text-xs font-semibold ml-2">Syncing data...</span>
-    </div>
 
     <script>
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
@@ -141,6 +184,7 @@
             '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '22c': "22nd August 2026 - Hall C",
             '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
         };
+        const allHallsList = Object.keys(configTitles);
 
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
@@ -172,157 +216,14 @@
             return url;
         }
 
-        function checkIfCorrect(optionText, correctAnswer, index) {
-            let optClean = cleanText(optionText).toLowerCase();
-            let corClean = cleanText(correctAnswer).toLowerCase();
-            let letter = String.fromCharCode(65 + index).toLowerCase(); 
-            return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
+        function convertTo12HourFormat(timeStr) {
+            if (!timeStr) return "";
+            if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
+            return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
+                let h = parseInt(p1, 10);
+                return (h % 12 || 12) + ':' + p2 + ' ' + (h >= 12 ? 'PM' : 'AM');
+            });
         }
-
-        function detectSponsor(eventObj, currentHallTitle) {
-            let fullSearch = `${eventObj.title} ${eventObj.parent_session} ${eventObj.hall} ${currentHallTitle}`.toLowerCase();
-            
-            // Check Society Events (GBM, Inauguration, Valedictory, EC Meeting)
-            let isSocietyEvent = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee|executive meeting)\b/i.test(fullSearch);
-
-            // Check if logo exists from sheet
-            if (eventObj.sponsorLogo) {
-                let rawLogo = eventObj.sponsorLogo.toLowerCase();
-                let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
-                let noLabel = isAO || isSocietyEvent || eventObj.sponsorLabel === "" || (eventObj.sponsorLabel && eventObj.sponsorLabel.toLowerCase().includes('no_label'));
-                let lbl = noLabel ? "" : (eventObj.sponsorLabel || "Supported by");
-                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO, isSociety: isSocietyEvent };
-            }
-
-            // Keyword fallbacks
-            if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
-                return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
-            }
-            if (isSocietyEvent) {
-                return { name: 'IFAS Official', isBadge: true, label: '', isSociety: true };
-            }
-            if (fullSearch.includes('nebula')) {
-                return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by', isAO: false };
-            }
-            if (fullSearch.includes('arthrex')) {
-                return { name: 'Arthrex', isBadge: true, label: 'Supported by', isAO: false };
-            }
-            if (fullSearch.includes('biotek')) {
-                return { name: 'Biotek', isBadge: true, label: 'Supported by', isAO: false };
-            }
-
-            return null;
-        }
-
-        let appData = {};
-        let globalQuizzes = [];
-        
-        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
-        if(!liveHall || liveHall === "") liveHall = '22a'; 
-        
-        let remoteOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let tickerTimer = null;
-        let liveUpdateTimer = null;
-        let lastRenderHash = "";
-
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v150'; 
-
-        window.hideLeaderboard = function() {
-            const modal = document.getElementById('leaderboardModal');
-            if (modal) modal.classList.add('hidden');
-        };
-
-        window.showLeaderboard = async function(type) {
-            const modal = document.getElementById('leaderboardModal');
-            const list = document.getElementById('leaderboardList');
-            if (!modal || !list) return;
-
-            modal.classList.remove('hidden');
-            document.getElementById('lbSub').innerText = "Calculating Data...";
-            list.innerHTML = '<div class="flex justify-center my-8"><div class="loader"></div></div>';
-
-            try {
-                let mathResults = await fetchMathLeaderboard(type);
-                document.getElementById('lbTitle').innerHTML = `<i class="fas fa-trophy mr-3"></i>${mathResults.titleText}`;
-                document.getElementById('lbSub').innerText = "Live Standings";
-
-                if (!mathResults.sorted || mathResults.sorted.length === 0) {
-                    list.innerHTML = '<p class="text-slate-400 text-center py-4">No data available yet.</p>';
-                    return;
-                }
-
-                let html = '';
-                mathResults.sorted.slice(0, 50).forEach((item, idx) => {
-                    let phone = item[0];
-                    let score = item[1];
-                    let name = mathResults.names[phone] || 'Delegate';
-                    let last4 = phone.length >= 4 ? phone.slice(-4) : phone;
-                    let rankColor = idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-700' : 'text-indigo-400';
-                    
-                    html += `
-                        <div class="flex justify-between items-center bg-slate-900 border border-slate-700 p-4 rounded-xl mb-2 shadow-inner">
-                            <span class="text-white font-bold"><span class="${rankColor} mr-3">#${idx + 1}</span> ${name} <span class="text-slate-400 font-mono text-xs">(••••${last4})</span></span>
-                            <span class="text-emerald-400 font-black">${score} pts</span>
-                        </div>
-                    `;
-                });
-                list.innerHTML = html;
-            } catch(e) {
-                list.innerHTML = '<p class="text-rose-400 text-center py-4">Failed to load standings.</p>';
-            }
-        };
-
-        window.syncMyAnswers = async function() {
-            let phone = localStorage.getItem('delegate_phone');
-            if(!phone) return;
-            const { data } = await supabaseClient.from('quiz_responses').select('question, hall_id').eq('phone', phone);
-            if(data) {
-                data.forEach(d => {
-                    let cleanKey = (d.hall_id + "_" + d.question).replace(/\W/g, '');
-                    localStorage.setItem('answered_' + cleanKey, 'true');
-                });
-            }
-        };
-
-        window.refreshIdentityStateUI = function() {
-            let num = localStorage.getItem('delegate_phone');
-            let name = localStorage.getItem('delegate_name');
-            let loggedInView = document.getElementById('identityLoggedInState');
-            let loggedOutView = document.getElementById('identityLoggedOutState');
-            if (num && name && loggedInView && loggedOutView) {
-                loggedOutView.classList.add('hidden');
-                loggedInView.classList.remove('hidden');
-                let last4 = num.length >= 4 ? num.slice(-4) : num;
-                document.getElementById('identityBannerLabel').innerText = `${name} (••••${last4})`;
-            } else if (loggedInView && loggedOutView) {
-                loggedInView.classList.add('hidden');
-                loggedOutView.classList.remove('hidden');
-            }
-        };
-
-        window.saveTopBannerIdentity = async function() {
-            let nameVal = document.getElementById('topNameRegisterInput').value.trim();
-            let phoneVal = document.getElementById('topPhoneRegisterInput').value.trim();
-            if (!nameVal || nameVal.length < 2) { alert('Please enter your full name.'); return; }
-            if (!phoneVal || phoneVal.length < 7) { alert('Please supply a valid telephone number.'); return; }
-
-            localStorage.setItem('delegate_name', nameVal);
-            localStorage.setItem('delegate_phone', phoneVal);
-            window.refreshIdentityStateUI();
-            await window.syncMyAnswers();
-            window.updateLiveDisplay(true);
-            window.updatePersistentFooter();
-        };
-
-        window.clearDelegateIdentity = function() {
-            localStorage.removeItem('delegate_name');
-            localStorage.removeItem('delegate_phone');
-            window.refreshIdentityStateUI();
-            window.updateLiveDisplay(true);
-            window.updatePersistentFooter();
-        };
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
@@ -331,104 +232,161 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
-        window.fetchLiveSchedule = async function(isBackground = false) {
-            let fetchedData = {};
-            let quizzesLoaded = [];
-            for (const [key, link] of Object.entries(sheetLinks)) {
-                if(!link || link.trim() === '') continue;
-                try {
-                    const response = await fetch(link);
-                    if(!response.ok) continue;
-                    const csvText = await response.text();
-                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
-                    
-                    if (key === 'quizzes') {
-                        let colOffset = 0;
-                        if (parsedCsv.length > 1) {
-                            let firstRow = parsedCsv[1];
-                            let cell0 = cleanText(firstRow[0]);
-                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
-                        }
+        let appData = {};
+        let globalQuizzes = [];
+        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
+        if(!liveHall || liveHall === "") liveHall = '22a'; 
+        
+        let manualOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let lastRenderHash = ""; 
+        let liveUpdateTimer = null;
+        let tickerTimer = null;
 
-                        parsedCsv.forEach((r, idx) => {
-                            if (idx === 0 || !r || r.length < 3) return;
-                            let rawHall = cleanText(r[0 + colOffset]);
-                            let rawSymp = cleanText(r[1 + colOffset]);
-                            let rawTitle = cleanText(r[2 + colOffset]);
+        let myName = "";
+        let myRole = "";
+        let myAllowedHalls = [];
 
-                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
+        async function verifyGatePass() {
+            let pin = document.getElementById('gatePassInput').value.trim();
+            const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
+            if (data) {
+                localStorage.setItem('mgr_pin', pin);
+                localStorage.setItem('mgr_name', data.name);
+                localStorage.setItem('mgr_role', data.role);
+                localStorage.setItem('mgr_hall', data.assigned_hall);
+                loadManagerContext();
+            } else { alert('Invalid PIN or account not found.'); }
+        }
 
-                            quizzesLoaded.push({ 
-                                type: 'quiz', 
-                                hall_id: normalizeHallId(rawHall), 
-                                symposium: rawSymp || 'General', 
-                                title: rawTitle, 
-                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
-                                correct: cleanText(r[7 + colOffset]) 
-                            });
-                        });
-                    } else if (key === 'ao') {
-                        let semRows = [], diaRows = [], misRows = [];
+        function loadManagerContext() {
+            let pin = localStorage.getItem('mgr_pin');
+            if(!pin) return;
+            myName = localStorage.getItem('mgr_name');
+            myRole = localStorage.getItem('mgr_role');
+            let assignedHallRaw = localStorage.getItem('mgr_hall');
+            myAllowedHalls = assignedHallRaw.split(',').map(s => normalizeHallId(s.trim()));
 
-                        parsedCsv.forEach((r, idx) => {
-                            let rowStr = r.join(' ').toLowerCase();
-                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                            
-                            // MIS Workshop rows
-                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
-                                misRows.push(r);
-                            } 
-                            // Diabetic Foot Workshop rows
-                            else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
-                                diaRows.push(r);
-                            } 
-                            // Main AO Seminar rows
-                            else {
-                                semRows.push(r);
-                            }
-                        });
+            document.getElementById('mgrNameDisplay').innerText = myName;
+            document.getElementById('mgrRoleDisplay').innerText = myRole.replace('_', ' ').toUpperCase();
+            document.getElementById('authGateFrame').classList.add('hidden');
+            document.getElementById('masterToolbarSuite').classList.remove('hidden');
+            document.getElementById('adminHallNav').classList.remove('hidden');
 
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
-                    } else {
-                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
+            if (myRole === 'av_operator') {
+                let quizSec = document.getElementById('quizControlSection');
+                if (quizSec) quizSec.classList.add('hidden');
+            }
+
+            if (myRole === 'admin' || myRole === 'quiz_master') {
+                document.getElementById('adminAuditPanel').classList.remove('hidden');
+                document.getElementById('adminAuditPanel').classList.add('flex');
+                document.getElementById('adminGlobalBoardControls').classList.remove('hidden');
+                document.getElementById('adminGlobalBoardControls').classList.add('flex');
+                initAuditLogListener();
+            } 
+            
+            if (assignedHallRaw !== 'ALL' && myRole !== 'admin') {
+                document.querySelectorAll('#adminHallNav .feed-btn').forEach(btn => {
+                    if (!myAllowedHalls.includes(btn.dataset.hall)) {
+                        btn.classList.add('hidden');
                     }
-                } catch(err) {}
-            }
-            
-            if(Object.keys(fetchedData).length === 0) {
-                document.getElementById('loadingText').innerText = "Network Error. Check CSV Links.";
-                return;
+                });
+                
+                if (!myAllowedHalls.includes(liveHall) && myAllowedHalls.length > 0) {
+                    liveHall = myAllowedHalls[0];
+                }
+                
+                document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
 
-            appData = fetchedData;
-            globalQuizzes = quizzesLoaded;
-            localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
-            
-            if (!isBackground && document.getElementById('loadingState')) { 
-                document.getElementById('loadingState').classList.add('hidden');
-                document.getElementById('staticHeader').classList.remove('hidden'); 
-                window.initLiveDashboard(); 
-            } else { 
-                window.updateLiveDisplay(true); 
-            }
-        };
+            logAction(`Logged into system as [${myRole}]`);
+            fetchLiveSchedule();
+        }
 
-        function convertTo12HourFormat(timeStr) {
-            if (!timeStr) return "";
-            if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
-            return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
-                let h = parseInt(p1, 10);
-                let ampm = h >= 12 ? 'PM' : 'AM';
-                h = h % 12; h = h ? h : 12; 
-                let paddedH = h < 10 ? '0' + h : h;
-                return paddedH + ':' + p2 + ' ' + ampm;
-            });
+        function logoutManager() { localStorage.clear(); location.reload(); }
+        async function logAction(actionDesc) { 
+            if(!myName) return;
+            try { await supabaseClient.from('audit_logs').insert([{ manager_name: myName, action: actionDesc, hall_id: liveHall }]); } catch(e){}
+        }
+
+        function initAuditLogListener() {
+            supabaseClient.channel('custom-audit-channel')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'audit_logs' }, (payload) => {
+                    let cont = document.getElementById('auditLogContainer');
+                    let time = new Date(payload.new.created_at).toLocaleTimeString();
+                    cont.innerHTML = `<div class="border-b border-slate-800 pb-1.5 mb-1.5"><span class="text-slate-500">[${time}]</span> <span class="text-amber-300 font-bold">${payload.new.manager_name}</span> &gt; ${payload.new.action} <span class="text-slate-500">(${payload.new.hall_id})</span></div>` + cont.innerHTML;
+                }).subscribe();
+        }
+
+        async function fetchMathLeaderboard(type) {
+            try {
+                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                if (error) throw error;
+                let filteredData = data;
+                let titleText = "";
+
+                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
+                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
+                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Leaderboard"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders (All Halls)"; }
+                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
+                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
+                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Leaderboard"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders (All Halls)"; }
+                else { titleText = "Grand Conference Leaderboard"; }
+
+                let scores = {};
+                let names = {};
+                filteredData.forEach(r => { 
+                    scores[r.phone] = 0; 
+                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
+                }); 
+                let qGroups = {};
+                filteredData.forEach(r => {
+                    if (!r.is_correct) return;
+                    let key = r.hall_id + "_" + r.question; 
+                    if (!qGroups[key]) qGroups[key] = [];
+                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
+                });
+                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
+                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText, names };
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
+        }
+
+        async function showLeaderboard(presetType) {
+            let type = presetType || document.getElementById('boardTypeSelect').value;
+            document.getElementById('leaderboardModal').classList.remove('hidden');
+            document.getElementById('tvLeaderboardList').innerHTML = '<div class="loader mt-6"></div>';
+            let mathResults = await fetchMathLeaderboard(type);
+            document.getElementById('tvLbTitle').innerHTML = `<i class="fas fa-trophy mr-4 text-amber-400"></i> ${mathResults.titleText}`;
+            document.getElementById('tvLbSub').innerText = "Real-time Rankings Computed";
+            let sorted = mathResults.sorted;
+            if (sorted.length === 0) { document.getElementById('tvLeaderboardList').innerHTML = '<div class="text-center text-slate-400 text-2xl font-bold py-10">No scores logged yet.</div>'; return; }
+            document.getElementById('tvLeaderboardList').innerHTML = sorted.map((item, index) => {
+                let name = mathResults.names[item[0]] || 'Delegate';
+                let last4 = item[0].length >= 4 ? item[0].slice(-4) : item[0];
+                let trophy = index === 0 ? 'text-amber-400' : index === 1 ? 'text-slate-300' : index === 2 ? 'text-amber-700' : 'text-indigo-400';
+                return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${name} <span class="text-slate-400 font-mono text-base">(••••${last4})</span></div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
+            }).join('');
+        }
+        function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
+
+        async function pushLeaderboardGlobal(type) {
+            logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
+            showLeaderboard(type);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).in('hall_id', allHallsList);
+        }
+
+        async function clearLeaderboardGlobal() {
+            logAction("BROADCAST: Cleared Leaderboard across ALL halls");
+            hideLeaderboard();
+            await supabaseClient.from('hall_states').update({ force_leaderboard: null }).in('hall_id', allHallsList);
         }
 
         function parseRawData(rows, hallTitle) {
-            let events = [], current_session = "", current_sponsor_logo = "", current_sponsor_label = "";
+            let events = [], current_session = "";
             const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
@@ -439,20 +397,6 @@
                 let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
                 let row_text = r.join(" ").toLowerCase();
-
-                let logoUrl = "";
-                let customLabel = "Supported by";
-                
-                for (let cell of r) {
-                    if (cell.includes('http://') || cell.includes('https://')) {
-                        let linkPart = cell.match(/https?:\/\/[^\s]+/);
-                        if (linkPart) {
-                            logoUrl = linkPart[0];
-                            let textBefore = cell.replace(linkPart[0], '').replace(/[:\-]/g, '').trim();
-                            if (textBefore) customLabel = textBefore;
-                        }
-                    }
-                }
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
@@ -476,9 +420,9 @@
                         else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
                         else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
                         else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '', sponsorLogo: logoUrl });
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
                     } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', sponsorLogo: logoUrl });
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
                     }
                     return;
                 }
@@ -494,24 +438,14 @@
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ 
-                        type: 'break', 
-                        title: text, 
-                        time: time_raw, 
-                        display_time: display_time, 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '', 
-                        adLink: adLink,
-                        sponsorLogo: logoUrl
-                    });
+                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', chairpersons: '', hall: hallTitle, parent_session: '', adLink: adLink });
                     return;
                 }
 
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
-
+                
                 if (row_text.includes('oration')) { isSession = true; isOration = true; } 
                 else if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
@@ -534,22 +468,8 @@
                     }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
-                    current_sponsor_logo = logoUrl || "";
-                    current_sponsor_label = customLabel || "Supported by";
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    let display_time = convertTo12HourFormat(time_raw);
-                    events.push({ 
-                        type: 'session', 
-                        isOration: isOration, 
-                        time: time_raw, 
-                        display_time: display_time, 
-                        title: topic, 
-                        speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
-                        hall: hallTitle, 
-                        parent_session: current_session, 
-                        sponsorLogo: current_sponsor_logo,
-                        sponsorLabel: current_sponsor_label
-                    });
+                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, parent_session: current_session });
                     return;
                 }
 
@@ -561,86 +481,269 @@
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     events.push({ 
                         type: 'presentation', 
-                        isHandsOn: isHandsOn, 
+                        isHandsOn: isHandsOn,
                         time: time_raw, 
                         display_time: display_time, 
                         tag: (isQA && !colTitle) ? "Discussion" : col3, 
                         title: displayTitle, 
                         speaker: speaker, 
                         hall: hallTitle, 
-                        parent_session: current_session,
-                        sponsorLogo: logoUrl || current_sponsor_logo,
-                        sponsorLabel: logoUrl ? customLabel : current_sponsor_label
+                        parent_session: current_session 
                     });
                 }
             });
             return events;
         }
 
-        window.switchDelegateHall = function(newHall) {
-            let radar = document.getElementById('quizRadarBanner');
-            if (radar) radar.classList.add('hidden'); 
-            let hijack = document.getElementById('globalHijackOverlay');
-            if (hijack) hijack.classList.add('hidden');
-            
-            window.hideLeaderboard(); 
-            liveHall = normalizeHallId(newHall);
-            remoteOverrideIndex = null;
-            quizStartTimeStamp = null;
-            lastRenderHash = ""; 
-            
-            try { 
-                const newUrl = new URL(window.location); 
-                newUrl.searchParams.set('hall', liveHall); 
-                window.history.pushState({}, '', newUrl); 
-            } catch (e) {}
-            
-            window.subscribeToHall(liveHall); 
-            window.updateLiveDisplay(true);
-            window.updatePersistentFooter();
-        };
+        async function fetchLiveSchedule() {
+            let fetchedData = {};
+            let quizzesLoaded = [];
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                if(!link || link.trim() === '') continue;
+                try {
+                    const response = await fetch(link);
+                    if(!response.ok) continue;
+                    const csvText = await response.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
+                    
+                    if (key === 'quizzes') {
+                        let colOffset = 0;
+                        if (parsedCsv.length > 1) {
+                            let firstRow = parsedCsv[1];
+                            let cell0 = cleanText(firstRow[0]);
+                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
+                        }
+                        parsedCsv.forEach((r, idx) => {
+                            if (idx === 0 || !r || r.length < 3) return;
+                            let rawHall = cleanText(r[0 + colOffset]);
+                            let rawSymp = cleanText(r[1 + colOffset]);
+                            let rawTitle = cleanText(r[2 + colOffset]);
+                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
 
-        window.subscribeToHall = function(hall_id) {
-            if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
-            
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
-                if (data) { 
-                    remoteOverrideIndex = data.override_index; 
-                    quizStartTimeStamp = data.quiz_start_time;
-                    let boardType = data.force_leaderboard;
-                    if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                    else window.hideLeaderboard(); 
-                }
-                lastRenderHash = ""; 
-                window.updateLiveDisplay(true);
-            });
+                            quizzesLoaded.push({ 
+                                hall_id: normalizeHallId(rawHall), 
+                                symposium: rawSymp || 'General', 
+                                title: rawTitle, 
+                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
+                                correct: cleanText(r[7 + colOffset]), 
+                                type: 'quiz' 
+                            });
+                        });
+                    } else if (key === 'ao') {
+                        let semRows = [], diaRows = [], misRows = [];
+                        parsedCsv.forEach((r, idx) => {
+                            let rowStr = r.join(' ').toLowerCase();
+                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
+                                misRows.push(r);
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                                diaRows.push(r);
+                            } else {
+                                semRows.push(r);
+                            }
+                        });
 
-            window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id)
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
-                    (payload) => { 
-                        remoteOverrideIndex = payload.new.override_index; 
-                        quizStartTimeStamp = payload.new.quiz_start_time;
-                        let boardType = payload.new.force_leaderboard;
-                        if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                        else window.hideLeaderboard();
-                        lastRenderHash = ""; 
-                        window.updateLiveDisplay(true); 
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
+                    } else { 
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
                     }
-                ).subscribe();
-        };
+                } catch(err) { console.error(err); }
+            }
+            
+            if(Object.keys(fetchedData).length === 0) {
+                document.getElementById('loadingState').innerHTML = `<p class="text-white text-xl">Network error downloading schedule.</p>`;
+                return;
+            }
 
-        function getLiveStatus(events) {
-            const playableEvents = events.filter(e => {
-                if (e.type === 'presentation' || e.type === 'break') return true;
-                if (e.isOration && (e.speaker || '').trim() !== '') return true; 
+            appData = fetchedData;
+            globalQuizzes = quizzesLoaded;
+            
+            let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
+            let dd = document.getElementById('symposiumFilter');
+            if (dd) {
+                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
+                symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
+            }
+
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('staticHeader').classList.remove('hidden');
+            initLiveKiosk();
+        }
+
+        function populateEventJump() {
+            let select = document.getElementById('eventJumpSelect');
+            let adsContainer = document.getElementById('sponsorAdsContainer');
+            if (!appData[liveHall]) return;
+            let events = appData[liveHall].events;
+            
+            select.innerHTML = '<option value="">-- Select an event to jump timeline directly --</option>';
+            let adsHtml = '';
+            const playable = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+
+            playable.forEach((ev, playableIndex) => {
+                let prefix = ev.type === 'break' ? '☕ ' : (ev.type === 'session' ? '📚 ' : '🎤 ');
+                if (ev.adLink) prefix = '▶️ [MEDIA] ';
+                select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
+                if (ev.adLink) {
+                    adsHtml += `<button onclick="jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
+                }
+            });
+            if(adsHtml === '') adsHtml = '<span class="text-slate-500 text-xs italic py-1">No sponsor media scheduled here.</span>';
+            adsContainer.innerHTML = adsHtml;
+        }
+
+        async function jumpToEvent(idx) {
+            if(idx === "") return;
+            manualOverrideIndex = parseInt(idx);
+            updateLiveDisplay(true);
+            logAction(`Timeline JUMP: Forced play of Index ${idx}`);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            document.getElementById('eventJumpSelect').value = "";
+        }
+
+        function renderQuizCockpit(activeSympName = "") {
+            let container = document.getElementById('quizButtonsContainer');
+            if (!container) return;
+            let filterEl = document.getElementById('symposiumFilter');
+            let filter = filterEl ? cleanText(filterEl.value) : 'ALL';
+            let searchEl = document.getElementById('quizSearch');
+            let search = searchEl ? cleanText(searchEl.value).toLowerCase() : '';
+            let targetHall = cleanText(liveHall).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            let hallQuizzes = globalQuizzes.filter(q => {
+                if (!q.hall_id) return true;
+                let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (qHall === targetHall || qHall === 'all') return true;
+                if (targetHall.includes('22a') && (qHall === '22a' || qHall === 'halla' || qHall === 'a')) return true;
+                if (targetHall.includes('22b') && (qHall === '22b' || qHall === 'hallb' || qHall === 'b')) return true;
+                if (targetHall.includes('22c') && (qHall === '22c' || qHall === 'hallc' || qHall === 'c')) return true;
+                if (targetHall.includes('23a') && (qHall === '23a' || qHall === 'halla' || qHall === 'a')) return true;
+                if (targetHall.includes('23b') && (qHall === '23b' || qHall === 'hallb' || qHall === 'b')) return true;
+                if (targetHall.includes('23c') && (qHall === '23c' || qHall === 'hallc' || qHall === 'c')) return true;
+                if (targetHall.includes('ao') && qHall.includes('ao')) return true;
+                if (targetHall.includes('diabet') && qHall.includes('diabet')) return true;
+                if (targetHall.includes('mis') && qHall.includes('mis')) return true;
                 return false;
             });
-            
-            if (typeof remoteOverrideIndex !== 'undefined' && remoteOverrideIndex !== null) {
-                if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
-                    return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
+
+            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
+                hallQuizzes = [...globalQuizzes];
+            }
+
+            if (filterEl) {
+                let currentVal = filterEl.value;
+                let availableSymps = [...new Set(hallQuizzes.map(q => cleanText(q.symposium)))].filter(Boolean);
+                let currentOptions = Array.from(filterEl.options).map(o => o.value);
+                let isMatch = availableSymps.length === (currentOptions.length - 1) && availableSymps.every(s => currentOptions.includes(s));
+                if (!isMatch) {
+                    let optsHtml = `<option value="ALL">All Symposiums</option>`;
+                    availableSymps.forEach(s => { optsHtml += `<option value="${s}">${s}</option>`; });
+                    filterEl.innerHTML = optsHtml;
+                    filterEl.value = currentOptions.includes(currentVal) ? currentVal : 'ALL';
+                    filter = filterEl.value;
                 }
-                return { currentEvent: playableEvents[remoteOverrideIndex] || null, nextEvent: playableEvents[remoteOverrideIndex + 1] || null };
+            }
+
+            let displayQuizzes = hallQuizzes;
+            if (filter && filter !== 'ALL') {
+                let cleanFilter = cleanText(filter).toLowerCase();
+                displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanFilter);
+            }
+            if (search) {
+                displayQuizzes = displayQuizzes.filter(q => cleanText(q.title).toLowerCase().includes(search) || cleanText(q.symposium).toLowerCase().includes(search));
+            }
+
+            if (displayQuizzes.length > 0) {
+                let groups = {};
+                displayQuizzes.forEach(q => {
+                    let symp = cleanText(q.symposium) || 'General Symposium';
+                    if (!groups[symp]) groups[symp] = [];
+                    groups[symp].push(q);
+                });
+
+                let dashHtml = '';
+                let cleanActiveSymp = cleanText(activeSympName).toLowerCase();
+                for (let [symp, qs] of Object.entries(groups)) {
+                    let cleanSymp = cleanText(symp).toLowerCase();
+                    let isRecommended = cleanActiveSymp && (cleanSymp.includes(cleanActiveSymp) || cleanActiveSymp.includes(cleanSymp));
+                    let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
+                    let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
+                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
+
+                    dashHtml += `
+                        <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
+                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div>
+                            <div class="flex flex-col gap-2">`;
+                    qs.forEach(q => {
+                        let globalIdx = globalQuizzes.indexOf(q);
+                        let safeTitle = encodeURIComponent(q.title);
+                        dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${safeTitle}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
+                    });
+                    dashHtml += `   </div></div>`;
+                }
+                container.innerHTML = dashHtml;
+            } else {
+                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found. Check CSV or clear search filter.</div>`;
+            }
+        }
+
+        async function launchQuizByGlobalIndex(idx, title) {
+            manualOverrideIndex = -(idx + 1);
+            let isoTime = new Date().toISOString();
+            quizStartTimeStamp = isoTime; 
+            updateLiveDisplay(true);
+            logAction(`Launched Quiz: ${title}`);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
+        }
+
+        async function terminateActiveQuiz() {
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            updateLiveDisplay(true);
+            logAction("Cleared active quiz on screen");
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        }
+
+        async function resumeAutoSync() {
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            updateLiveDisplay(true);
+            logAction("Resumed Auto-Sync mode");
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        }
+
+        async function manualShift(step) {
+            const data = appData[liveHall]; if (!data) return;
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            if (manualOverrideIndex === null || manualOverrideIndex < 0) {
+                const { currentEvent } = getLiveStatus(data.events);
+                manualOverrideIndex = playableEvents.indexOf(currentEvent);
+                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
+            }
+            let newIndex = manualOverrideIndex + step;
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
+            manualOverrideIndex = newIndex;
+            updateLiveDisplay(true);
+            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+        }
+
+        async function forceLeaderboardLocal(type) {
+            logAction(`Forced Leaderboard TV output: ${type}`);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
+        }
+
+        function getLiveStatus(events) {
+            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            
+            if (manualOverrideIndex !== null) {
+                if (manualOverrideIndex < 0 && globalQuizzes.length > 0) {
+                    return { currentEvent: globalQuizzes[Math.abs(manualOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
+                }
+                return { currentEvent: playableEvents[manualOverrideIndex] || null, nextEvent: playableEvents[manualOverrideIndex + 1] || null };
             }
             
             const now = new Date();
@@ -685,282 +788,87 @@
             return { currentEvent, nextEvent };
         }
 
-        async function fetchMathLeaderboard(type) {
-            try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
-                if (error) throw error;
-                
-                let filteredData = data;
-                let titleText = "";
-
-                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
-                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders"; }
-                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
-                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders"; }
-                else { titleText = "Grand Conference Leaderboard"; }
-
-                let scores = {};
-                let names = {};
-                filteredData.forEach(r => { 
-                    scores[r.phone] = 0; 
-                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
-                }); 
-                
-                let qGroups = {};
-                filteredData.forEach(r => {
-                    if (!r.is_correct) return;
-                    let key = r.hall_id + "_" + r.question; 
-                    if (!qGroups[key]) qGroups[key] = [];
-                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
-                });
-                
-                Object.values(qGroups).forEach(responses => {
-                    responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); });
-                });
-                
-                let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
-                return { sorted, titleText, names };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
-        }
-
-        window.submitDelegateQuiz = async function(encOpt, encCor, encTit, optIdx) {
-            let phone = localStorage.getItem('delegate_phone');
-            let name = localStorage.getItem('delegate_name');
-            if (!phone || !name || phone.trim().length < 7 || name.trim().length < 2) { 
-                alert("Please enter your Name and Mobile Number to play."); 
-                window.updateLiveDisplay(true);
-                return; 
-            }
-
-            let optionText = decodeURIComponent(encOpt);
-            let correctAnswer = decodeURIComponent(encCor);
-            let questionText = decodeURIComponent(encTit);
-
-            let cleanKey = (liveHall + "_" + questionText).replace(/\W/g, '');
-            localStorage.setItem('marked_' + cleanKey, optionText); 
-            localStorage.setItem('answered_' + cleanKey, 'true');
+        function switchHallFeed(newHall) {
+            let normalizedNew = normalizeHallId(newHall);
+            let assignedHallRaw = localStorage.getItem('mgr_hall');
             
-            window.updateLiveDisplay(true); 
-            let isCorrect = checkIfCorrect(optionText, correctAnswer, optIdx);
-            
-            try { 
-                await supabaseClient.from('quiz_responses').insert([{ 
-                    phone: phone.trim(), 
-                    name: name.trim(), 
-                    question: questionText, 
-                    hall_id: liveHall, 
-                    is_correct: isCorrect 
-                }]); 
-            } catch(e) {}
-            window.updatePersistentFooter();
-        };
-
-        window.updatePersistentFooter = async function() {
-            let phone = localStorage.getItem('delegate_phone');
-            let name = localStorage.getItem('delegate_name');
-            let el = document.getElementById('persistentLeaderboard');
-            if (!el) return;
-
-            if (!phone || !name) {
-                el.innerHTML = `<span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span><span class="text-slate-500 text-[10px] sm:text-xs font-semibold ml-2">Login to track your position</span>`;
+            if (myRole !== 'admin' && assignedHallRaw !== 'ALL' && !myAllowedHalls.includes(normalizedNew)) {
+                alert("Access Denied: You are not authorized for this hall."); 
                 return;
             }
+            
+            liveHall = normalizedNew; 
+            manualOverrideIndex = null; 
+            quizStartTimeStamp = null; 
+            lastRenderHash = ""; 
+            try { 
+                const newUrl = new URL(window.location); 
+                newUrl.searchParams.set('hall', normalizedNew); 
+                window.history.pushState({}, '', newUrl); 
+            } catch(e) {}
+            
+            populateEventJump();
+            updateLiveDisplay(true);
+        }
 
-            let hallName = configTitles[liveHall] ? (configTitles[liveHall].split('-').length > 1 ? configTitles[liveHall].split('-')[1].trim() : configTitles[liveHall]) : "Local Room";
-
-            let localMath = await fetchMathLeaderboard(liveHall);
-            let localRank = localMath.sorted.findIndex(x => x[0] === phone);
-            let localText = localRank !== -1 ? `<span class="text-emerald-400 font-bold mr-1">#${localRank + 1}</span> ${localMath.sorted[localRank][1]}pt` : `<span class="text-slate-500">Unranked</span>`;
-
-            let grandMath = await fetchMathLeaderboard('grand');
-            let grandRank = grandMath.sorted.findIndex(x => x[0] === phone);
-            let grandText = grandRank !== -1 ? `<span class="text-amber-400 font-bold mr-1">#${grandRank + 1}</span> ${grandMath.sorted[grandRank][1]}pt` : `<span class="text-slate-500">Unranked</span>`;
-
-            el.innerHTML = `
-                <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Live Ranks:</span>
-                <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-slate-400 uppercase text-[9px] tracking-wider mr-2">${hallName}</span> ${localText}</span>
-                <span class="inline-block bg-slate-800 border border-slate-700 rounded px-3 py-0.5 text-[10px] sm:text-xs text-slate-300 font-mono flex-shrink-0"><span class="text-amber-600 uppercase text-[9px] tracking-wider mr-2">Overall Conf</span> ${grandText}</span>
-            `;
-        };
-
-        window.updateLiveDisplay = function(forceRender = false) {
+        function updateLiveDisplay(forceRender = false) {
             const data = appData[liveHall]; if (!data) return;
-
             document.querySelectorAll('.feed-btn').forEach(btn => {
                 let targetHall = btn.dataset.hall;
-                if (targetHall === liveHall) {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md";
-                } else {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700";
-                }
+                if (targetHall === liveHall) { btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md"; } 
+                else { btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"; }
             });
-            
-            let mobileSelect = document.getElementById('mobileHallSelect');
-            if (mobileSelect) { mobileSelect.value = liveHall; }
 
-            document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
-            document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
-
+            document.getElementById('headerTitle').innerText = data.title;
             const { currentEvent, nextEvent } = getLiveStatus(data.events);
-            
-            let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + remoteOverrideIndex;
-            if (!forceRender && newHash === lastRenderHash) { return; }
+            let activeSymp = (currentEvent && currentEvent.parent_session) ? cleanText(currentEvent.parent_session) : "";
+            renderQuizCockpit(activeSymp);
+
+            let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + manualOverrideIndex;
+            if (!forceRender && newHash === lastRenderHash) return;
             lastRenderHash = newHash;
 
-            let isWorkshopHall = (liveHall === 'workshop_diabetic' || liveHall === 'workshop_mis');
-            let workshopNotice = isWorkshopHall ? `
-                <div class="mb-5 bg-amber-500/15 border border-amber-500/30 rounded-2xl p-3.5 flex items-center justify-center gap-3 text-amber-300 font-bold text-xs sm:text-sm shadow-inner text-center">
-                    <i class="fas fa-random text-amber-400 text-base flex-shrink-0"></i>
-                    <span>Two Parallel Workshops Running Simultaneously — Delegates Can Attend Any 1</span>
-                </div>
-            ` : '';
-
-            let html = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
+            let nowPlayingHtml = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8 shadow-inner"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
             
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
-                    let phone = localStorage.getItem('delegate_phone');
-                    let name = localStorage.getItem('delegate_name');
-                    let cleanKey = (liveHall + "_" + currentEvent.title).replace(/\W/g, '');
-                    let hasAnswered = localStorage.getItem('answered_' + cleanKey);
-                    let mySelection = localStorage.getItem('marked_' + cleanKey) || '';
-                    
                     let secondsLeft = 45;
                     if (quizStartTimeStamp) {
                         let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                         secondsLeft = Math.max(0, 45 - diff);
                     }
 
-                    if (!phone || !name || phone.trim().length < 7 || name.trim().length < 2) {
-                        html = `
-                            <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-6">
-                                <i class="fas fa-id-card text-6xl text-indigo-400 mb-6 animate-bounce"></i>
-                                <h2 class="text-3xl font-black text-white mb-3">Join Live Quiz</h2>
-                                <p class="text-slate-300 mb-6 text-sm max-w-sm mx-auto">Enter your Name and Mobile Number to unlock the quiz and compete on the live leaderboard.</p>
-                                <div class="max-w-sm mx-auto space-y-3">
-                                    <input type="text" id="qzName" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-3.5 text-white text-center text-lg font-bold outline-none focus:border-indigo-500" placeholder="Full Name">
-                                    <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-3.5 text-white text-center text-lg font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let n = document.getElementById('qzName').value.trim(); let v = document.getElementById('qzPh').value.trim(); if(n.length >= 2 && v.length >= 7){ localStorage.setItem('delegate_name', n); localStorage.setItem('delegate_phone', v); window.refreshIdentityStateUI(); window.syncMyAnswers().then(() => { window.updateLiveDisplay(true); window.updatePersistentFooter(); }); }else{alert('Please enter your full name and valid phone number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
+                    if (secondsLeft > 0) {
+                        nowPlayingHtml = `
+                            <div class="bg-gradient-to-b from-indigo-900/80 to-slate-900 rounded-3xl border-2 border-indigo-500/50 p-10 shadow-2xl mb-8">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse flex items-center shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Audience Quiz</span>
+                                    <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500 text-rose-500 font-mono text-3xl font-black px-5 py-2 rounded-2xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
+                                </div>
+                                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-10">${currentEvent.title}</h1>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                                    ${currentEvent.options.map((opt, i) => `<div class="bg-slate-800/80 border border-slate-600 p-6 rounded-2xl text-2xl text-slate-200 font-semibold shadow-inner flex items-center"><span class="bg-slate-900 px-4 py-2 rounded shadow-inner text-indigo-400 mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt}</div>`).join('')}
                                 </div>
                             </div>`;
-                    } 
-                    else if (secondsLeft > 0) {
-                        if (hasAnswered) {
-                            let optionNodes = currentEvent.options.map((opt, idx) => {
-                                let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
-                                let itemClass = isSel ? 'border-indigo-500 bg-indigo-950/40 text-white font-bold ring-1 ring-indigo-500/50' : 'border-slate-800 bg-slate-900/40 text-slate-500 opacity-60';
-                                let badgeHtml = isSel ? '<span class="bg-indigo-600 text-white px-3 py-1 rounded text-xs uppercase font-black ml-auto shadow">Your Selection</span>' : '';
-                                return `<div class="border p-4 sm:p-5 rounded-2xl text-base flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1.5 rounded-md text-sm mr-4 font-mono">${String.fromCharCode(65+idx)}</span>${opt}${badgeHtml}</div>`;
-                            }).join('');
-
-                            html = `
-                                <div class="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-emerald-500/40 shadow-2xl mb-8">
-                                    <div class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                                        <span class="bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow"><i class="fas fa-lock mr-2"></i> Submission Frozen</span>
-                                        <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-xl font-black px-4 py-1.5 rounded-xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
-                                    </div>
-                                    <h2 class="text-2xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h2>
-                                    <div class="flex flex-col gap-3">${optionNodes}</div>
-                                    <div class="mt-8 text-center text-sm text-slate-400 font-medium animate-pulse">Waiting for timer to expire...</div>
-                                </div>`;
-                        } else {
-                            let optionNodes = currentEvent.options.map((opt, idx) => {
-                                let sOpt = encodeURIComponent(opt);
-                                let sCor = encodeURIComponent(currentEvent.correct);
-                                let sTit = encodeURIComponent(currentEvent.title);
-                                return `<button onclick="window.submitDelegateQuiz('${sOpt}', '${sCor}', '${sTit}', ${idx})" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-white font-semibold py-4 px-5 rounded-2xl text-left transition text-base flex items-center shadow-md active:scale-95"><span class="bg-slate-900 px-3 py-1 rounded-md text-indigo-400 mr-4 font-black shadow-inner">${String.fromCharCode(65+idx)}</span> ${opt}</button>`;
-                            }).join('');
-
-                            html = `
-                                <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-3xl border border-indigo-500/50 p-6 sm:p-8 shadow-2xl mb-8">
-                                    <div class="flex justify-between items-center mb-6 border-b border-slate-700/50 pb-4">
-                                        <span class="bg-rose-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest animate-pulse shadow-lg"><i class="fas fa-bolt mr-2"></i> Live Trivia</span>
-                                        <span id="quizCountdownTimer" data-expired="false" class="bg-slate-950 border border-red-500/50 text-rose-500 font-mono text-xl font-black px-4 py-1.5 rounded-xl"><i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s</span>
-                                    </div>
-                                    <h2 class="text-2xl sm:text-3xl font-black text-white leading-snug mb-8">${currentEvent.title}</h2>
-                                    <div class="flex flex-col gap-3">${optionNodes}</div>
-                                </div>`;
-                        }
-                    } 
-                    else {
-                        html = `<div id="liveLeaderboardInjectPoint"></div>`;
-                        
-                        setTimeout(async () => {
-                            let injectPoint = document.getElementById('liveLeaderboardInjectPoint');
-                            if(!injectPoint) return;
-                            
-                            let mathResults = await fetchMathLeaderboard(liveHall);
-                            let sorted = mathResults.sorted;
-                            let myRank = sorted.findIndex(x => x[0] === phone);
-                            let top5 = sorted.slice(0, 5);
-
-                            let optionNodes = currentEvent.options.map((opt, idx) => {
-                                let isCor = checkIfCorrect(opt, currentEvent.correct, idx);
-                                let isSel = (cleanText(opt).toLowerCase() === cleanText(mySelection).toLowerCase());
-                                
-                                let itemClass = "";
-                                let labelMarker = "";
-
-                                if (isCor && isSel) {
-                                    itemClass = "bg-emerald-500/20 border-emerald-500 text-emerald-300 font-black ring-2 ring-emerald-400/50";
-                                    labelMarker = '<span class="bg-emerald-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct</span>';
-                                } else if (isCor && !isSel) {
-                                    itemClass = "bg-amber-500/20 border-amber-500 text-amber-200 font-black ring-2 ring-amber-400/50";
-                                    labelMarker = '<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-check mr-1"></i> Correct Answer</span>';
-                                } else if (!isCor && isSel) {
-                                    itemClass = "bg-rose-900/40 border-rose-500 text-rose-300 font-bold ring-1 ring-rose-500/50";
-                                    labelMarker = '<span class="bg-rose-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ml-auto shadow"><i class="fas fa-times mr-1"></i> Incorrect</span>';
-                                } else {
-                                    itemClass = "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
-                                }
-
-                                return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
-                            }).join('');
-
-                            let top5Nodes = top5.map((item, idx) => {
-                                let name = mathResults.names[item[0]] || 'Delegate';
-                                let last4 = item[0].length >= 4 ? item[0].slice(-4) : item[0];
-                                return `
-                                    <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
-                                        <span class="truncate pr-2"><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> ${name} <span class="text-slate-400 font-mono text-xs">(••••${last4})</span></span>
-                                        <span class="text-emerald-400 font-black tracking-wide flex-shrink-0">${item[1]} pts</span>
-                                    </div>
-                                `;
-                            }).join('');
-
-                            injectPoint.innerHTML = `
-                                <div class="bg-slate-950 rounded-3xl border-2 border-red-600/40 p-6 sm:p-8 shadow-2xl mb-8">
-                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider mb-6 inline-block shadow"><i class="fas fa-stopwatch mr-2"></i> Time Up!</span>
-                                    <h3 class="text-xl font-bold text-slate-300 mb-6 leading-snug">${currentEvent.title}</h3>
-                                    <div class="flex flex-col gap-3 mb-8">${optionNodes}</div>
-                                    
-                                    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700/80 rounded-2xl p-5 sm:p-6 shadow-inner relative overflow-hidden">
-                                        <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl"></div>
-                                        <h4 class="text-amber-500 font-black text-sm uppercase tracking-widest mb-4 flex items-center"><i class="fas fa-trophy mr-3 text-lg"></i>Live Hall Results</h4>
-                                        <div class="flex flex-col gap-2 relative z-10">${top5Nodes}</div>
-                                        ${myRank > 4 ? `
-                                            <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-white font-black flex justify-between items-center bg-slate-800/80 px-4 py-3 rounded-xl border border-slate-600 shadow-lg relative z-10">
-                                                <span>🎯 YOUR RANK: <span class="text-amber-400 ml-1">#${myRank+1}</span></span>
-                                                <span class="text-emerald-400">${sorted[myRank][1]} pts</span>
-                                            </div>
-                                        ` : (myRank !== -1 ? `
-                                            <div class="mt-5 pt-4 border-t border-slate-700/80 text-sm text-emerald-400 font-black text-center bg-emerald-900/20 px-4 py-3 rounded-xl border border-emerald-500/30 relative z-10">
-                                                🎯 Incredible! You are currently in the Top 5!
-                                            </div>
-                                        ` : '')}
-                                    </div>
-                                </div>`;
-                        }, 50);
+                    } else {
+                        nowPlayingHtml = `
+                            <div class="bg-gradient-to-b from-slate-950 to-slate-900 rounded-3xl border-2 border-red-600 p-10 shadow-2xl mb-8">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="bg-red-600 text-white px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center"><i class="fas fa-stopwatch mr-2"></i> Quiz Question Time Up!</span>
+                                </div>
+                                <h1 class="text-3xl font-black text-slate-400 leading-tight mb-8">${currentEvent.title}</h1>
+                                <div class="flex flex-col gap-4">
+                                    ${currentEvent.options.map((opt, i) => {
+                                        let isCorrect = checkIfCorrect(opt, currentEvent.correct, i);
+                                        let stateClass = isCorrect ? "bg-amber-500/20 border-amber-400 ring-2 ring-amber-400/50 text-amber-200 font-black" : "bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50";
+                                        let badge = isCorrect ? `<span class="bg-amber-500 text-slate-950 px-3 py-1 rounded-md ml-auto text-xs font-black uppercase tracking-wider"><i class="fas fa-check mr-1"></i> Correct Answer</span>` : '';
+                                        return `<div class="border p-5 rounded-2xl text-xl flex items-center ${stateClass}"><span class="bg-slate-950 px-4 py-1.5 rounded text-sm mr-4 font-black">${String.fromCharCode(65+i)}</span> ${opt} ${badge}</div>`;
+                                    }).join('')}
+                                </div>
+                            </div>`;
                     }
                 } else if (currentEvent.type === 'break') {
-                    let lowTitle = currentEvent.title.toLowerCase();
-                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
-
-                    if (currentEvent.adLink && !isSocietyMeeting) {
+                    if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -972,124 +880,35 @@
                             media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; 
                         }
 
-                        html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700 shadow-inner">${currentEvent.display_time}</span></div>${media}</div>`;
+                        nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
+                        else if (/\b(gbm|general body|inauguration|valedictory|ec meeting)\b/i.test(lowTitle)) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
-                        let societyLogoHtml = currentEvent.sponsorLogo ? `
-                            <div class="mb-6 flex justify-center">
-                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
-                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-16 sm:h-20 w-auto object-contain" alt="Society Logo">
-                                </div>
-                            </div>
-                        ` : '';
-
-                        html = `
-                            <div class="text-center py-20 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner px-6">
-                                ${societyLogoHtml}
-                                ${!societyLogoHtml ? `<i class="fas ${breakIcon} text-7xl sm:text-8xl mb-8 ${iconColor} animate-pulse drop-shadow-lg"></i>` : ''}
-                                <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-widest leading-tight">${currentEvent.title}</h2>
-                                <p class="text-2xl text-slate-400 mt-4 font-semibold">${currentEvent.display_time}</p>
-                            </div>`;
+                        nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
                 } else {
                     let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
                     let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
-                    
-                    let sponsorInfo = detectSponsor(currentEvent, data.title);
-                    let sponsorHtml = '';
-                    if (sponsorInfo) {
-                        if (sponsorInfo.logo) {
-                            if (sponsorInfo.isAO) {
-                                // High-Impact Solid AO Tile
-                                sponsorHtml = `
-                                    <div class="aspect-square h-12 sm:h-14 rounded-xl overflow-hidden shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399]">
-                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
-                                    </div>
-                                `;
-                            } else if (sponsorInfo.isSociety) {
-                                sponsorHtml = `
-                                    <div class="bg-white p-2 rounded-xl shadow-lg border border-white/20 inline-flex items-center justify-center flex-shrink-0">
-                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="h-8 sm:h-9 w-auto object-contain block" onerror="this.style.display='none'">
-                                    </div>
-                                `;
-                            } else {
-                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-black uppercase tracking-wider text-slate-600">${sponsorInfo.label}</span>` : '';
-                                sponsorHtml = `
-                                    <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
-                                        ${labelTag}
-                                        <img src="${sponsorInfo.logo}" alt="Logo" class="h-6 sm:h-7 w-auto object-contain" onerror="this.style.display='none'">
-                                    </div>
-                                `;
-                            }
-                        } else if (sponsorInfo.name) {
-                            if (sponsorInfo.isAO) {
-                                sponsorHtml = `
-                                    <div class="aspect-square h-12 sm:h-14 rounded-xl shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-[11px] leading-tight text-center p-1">
-                                        <span>AO</span><span>TRAUMA</span>
-                                    </div>
-                                `;
-                            } else if (sponsorInfo.isSociety) {
-                                sponsorHtml = `
-                                    <div class="bg-slate-900 border border-indigo-500/40 px-3 py-1.5 rounded-xl flex items-center shadow-md">
-                                        <span class="text-xs font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
-                                    </div>
-                                `;
-                            } else {
-                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${sponsorInfo.label}</span>` : '';
-                                sponsorHtml = `
-                                    <div class="bg-slate-900/90 border border-amber-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-md">
-                                        ${labelTag}
-                                        <span class="text-xs sm:text-sm font-black text-amber-400 tracking-wide">${sponsorInfo.name}</span>
-                                    </div>
-                                `;
-                            }
-                        }
-                    }
-
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
-                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-sm sm:text-base mb-3 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : '';
+                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-3 flex items-center"><i class="fas fa-layer-group mr-2 text-sm"></i>${currentEvent.parent_session}</div>` : '';
                     
-                    // Surgeon Hand Holding Scalpel Vector SVG Icon
-                    let iconHtml = isHandsOn ? `
-                        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center p-2.5 mr-4 flex-shrink-0 border border-amber-500/40 shadow-inner">
-                            <svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512">
-                                <path d="M497.9 74.1l-60-60c-18.7-18.7-49.1-18.7-67.9 0L241.8 142.3l-8.5-8.5c-6.2-6.2-16.4-6.2-22.6 0l-33.9 33.9c-6.2 6.2-6.2 16.4 0 22.6l8.5 8.5L25.4 358.6c-33.9 33.9-33.9 88.8 0 122.6s88.8 33.9 122.6 0l160.7-160.7 8.5 8.5c6.2 6.2 16.4 6.2 22.6 0l33.9-33.9c6.2-6.2 6.2-16.4 0-22.6l-8.5-8.5 128.2-128.2c18.7-18.7 18.7-49.1.5-67.7zM113.8 447c-14.7 14.7-38.5 14.7-53.2 0s-14.7-38.5 0-53.2l128-128 53.2 53.2-128 128z"/>
-                            </svg>
-                        </div>
-                    ` : `
-                        <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl mr-4 flex-shrink-0 border border-indigo-500/30">
-                            <i class="fas fa-microphone"></i>
-                        </div>
-                    `;
-
-                    html = `
+                    nowPlayingHtml = `
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-6 sm:p-10 shadow-2xl mb-8">
                             <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="${bStyle} px-4 py-1.5 rounded-full text-xs sm:text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-current rounded-full mr-2 sm:mr-2.5 animate-pulse"></span> LIVE NOW</span>
+                                    <span class="animate-live ${bStyle} px-4 py-1.5 rounded-full text-sm font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-current rounded-full mr-2.5"></span> LIVE NOW</span>
                                     ${handsOnBadge}
                                 </div>
-                                <div class="flex items-center gap-3">
-                                    ${sponsorHtml}
-                                    <span class="text-lg sm:text-xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50 shadow-inner"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
-                                </div>
+                                <span class="text-xl sm:text-2xl font-bold text-slate-300 bg-slate-900/60 px-4 py-1.5 rounded-xl border border-slate-700/50 shadow-inner"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
                             ${pSess}
-                            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                            ${currentEvent.speaker ? `
-                                <div class="flex items-center bg-slate-900/90 p-4 sm:p-5 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full">
-                                    ${iconHtml}
-                                    <div>
-                                        <span class="block text-[10px] sm:text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Faculty / Instructor</span>
-                                        <span class="text-lg sm:text-2xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
-                                    </div>
-                                </div>
-                            ` : ''}
+                            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
+                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-5 sm:p-6 rounded-2xl border border-slate-700/80 shadow-inner inline-flex max-w-full"><div class="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-2xl sm:text-3xl mr-4 sm:mr-6 flex-shrink-0 border border-indigo-500/30"><i class="fas fa-microphone"></i></div><div><span class="block text-xs uppercase tracking-widest text-slate-400 font-bold mb-0.5">Speaker / Faculty</span><span class="text-xl sm:text-3xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
                         </div>`;
                 }
             }
@@ -1103,92 +922,62 @@
                     </div>`;
             }
 
-            document.getElementById('dynamicContentWrapper').innerHTML = workshopNotice + html + upNextHtml;
-        };
+            document.getElementById('dynamicContentWrapper').innerHTML = nowPlayingHtml + upNextHtml;
+        }
 
-        window.initLiveDashboard = function() { 
-            supabaseClient.channel('global-radar-feed')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
-                    let changedHall = payload.new.hall_id;
-                    let oIdx = payload.new.override_index;
-                    let lBoard = payload.new.force_leaderboard;
-                    
-                    if (changedHall === liveHall) {
-                        if (lBoard && lBoard !== 'none') window.showLeaderboard(lBoard);
-                        else window.hideLeaderboard();
-                    } else {
-                        if (oIdx !== null && oIdx < 0) {
-                            document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
-                            document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
-                            document.getElementById('globalHijackOverlay').classList.remove('hidden');
-                        } else if (oIdx === null || oIdx >= 0) {
-                            document.getElementById('globalHijackOverlay').classList.add('hidden');
-                        }
-                    }
-                }).subscribe();
+        function initLiveKiosk() {
+            populateEventJump();
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
+                if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
+                updateLiveDisplay(true);
+            });
 
+            supabaseClient.channel('custom-live-channel')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
+                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
+                ).subscribe();
+            
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
-
-            liveUpdateTimer = setInterval(() => {
-                if (remoteOverrideIndex === null || remoteOverrideIndex >= 0) { window.updateLiveDisplay(false); }
-                window.updatePersistentFooter(); 
-            }, 15000); 
+            
+            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); }, 15000);
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-                if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && quizStartTimeStamp) {
+                if (manualOverrideIndex !== null && manualOverrideIndex < 0 && quizStartTimeStamp) {
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
                     
                     if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) {
-                            window.quizExpiredRendered = true;
-                            window.updateLiveDisplay(true); 
-                        }
+                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
                     } else {
                         window.quizExpiredRendered = false;
                         let timerEl = document.getElementById('quizCountdownTimer');
-                        if (timerEl && timerEl.dataset.expired === "false") {
-                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
-                        }
+                        if (timerEl && timerEl.dataset.expired === "false") { timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`; }
                     }
-                } else {
-                    window.quizExpiredRendered = false;
-                }
+                } else { window.quizExpiredRendered = false; }
             }, 1000);
-            
-            window.subscribeToHall(liveHall); 
-            window.updatePersistentFooter();
-        };
-
-        async function bootApp() {
-            try {
-                window.refreshIdentityStateUI();
-                try { await window.syncMyAnswers(); } catch(e){}
-                document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                
-                const cachedData = localStorage.getItem(CACHE_KEY);
-                if (cachedData) {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden');
-                    window.initLiveDashboard();
-                    window.fetchLiveSchedule(true);
-                } else { 
-                    window.fetchLiveSchedule(false); 
-                }
-            } catch(e) {
-                console.error("Boot Error", e);
-                window.fetchLiveSchedule(false);
-            }
         }
 
-        bootApp();
+        if(localStorage.getItem('mgr_pin')) { loadManagerContext(); }
+        
+        window.switchHallFeed = switchHallFeed;
+        window.populateEventJump = populateEventJump;
+        window.jumpToEvent = jumpToEvent;
+        window.renderQuizCockpit = renderQuizCockpit;
+        window.launchQuizByGlobalIndex = launchQuizByGlobalIndex;
+        window.terminateActiveQuiz = terminateActiveQuiz;
+        window.resumeAutoSync = resumeAutoSync;
+        window.manualShift = manualShift;
+        window.forceLeaderboardLocal = forceLeaderboardLocal;
+        window.pushLeaderboardGlobal = pushLeaderboardGlobal;
+        window.clearLeaderboardGlobal = clearLeaderboardGlobal;
+        window.showLeaderboard = showLeaderboard;
+        window.hideLeaderboard = hideLeaderboard;
+        window.updateLiveDisplay = updateLiveDisplay;
+        window.initLiveKiosk = initLiveKiosk;
     </script>
 </body>
 </html>
