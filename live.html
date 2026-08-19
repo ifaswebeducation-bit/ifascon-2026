@@ -94,24 +94,27 @@
                     <div id="sponsorAdsContainer" class="flex flex-wrap gap-2 w-full"></div>
                 </div>
 
-                <div class="flex items-center gap-3 pt-3 border-t border-slate-800 flex-wrap">
-                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-trophy mr-1.5"></i>Leaderboard:</span>
-                    <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
-                    <button onclick="forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-4 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
+                <!-- Leaderboard Controls Suite -->
+                <div class="flex items-center gap-2 pt-3 border-t border-slate-800 flex-wrap">
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1"><i class="fas fa-trophy mr-1.5"></i>Hall Board:</span>
+                    <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
+                    <button onclick="forceLeaderboardLocal('none')" class="bg-slate-800 text-rose-400 hover:bg-slate-700 px-3 py-1.5 rounded-lg font-bold border border-slate-700 active:scale-95 transition text-xs">Clear (This Hall)</button>
                     
-                    <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto">
-                        <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2 py-1.5 rounded outline-none font-bold">
+                    <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto flex-wrap mt-2 sm:mt-0">
+                        <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider"><i class="fas fa-globe mr-1"></i>All Halls:</span>
+                        <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2.5 py-1.5 rounded-lg outline-none font-bold">
+                            <option value="day1_cum">Day 1: Cumulative (All Halls)</option>
+                            <option value="day2_cum">Day 2: Cumulative (All Halls)</option>
+                            <option value="grand">Grand Overall Leaderboard</option>
                             <option value="22a">Day 1: Hall A</option>
                             <option value="22b">Day 1: Hall B</option>
                             <option value="22c">Day 1: Hall C</option>
-                            <option value="day1_cum">Day 1: Cumulative</option>
                             <option value="23a">Day 2: Hall A</option>
                             <option value="23b">Day 2: Hall B</option>
                             <option value="23c">Day 2: Hall C</option>
-                            <option value="day2_cum">Day 2: Cumulative</option>
-                            <option value="grand">Grand Overall</option>
                         </select>
-                        <button onclick="showLeaderboard(document.getElementById('boardTypeSelect').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-bold border border-indigo-500 active:scale-95 transition text-xs shadow">Show TV</button>
+                        <button onclick="pushLeaderboardGlobal(document.getElementById('boardTypeSelect').value)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-black border border-emerald-500 active:scale-95 transition text-xs shadow-lg"><i class="fas fa-broadcast-tower mr-1.5"></i>Push ALL Halls</button>
+                        <button onclick="clearLeaderboardGlobal()" class="bg-rose-700 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg font-black border border-rose-600 active:scale-95 transition text-xs shadow-lg"><i class="fas fa-ban mr-1.5"></i>Clear ALL Halls</button>
                     </div>
                 </div>
             </div>
@@ -190,12 +193,14 @@
             if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
             if (str.includes('diabet')) return 'workshop_diabetic';
             if (str.includes('mis')) return 'workshop_mis';
+            if (str === '22c' || str === 'hallc' || str === 'c22') return '22c';
+            if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
             if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
             if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
-            if (str.includes('22c') || (str.includes('22') && str.includes('c'))) return '22c';
+            if (str.includes('22c')) return '22c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
-            if (str.includes('23c') || (str.includes('23') && str.includes('c'))) return '23c';
+            if (str.includes('23c')) return '23c';
             return str;
         }
         function checkIfCorrect(optionText, correctAnswer, index) {
@@ -302,11 +307,11 @@
                 if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
                 else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
                 else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders (All Halls)"; }
                 else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
                 else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
                 else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders (All Halls)"; }
                 else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
@@ -339,6 +344,19 @@
             }).join('');
         }
         function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
+
+        // --- GLOBAL BROADCAST CONTROLS ---
+        async function pushLeaderboardGlobal(type) {
+            logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
+            showLeaderboard(type);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).in('hall_id', allHallsList);
+        }
+
+        async function clearLeaderboardGlobal() {
+            logAction("BROADCAST: Cleared Leaderboard across ALL halls");
+            hideLeaderboard();
+            await supabaseClient.from('hall_states').update({ force_leaderboard: null }).in('hall_id', allHallsList);
+        }
 
         // --- PARSING ---
         async function fetchLiveSchedule() {
@@ -467,7 +485,7 @@
                     } else {
                         events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
                     }
-                    return; // Skip normal parsing for Hall C rows
+                    return;
                 }
                 // -----------------------------
 
@@ -900,7 +918,7 @@
         // --- INIT SCRIPT ---
         if(localStorage.getItem('mgr_pin')) { loadManagerContext(); }
         
-        // Define global functions so the HTML buttons can reach them safely
+        // Global functions for buttons
         window.switchHallFeed = switchHallFeed;
         window.populateEventJump = populateEventJump;
         window.jumpToEvent = jumpToEvent;
@@ -910,6 +928,10 @@
         window.resumeAutoSync = resumeAutoSync;
         window.manualShift = manualShift;
         window.forceLeaderboardLocal = forceLeaderboardLocal;
+        window.pushLeaderboardGlobal = pushLeaderboardGlobal;
+        window.clearLeaderboardGlobal = clearLeaderboardGlobal;
+        window.showLeaderboard = showLeaderboard;
+        window.hideLeaderboard = hideLeaderboard;
         window.updateLiveDisplay = updateLiveDisplay;
         window.initLiveKiosk = initLiveKiosk;
     </script>
