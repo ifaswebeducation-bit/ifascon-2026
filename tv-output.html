@@ -22,7 +22,7 @@
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950">
 
-    <!-- SETUP WIZARD (Visible only when no URL parameters are provided) -->
+    <!-- SETUP WIZARD -->
     <div id="setupWizard" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 text-slate-100">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
             <div class="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
@@ -162,7 +162,7 @@
     <main id="kioskViewport" class="flex-1 flex flex-col md:flex-row w-full h-full relative overflow-hidden bg-slate-950 divide-y md:divide-y-0 md:divide-x divide-slate-800/80">
         <!-- Hall Panel 1 -->
         <div id="panelHall1" class="flex-1 flex flex-col h-full overflow-hidden relative p-4 sm:p-6 lg:p-8"></div>
-        <!-- Hall Panel 2 (populated in split mode) -->
+        <!-- Hall Panel 2 -->
         <div id="panelHall2" class="hidden flex-1 flex flex-col h-full overflow-hidden relative p-4 sm:p-6 lg:p-8 bg-slate-950/60"></div>
     </main>
 
@@ -214,14 +214,14 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v5';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v6';
 
         let activeHalls = [];
         let hallArrows = {};
         let hallCustomNames = {};
         let hallStates = {
-            hall1: { id: null, remoteIndex: null, quizStart: null, lastHash: "" },
-            hall2: { id: null, remoteIndex: null, quizStart: null, lastHash: "" }
+            hall1: { id: null, remoteIndex: null, quizStart: null, lastHash: "", expiredRendered: false },
+            hall2: { id: null, remoteIndex: null, quizStart: null, lastHash: "", expiredRendered: false }
         };
 
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
@@ -605,7 +605,7 @@
                                     <span class="${isExpired ? 'bg-red-600' : 'bg-rose-600'} text-white ${isSplit ? 'px-4 py-1.5 text-xs' : 'px-6 py-2.5 text-sm sm:text-base'} rounded-full font-black uppercase tracking-widest flex items-center shadow-lg">
                                         <i class="fas ${isExpired ? 'fa-stopwatch' : 'fa-bolt'} mr-2"></i> ${isExpired ? 'Time Up!' : 'Live Audience Quiz'}
                                     </span>
-                                    <span class="bg-slate-950 border border-rose-500/50 text-rose-500 font-mono ${timerClass} font-black rounded-2xl">
+                                    <span id="quizTimer_${hallId}" class="bg-slate-950 border border-rose-500/50 text-rose-500 font-mono ${timerClass} font-black rounded-2xl">
                                         <i class="fas fa-hourglass-half mr-2 ${isExpired ? '' : 'animate-spin'}"></i>${secondsLeft}s
                                     </span>
                                 </div>
@@ -809,6 +809,7 @@
                 if (data) {
                     stateSlot.remoteIndex = data.override_index;
                     stateSlot.quizStart = data.quiz_start_time;
+                    stateSlot.expiredRendered = false;
                     if (data.force_leaderboard && data.force_leaderboard !== 'none') showTVLeaderboard(data.force_leaderboard);
                     else hideTVLeaderboard();
                 }
@@ -821,6 +822,7 @@
                     (payload) => {
                         stateSlot.remoteIndex = payload.new.override_index;
                         stateSlot.quizStart = payload.new.quiz_start_time;
+                        stateSlot.expiredRendered = false;
                         let boardType = payload.new.force_leaderboard;
                         if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
                         else hideTVLeaderboard();
@@ -830,10 +832,33 @@
                 ).subscribe();
         }
 
-        function initClock() {
+        function initClockAndSmoothTicker() {
             setInterval(() => {
+                // Update digital clocks
                 let timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 document.querySelectorAll('.sharedDigitalClock').forEach(el => el.innerText = timeStr);
+
+                // Smooth quiz ticker
+                ['hall1', 'hall2'].forEach(slot => {
+                    let st = hallStates[slot];
+                    if (st.id && st.remoteIndex !== null && st.remoteIndex < 0 && st.quizStart) {
+                        let diff = Math.floor((new Date() - new Date(st.quizStart)) / 1000);
+                        let sec = Math.max(0, 45 - diff);
+                        
+                        let timerEl = document.getElementById(`quizTimer_${st.id}`);
+                        if (timerEl && sec > 0) {
+                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${sec}s`;
+                        }
+                        
+                        if (sec === 0 && !st.expiredRendered) {
+                            st.expiredRendered = true;
+                            st.lastHash = "";
+                            refreshDisplays();
+                        } else if (sec > 0) {
+                            st.expiredRendered = false;
+                        }
+                    }
+                });
             }, 1000);
         }
 
@@ -911,7 +936,7 @@
         }
 
         async function bootApp() {
-            initClock();
+            initClockAndSmoothTicker();
             const params = new URLSearchParams(window.location.search);
             const hallsParam = params.get('halls') || params.get('hall');
             const arrowsParam = params.get('arrows') || params.get('arrow') || "";
@@ -960,7 +985,6 @@
                 subscribeToHallRealtime(activeHalls[1], hallStates.hall2);
             }
 
-            setInterval(refreshDisplays, 1000);
             setInterval(fetchSchedule, 60000);
         }
 
