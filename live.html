@@ -551,6 +551,7 @@
             document.getElementById('eventJumpSelect').value = "";
         }
 
+        // --- RELIABLE QUIZ COCKPIT RENDERER ---
         function renderQuizCockpit(activeSympName = "") {
             let container = document.getElementById('quizButtonsContainer');
             if (!container) return;
@@ -576,7 +577,10 @@
                 return false;
             });
 
-            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) hallQuizzes = [...globalQuizzes];
+            // If no questions explicitly tagged to this hall, show ALL questions across the event
+            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
+                hallQuizzes = [...globalQuizzes];
+            }
 
             if (filterEl) {
                 let currentVal = filterEl.value;
@@ -631,7 +635,7 @@
                 }
                 container.innerHTML = dashHtml;
             } else {
-                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found.</div>`;
+                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found. Check CSV or clear search filter.</div>`;
             }
         }
 
