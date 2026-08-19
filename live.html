@@ -204,6 +204,18 @@
             return str;
         }
 
+        function resolveDirectImageUrl(url) {
+            if (!url) return "";
+            url = url.trim();
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let fIdMatch = url.match(/[-\w]{25,}/);
+                if (fIdMatch && fIdMatch[0]) {
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                }
+            }
+            return url;
+        }
+
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
@@ -515,19 +527,22 @@
                             });
                         });
                     } else if (key === 'ao') {
-                        const allAo = parseRawData(parsedCsv, "21 Aug");
-                        let sem = [], dia = [], mis = [];
-                        allAo.forEach(ev => {
-                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) { 
-                                (matchStr.includes('diabetic') || matchStr.includes('nebula') || matchStr.includes('beam')) ? dia.push(ev) : mis.push(ev); 
-                            } else { 
-                                sem.push(ev); 
+                        let semRows = [], diaRows = [], misRows = [];
+                        parsedCsv.forEach((r, idx) => {
+                            let rowStr = r.join(' ').toLowerCase();
+                            if (rowStr.includes('position:absolute') || rowStr.includes('duration') && rowStr.includes('from')) return;
+                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
+                                misRows.push(r);
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                                diaRows.push(r);
+                            } else {
+                                semRows.push(r);
                             }
                         });
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else { 
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
                     }
@@ -855,10 +870,12 @@
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
-                        } else if (link.includes('drive.google.com')) {
-                            let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
-                        } else { media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; }
+                        } else if (link.includes('drive.google.com') || link.includes('docs.google.com')) {
+                            let dUrl = resolveDirectImageUrl(link);
+                            media = `<img src="${dUrl}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl" onerror="this.src='${link}'">`;
+                        } else { 
+                            media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; 
+                        }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
