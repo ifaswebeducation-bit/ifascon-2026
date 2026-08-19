@@ -187,21 +187,21 @@
                 let rawLogo = eventObj.sponsorLogo.toLowerCase();
                 let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
                 let lbl = isAO ? "" : (eventObj.sponsorLabel || "Supported by");
-                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl };
+                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO };
             }
 
             // Keyword fallbacks
             if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
-                return { name: 'AO Foundation', isBadge: true, label: '' }; // No 'Supported by' for AO
+                return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
             }
             if (fullSearch.includes('nebula')) {
-                return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by' };
+                return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by', isAO: false };
             }
             if (fullSearch.includes('arthrex')) {
-                return { name: 'Arthrex', isBadge: true, label: 'Supported by' };
+                return { name: 'Arthrex', isBadge: true, label: 'Supported by', isAO: false };
             }
             if (fullSearch.includes('biotek')) {
-                return { name: 'Biotek', isBadge: true, label: 'Supported by' };
+                return { name: 'Biotek', isBadge: true, label: 'Supported by', isAO: false };
             }
 
             return null;
@@ -220,7 +220,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v130'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v140'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -362,7 +362,6 @@
                         });
                     } else if (key === 'ao') {
                         let semRows = [], diaRows = [], misRows = [];
-                        let isHeader = true;
 
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
@@ -969,28 +968,45 @@
                     let sponsorHtml = '';
                     if (sponsorInfo) {
                         if (sponsorInfo.logo) {
-                            let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-black uppercase tracking-wider text-slate-600">${sponsorInfo.label}</span>` : '';
-                            sponsorHtml = `
-                                <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
-                                    ${labelTag}
-                                    <img src="${sponsorInfo.logo}" alt="Logo" class="h-6 sm:h-7 w-auto object-contain" onerror="this.style.display='none'">
-                                </div>
-                            `;
+                            if (sponsorInfo.isAO) {
+                                // Dedicated Hero Card Container for AO Trauma Logo
+                                sponsorHtml = `
+                                    <div class="bg-white p-2.5 sm:p-3 rounded-2xl shadow-xl border border-white/20 inline-flex items-center justify-center flex-shrink-0">
+                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="h-10 sm:h-14 w-auto object-contain block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-black uppercase tracking-wider text-slate-600">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
+                                        ${labelTag}
+                                        <img src="${sponsorInfo.logo}" alt="Logo" class="h-6 sm:h-7 w-auto object-contain" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            }
                         } else if (sponsorInfo.name) {
-                            let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${sponsorInfo.label}</span>` : '';
-                            sponsorHtml = `
-                                <div class="bg-slate-900/90 border border-amber-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-md">
-                                    ${labelTag}
-                                    <span class="text-xs sm:text-sm font-black text-amber-400 tracking-wide">${sponsorInfo.name}</span>
-                                </div>
-                            `;
+                            if (sponsorInfo.isAO) {
+                                sponsorHtml = `
+                                    <div class="bg-white text-slate-950 font-black px-4 py-2 rounded-2xl shadow-xl text-sm sm:text-base border border-slate-200 uppercase tracking-wider">
+                                        AO TRAUMA
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-slate-900/90 border border-amber-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-md">
+                                        ${labelTag}
+                                        <span class="text-xs sm:text-sm font-black text-amber-400 tracking-wide">${sponsorInfo.name}</span>
+                                    </div>
+                                `;
+                            }
                         }
                     }
 
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-sm sm:text-base mb-3 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : '';
                     
-                    // Surgeon Hand Holding Scalpel SVG Icon
+                    // Surgeon Hand Holding Scalpel Vector SVG Icon
                     let iconHtml = isHandsOn ? `
                         <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center p-2.5 mr-4 flex-shrink-0 border border-amber-500/40 shadow-inner">
                             <svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512">
