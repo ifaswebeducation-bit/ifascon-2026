@@ -182,17 +182,24 @@
         function detectSponsor(eventObj, currentHallTitle) {
             let fullSearch = `${eventObj.title} ${eventObj.parent_session} ${eventObj.hall} ${currentHallTitle}`.toLowerCase();
             
+            // Check Society Events (GBM, Inauguration, Valedictory, EC Meeting)
+            let isSocietyEvent = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee|executive meeting)\b/i.test(fullSearch);
+
             // Check if logo exists from sheet
             if (eventObj.sponsorLogo) {
                 let rawLogo = eventObj.sponsorLogo.toLowerCase();
                 let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
-                let lbl = isAO ? "" : (eventObj.sponsorLabel || "Supported by");
-                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO };
+                let noLabel = isAO || isSocietyEvent || eventObj.sponsorLabel === "" || (eventObj.sponsorLabel && eventObj.sponsorLabel.toLowerCase().includes('no_label'));
+                let lbl = noLabel ? "" : (eventObj.sponsorLabel || "Supported by");
+                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO, isSociety: isSocietyEvent };
             }
 
             // Keyword fallbacks
             if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
                 return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
+            }
+            if (isSocietyEvent) {
+                return { name: 'IFAS Official', isBadge: true, label: '', isSociety: true };
             }
             if (fullSearch.includes('nebula')) {
                 return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by', isAO: false };
@@ -220,7 +227,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v140'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v150'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -365,7 +372,7 @@
 
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
-                            if (rowStr.includes('position:absolute') || rowStr.includes('duration') && rowStr.includes('from')) return;
+                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
                             
                             // MIS Workshop rows
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
@@ -422,7 +429,7 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "", current_sponsor_logo = "", current_sponsor_label = "";
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
@@ -468,9 +475,10 @@
                         if (topic.toLowerCase().includes("registration")) text = "Registration";
                         else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
                         else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
+                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '', sponsorLogo: logoUrl });
                     } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', sponsorLogo: logoUrl });
                     }
                     return;
                 }
@@ -481,11 +489,22 @@
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("gbm")) text = "Annual General Body Meeting (GBM)";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '', 
+                        adLink: adLink,
+                        sponsorLogo: logoUrl
+                    });
                     return;
                 }
 
@@ -938,7 +957,10 @@
                         }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
-                    if (currentEvent.adLink) {
+                    let lowTitle = currentEvent.title.toLowerCase();
+                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
+
+                    if (currentEvent.adLink && !isSocietyMeeting) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -953,12 +975,26 @@
                         html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700 shadow-inner">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
-                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
-                        html = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl sm:text-8xl mb-8 ${iconColor} animate-pulse drop-shadow-lg"></i><h2 class="text-4xl sm:text-5xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-4 font-semibold">${currentEvent.display_time}</p></div>`;
+                        let societyLogoHtml = currentEvent.sponsorLogo ? `
+                            <div class="mb-6 flex justify-center">
+                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
+                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-16 sm:h-20 w-auto object-contain" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '';
+
+                        html = `
+                            <div class="text-center py-20 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner px-6">
+                                ${societyLogoHtml}
+                                ${!societyLogoHtml ? `<i class="fas ${breakIcon} text-7xl sm:text-8xl mb-8 ${iconColor} animate-pulse drop-shadow-lg"></i>` : ''}
+                                <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-widest leading-tight">${currentEvent.title}</h2>
+                                <p class="text-2xl text-slate-400 mt-4 font-semibold">${currentEvent.display_time}</p>
+                            </div>`;
                     }
                 } else {
                     let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
@@ -969,10 +1005,16 @@
                     if (sponsorInfo) {
                         if (sponsorInfo.logo) {
                             if (sponsorInfo.isAO) {
-                                // Dedicated Hero Card Container for AO Trauma Logo
+                                // High-Impact Solid AO Tile
                                 sponsorHtml = `
-                                    <div class="bg-white p-2.5 sm:p-3 rounded-2xl shadow-xl border border-white/20 inline-flex items-center justify-center flex-shrink-0">
-                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="h-10 sm:h-14 w-auto object-contain block" onerror="this.style.display='none'">
+                                    <div class="aspect-square h-12 sm:h-14 rounded-xl overflow-hidden shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399]">
+                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-white p-2 rounded-xl shadow-lg border border-white/20 inline-flex items-center justify-center flex-shrink-0">
+                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="h-8 sm:h-9 w-auto object-contain block" onerror="this.style.display='none'">
                                     </div>
                                 `;
                             } else {
@@ -987,8 +1029,14 @@
                         } else if (sponsorInfo.name) {
                             if (sponsorInfo.isAO) {
                                 sponsorHtml = `
-                                    <div class="bg-white text-slate-950 font-black px-4 py-2 rounded-2xl shadow-xl text-sm sm:text-base border border-slate-200 uppercase tracking-wider">
-                                        AO TRAUMA
+                                    <div class="aspect-square h-12 sm:h-14 rounded-xl shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-[11px] leading-tight text-center p-1">
+                                        <span>AO</span><span>TRAUMA</span>
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-slate-900 border border-indigo-500/40 px-3 py-1.5 rounded-xl flex items-center shadow-md">
+                                        <span class="text-xs font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
                                     </div>
                                 `;
                             } else {
