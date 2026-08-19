@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- HTML2Canvas library to convert DOM to JPG -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .font-brand { font-family: 'Montserrat', sans-serif; }
@@ -25,17 +27,22 @@
 </head>
 <body class="bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-0 sm:p-6 min-h-screen">
 
-    <!-- Floating Print / Save PDF Button -->
-    <div class="no-print fixed top-4 right-4 z-50 flex gap-3">
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-6 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm uppercase tracking-wider transition active:scale-95">
-            <i class="fas fa-print"></i> Print Poster / Save as PDF
+    <!-- Action Toolbar (Hidden during print / image capture) -->
+    <div class="no-print fixed top-4 right-4 z-50 flex flex-wrap gap-3">
+        <!-- Download as JPG Button -->
+        <button id="downloadJpgBtn" onclick="downloadPosterJpg()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95">
+            <i class="fas fa-file-image"></i> Save as JPG
+        </button>
+        <!-- Print / PDF Button -->
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95">
+            <i class="fas fa-print"></i> Print / PDF
         </button>
     </div>
 
-    <!-- Poster Canvas (A4 Aspect Ratio Optimized) -->
-    <div class="poster-container w-full max-w-[800px] bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden p-8 sm:p-12 flex flex-col justify-between relative">
+    <!-- Poster Canvas Container (Target for JPG Export & Printing) -->
+    <div id="posterElement" class="poster-container w-full max-w-[800px] bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden p-8 sm:p-12 flex flex-col justify-between relative">
         
-        <!-- Background Ambient Accent Glows -->
+        <!-- Ambient Accent Background Glows -->
         <div class="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
         <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -43,7 +50,7 @@
         <div class="relative z-10 text-center flex flex-col items-center">
             <div class="flex items-center justify-between w-full border-b border-slate-800/80 pb-6 mb-6">
                 <div class="bg-white p-2.5 rounded-2xl shadow-xl">
-                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" crossorigin="anonymous" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
                 </div>
                 <div class="text-right">
                     <span class="inline-block bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-mono text-xs font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-inner mb-1">Live Companion</span>
@@ -94,7 +101,7 @@
                 <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl mb-3 border border-rose-500/30">
                     <i class="fas fa-bolt"></i>
                 </div>
-                <h3 class="text-sm font-black text-white uppercase tracking-wider mb-1">Live Trivia (45sec)</h3>
+                <h3 class="text-sm font-black text-white uppercase tracking-wider mb-1">Live Trivia (45s)</h3>
                 <p class="text-xs text-slate-400 leading-snug">Answer high-stakes audience questions with fast-finger bonus scoring.</p>
             </div>
 
@@ -123,24 +130,53 @@
                 <div class="hidden sm:block text-slate-600">➔</div>
                 <div class="flex items-center gap-2">
                     <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px]">3</span>
-                    <span>Select Hall & Start Playing</span>
+                    <span>Select Hall & Play</span>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- QR Code Generator Script -->
+    <!-- Scripts -->
     <script>
+        // Generate QR Code
         const targetUrl = "https://ifascon-2026.vercel.app/delegate_live.html";
         new QRCode(document.getElementById("posterQrCode"), {
             text: targetUrl,
             width: 170,
             height: 170,
-            colorDark: "#020617",
-            colorLight: "#ffffff",
-            correctLevel: QRCode.CorrectLevel.H
+            colorDark : "#020617",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
         });
+
+        // Function to export element as JPG image
+        function downloadPosterJpg() {
+            const poster = document.getElementById('posterElement');
+            const btn = document.getElementById('downloadJpgBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating JPG...';
+            btn.disabled = true;
+
+            html2canvas(poster, {
+                scale: 2, // High resolution (2x scale for crisp prints/displays)
+                useCORS: true,
+                backgroundColor: '#020617'
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'IFASCON_2026_Delegate_Poster.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("JPG generation failed: ", err);
+                alert("Failed to create image. You can also use Print -> Save as PDF.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
     </script>
 </body>
 </html>
