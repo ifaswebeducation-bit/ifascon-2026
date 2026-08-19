@@ -30,6 +30,7 @@
         <p id="splashSub" class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest"></p>
     </div>
 
+    <!-- HIGH-STAKES QUIZ HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
         <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
@@ -130,6 +131,7 @@
             '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '22c': "22nd August 2026 - Hall C",
             '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
         };
+        const allHallsList = Object.keys(configTitles);
 
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
@@ -168,26 +170,29 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
-        // Date-Based Automatic Hall Availability Filter
-        function getAvailableHallsForToday() {
+        let customVisibleHalls = null;
+
+        function getAvailableHalls() {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
+                return allHallsList;
+            }
+
+            if (customVisibleHalls && customVisibleHalls.length > 0) {
+                return customVisibleHalls;
+            }
+
             let now = new Date();
             let yyyy = now.getFullYear();
             let mm = String(now.getMonth() + 1).padStart(2, '0');
             let dd = String(now.getDate()).padStart(2, '0');
             let dateStr = `${yyyy}-${mm}-${dd}`;
 
-            // For testing preview override
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
-                return ['ao_seminar', 'workshop_diabetic', 'workshop_mis', '22a', '22b', '22c', '23a', '23b', '23c'];
-            }
-
             if (dateStr === '2026-08-21') return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
             if (dateStr === '2026-08-22') return ['22a', '22b', '22c'];
             if (dateStr === '2026-08-23') return ['23a', '23b', '23c'];
 
-            // Default fallback if outside conference dates
-            return ['ao_seminar', 'workshop_diabetic', 'workshop_mis', '22a', '22b', '22c', '23a', '23b', '23c'];
+            return allHallsList;
         }
 
         function detectSponsor(eventObj, currentHallTitle) {
@@ -231,9 +236,8 @@
         let tickerTimer = null;
         let liveUpdateTimer = null;
         let lastRenderHash = "";
-        let forcedSplashState = null;
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v160'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v170'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -371,6 +375,7 @@
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
                             if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
                                 misRows.push(r);
                             } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
@@ -593,20 +598,14 @@
         };
 
         window.subscribeToHall = function(hall_id) {
+            if (!hall_id) return;
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
             supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    let boardType = data.force_leaderboard;
-                    if (boardType && boardType.startsWith('splash_')) {
-                        applySplashState(boardType.replace('splash_', ''));
-                    } else {
-                        hideSplashState();
-                        if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                        else window.hideLeaderboard(); 
-                    }
+                    handlePayload(data.force_leaderboard);
                 }
                 lastRenderHash = ""; 
                 window.updateLiveDisplay(true);
@@ -617,27 +616,45 @@
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        let boardType = payload.new.force_leaderboard;
-                        if (boardType && boardType.startsWith('splash_')) {
-                            applySplashState(boardType.replace('splash_', ''));
-                        } else {
-                            hideSplashState();
-                            if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                            else window.hideLeaderboard();
-                        }
+                        handlePayload(payload.new.force_leaderboard);
                         lastRenderHash = ""; 
                         window.updateLiveDisplay(true); 
                     }
                 ).subscribe();
         };
 
+        function handlePayload(val) {
+            if (!val || val === 'none') {
+                hideSplashState();
+                window.hideLeaderboard();
+                return;
+            }
+            if (val.startsWith('halls:')) {
+                let hStr = val.replace('halls:', '').trim();
+                customVisibleHalls = hStr.split(',').map(s => normalizeHallId(s.trim())).filter(Boolean);
+                window.updateLiveDisplay(true);
+                return;
+            }
+            if (val.startsWith('splash_')) {
+                applySplashState(val.replace('splash_', ''));
+                return;
+            }
+            hideSplashState();
+            window.showLeaderboard(val);
+        }
+
         function applySplashState(stateName) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
+                hideSplashState();
+                return;
+            }
+
             let overlay = document.getElementById('delegateSplashOverlay');
             let titleEl = document.getElementById('splashTitle');
             let subEl = document.getElementById('splashSub');
             if (!overlay) return;
 
-            forcedSplashState = stateName;
             if (stateName === 'pre_conf') {
                 titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
                 subEl.innerText = "See you tomorrow!";
@@ -652,14 +669,12 @@
                 overlay.classList.remove('hidden');
             } else {
                 overlay.classList.add('hidden');
-                forcedSplashState = null;
             }
         }
 
         function hideSplashState() {
             let overlay = document.getElementById('delegateSplashOverlay');
             if (overlay) overlay.classList.add('hidden');
-            forcedSplashState = null;
         }
 
         function getLiveStatus(events) {
@@ -821,7 +836,7 @@
         };
 
         window.updateLiveDisplay = function(forceRender = false) {
-            let availableHalls = getAvailableHallsForToday();
+            let availableHalls = getAvailableHalls();
             if (!availableHalls.includes(liveHall)) {
                 liveHall = availableHalls[0];
             }
@@ -1000,7 +1015,10 @@
                         }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
-                    if (currentEvent.adLink) {
+                    let lowTitle = currentEvent.title.toLowerCase();
+                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
+
+                    if (currentEvent.adLink && !isSocietyMeeting) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -1015,11 +1033,10 @@
                         html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700 shadow-inner">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
-                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (/\b(gbm|general body|inauguration|valedictory|ec meeting)\b/i.test(lowTitle)) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
+                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
                         let societyLogoHtml = currentEvent.sponsorLogo ? `
                             <div class="mb-6 flex justify-center">
@@ -1094,7 +1111,6 @@
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-sm sm:text-base mb-3 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : '';
                     
-                    // Surgeon Hand Holding Scalpel Vector SVG Icon
                     let iconHtml = isHandsOn ? `
                         <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center p-2.5 mr-4 flex-shrink-0 border border-amber-500/40 shadow-inner">
                             <svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512">
@@ -1154,15 +1170,11 @@
                     let lBoard = payload.new.force_leaderboard;
                     
                     if (changedHall === liveHall) {
-                        if (lBoard && lBoard.startsWith('splash_')) {
-                            applySplashState(lBoard.replace('splash_', ''));
-                        } else {
-                            hideSplashState();
-                            if (lBoard && lBoard !== 'none') window.showLeaderboard(lBoard);
-                            else window.hideLeaderboard();
-                        }
+                        handlePayload(lBoard);
                     } else {
-                        if (oIdx !== null && oIdx < 0) {
+                        if (lBoard && lBoard.startsWith('halls:')) {
+                            handlePayload(lBoard);
+                        } else if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
                             document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
                             document.getElementById('globalHijackOverlay').classList.remove('hidden');
