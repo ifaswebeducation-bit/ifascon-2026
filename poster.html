@@ -3,145 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IFASCON 2026 - Live Delegate Companion Poster</title>
+    <title>IFASCON 2026 - Delegate Poster (WhatsApp & Print)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; background-color: #020617; }
         .font-brand { font-family: 'Montserrat', sans-serif; }
-        
-        @page {
-            size: A4 portrait;
-            margin: 0;
+
+        /* Fixed Dimensions for Standard 9:16 WhatsApp / Mobile Poster (1080 x 1920 equivalent) */
+        #posterCanvas {
+            width: 720px;
+            height: 1280px;
+            box-sizing: border-box;
+            background: linear-gradient(180deg, #0f172a 0%, #020617 50%, #1e1b4b 100%);
         }
+
         @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { background: transparent; padding: 0; }
             .no-print { display: none !important; }
-            .poster-container { min-height: 100vh !important; height: 100vh !important; }
+            #posterCanvas {
+                width: 100% !important;
+                height: 100vh !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+            }
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-0 sm:p-6 min-h-screen">
+<body class="min-h-screen flex flex-col items-center justify-start sm:py-8 text-white">
 
     <!-- Action Toolbar (Fixed top-right) -->
-    <div class="no-print fixed top-4 right-4 z-50 flex flex-wrap gap-3">
-        <!-- Download as JPG Button -->
-        <button id="downloadJpgBtn" onclick="downloadPosterJpg()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
-            <i class="fas fa-file-image"></i> Download JPG
+    <div class="no-print fixed top-4 right-4 z-50 flex gap-3">
+        <button id="downloadJpgBtn" onclick="downloadPosterJpg()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
+            <i class="fab fa-whatsapp text-lg"></i> Save WhatsApp JPG
         </button>
-        <!-- Print / Save PDF Button -->
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
             <i class="fas fa-print"></i> Print / PDF
         </button>
     </div>
 
     <!-- Safari / Mac Image Modal Fallback -->
     <div id="imageFallbackModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 text-center">
-        <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-lg w-full shadow-2xl flex flex-col items-center">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-md w-full shadow-2xl flex flex-col items-center">
             <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i>
-            <h3 class="text-xl font-black text-white mb-1">Poster Image Ready</h3>
-            <p class="text-xs text-slate-400 mb-4">Right-click (or two-finger tap) the image below and select <strong>"Save Image As..."</strong></p>
-            <div class="max-h-[50vh] overflow-auto rounded-xl border border-slate-800 mb-4 bg-black">
+            <h3 class="text-xl font-black text-white mb-1">Poster Ready for WhatsApp</h3>
+            <p class="text-xs text-slate-400 mb-4">Right-click (or tap and hold on phone) the image below and select <strong>"Save Image"</strong> or share directly.</p>
+            <div class="max-h-[60vh] overflow-auto rounded-xl border border-slate-800 mb-4 bg-black">
                 <img id="fallbackImagePreview" class="w-full h-auto object-contain" alt="IFASCON Poster">
             </div>
             <button onclick="document.getElementById('imageFallbackModal').classList.add('hidden')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition text-sm">Close</button>
         </div>
     </div>
 
-    <!-- Poster Canvas Container (Target for JPG Export & Printing) -->
-    <div id="posterElement" class="poster-container w-full max-w-[800px] bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 border-0 sm:border border-slate-800 rounded-none sm:rounded-3xl shadow-2xl overflow-hidden p-8 sm:p-12 flex flex-col justify-between relative">
+    <!-- Poster Frame (Exact Pixel-Locked Dimensions) -->
+    <div id="posterCanvas" class="relative rounded-3xl shadow-2xl overflow-hidden p-10 flex flex-col justify-between border border-slate-800 flex-shrink-0">
         
-        <!-- Ambient Accent Background Glows -->
-        <div class="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-rose-600/15 rounded-full blur-3xl pointer-events-none"></div>
+        <!-- Top Glow Overlay -->
+        <div style="position: absolute; top: -50px; left: -50px; width: 350px; height: 350px; background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, rgba(0,0,0,0) 70%); pointer-events: none;"></div>
+        <div style="position: absolute; bottom: -50px; right: -50px; width: 350px; height: 350px; background: radial-gradient(circle, rgba(225,29,72,0.2) 0%, rgba(0,0,0,0) 70%); pointer-events: none;"></div>
 
-        <!-- 1. Header & Branding Section -->
-        <div class="relative z-10 text-center flex flex-col items-center">
-            <div class="flex items-center justify-between w-full border-b border-slate-800/80 pb-6 mb-6">
-                <div class="bg-white p-2.5 rounded-2xl shadow-xl">
-                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
+        <!-- 1. Header Section -->
+        <div class="relative z-10">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
+                <div class="bg-white p-2 rounded-2xl shadow-xl inline-block">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" crossorigin="anonymous" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
                 </div>
                 <div class="text-right">
-                    <span class="inline-block bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-mono text-xs font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-inner mb-1">Live Companion</span>
-                    <p class="text-xs text-slate-400 font-bold">Annual Conference • Chandigarh</p>
+                    <span class="inline-block bg-indigo-950 border border-indigo-500/60 text-indigo-300 font-mono text-xs font-black uppercase px-3 py-1 rounded-full tracking-widest mb-1.5 shadow-sm">Live Companion</span>
+                    <p class="text-xs text-slate-400 font-bold tracking-wide">Annual Conference • Chandigarh</p>
                 </div>
             </div>
 
-            <h1 class="font-brand text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight uppercase leading-none mb-3">
-                Scan. Track. <span class="bg-gradient-to-r from-amber-400 via-rose-500 to-indigo-400 bg-clip-text text-transparent">Compete.</span>
-            </h1>
-            <p class="text-base sm:text-lg text-slate-300 font-medium max-w-xl mx-auto leading-relaxed">
-                Connect your smartphone directly to the stage screens for live presentation tracking, interactive quizzes, and instant leaderboards.
-            </p>
+            <div class="text-center mt-2">
+                <h1 class="font-brand text-4xl font-black text-white uppercase tracking-tight leading-none mb-3">
+                    Scan. Track. <span class="text-amber-400">Compete.</span>
+                </h1>
+                <p class="text-sm text-slate-300 font-medium max-w-lg mx-auto leading-relaxed">
+                    Connect your smartphone directly to the stage screens for live presentation tracking, interactive quizzes, and instant leaderboards.
+                </p>
+            </div>
         </div>
 
-        <!-- 2. Hero Centerpiece: QR Code Box -->
-        <div class="relative z-10 my-8 flex flex-col items-center">
-            <div class="relative group">
-                <div class="absolute -inset-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 rounded-3xl blur-md opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-                <div class="relative bg-white p-5 rounded-2xl shadow-2xl flex flex-col items-center">
-                    <div id="posterQrCode"></div>
-                    <span class="mt-3 text-slate-900 font-black text-xs uppercase tracking-widest flex items-center">
-                        <i class="fas fa-camera text-indigo-600 mr-1.5 text-sm"></i> Point Phone Camera
-                    </span>
+        <!-- 2. QR Code Centerpiece Box -->
+        <div class="relative z-10 flex flex-col items-center my-4">
+            <div class="bg-white p-6 rounded-3xl shadow-[0_0_40px_rgba(99,102,241,0.3)] flex flex-col items-center border-4 border-indigo-500/30">
+                <div id="posterQrCode"></div>
+                <div class="mt-4 bg-indigo-600 text-white font-black text-xs uppercase tracking-widest px-4 py-1.5 rounded-full flex items-center gap-2 shadow">
+                    <i class="fas fa-camera text-sm"></i> Point Phone Camera
                 </div>
             </div>
 
             <!-- Direct URL badge -->
-            <div class="mt-4 bg-slate-900/90 border border-slate-700/80 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-inner">
+            <div class="mt-4 bg-slate-900 border border-slate-700 px-5 py-2 rounded-full flex items-center gap-2 shadow-lg">
                 <i class="fas fa-globe text-indigo-400 text-xs"></i>
-                <span class="font-mono text-xs font-bold text-slate-300">ifascon-2026.vercel.app/delegate_live.html</span>
+                <span class="font-mono text-xs font-bold text-slate-300 tracking-wide">ifascon-2026.vercel.app/delegate_live.html</span>
             </div>
         </div>
 
-        <!-- 3. Key Feature Highlights (3 Columns) -->
-        <div class="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <!-- 3. Key Feature Cards (Clean Grid) -->
+        <div class="relative z-10 grid grid-cols-3 gap-3 my-2">
             <!-- Feature 1 -->
-            <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col items-center text-center">
-                <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mb-3 border border-indigo-500/30">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col items-center text-center shadow-md">
+                <div class="w-11 h-11 rounded-xl bg-indigo-950 text-indigo-400 flex items-center justify-center text-lg mb-2.5 border border-indigo-800/60">
                     <i class="fas fa-tv"></i>
                 </div>
-                <h3 class="text-sm font-black text-white uppercase tracking-wider mb-1">Live Talk Sync</h3>
-                <p class="text-xs text-slate-400 leading-snug">Track the current lecture, speaker profiles, and upcoming sessions in real time.</p>
+                <h3 class="text-xs font-black text-white uppercase tracking-wider mb-1">Live Talk Sync</h3>
+                <p class="text-[11px] text-slate-400 leading-snug">Track the current lecture, speaker, and next talks.</p>
             </div>
 
             <!-- Feature 2 -->
-            <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col items-center text-center">
-                <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl mb-3 border border-rose-500/30">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col items-center text-center shadow-md">
+                <div class="w-11 h-11 rounded-xl bg-rose-950 text-rose-400 flex items-center justify-center text-lg mb-2.5 border border-rose-800/60">
                     <i class="fas fa-bolt"></i>
                 </div>
-                <h3 class="text-sm font-black text-white uppercase tracking-wider mb-1">Live Trivia (45s)</h3>
-                <p class="text-xs text-slate-400 leading-snug">Answer high-stakes audience questions with fast-finger bonus scoring.</p>
+                <h3 class="text-xs font-black text-white uppercase tracking-wider mb-1">Live Trivia</h3>
+                <p class="text-[11px] text-slate-400 leading-snug">Answer live audience questions within 45 seconds.</p>
             </div>
 
             <!-- Feature 3 -->
-            <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col items-center text-center">
-                <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl mb-3 border border-amber-500/30">
+            <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col items-center text-center shadow-md">
+                <div class="w-11 h-11 rounded-xl bg-amber-950 text-amber-400 flex items-center justify-center text-lg mb-2.5 border border-amber-800/60">
                     <i class="fas fa-trophy"></i>
                 </div>
-                <h3 class="text-sm font-black text-white uppercase tracking-wider mb-1">Hall Standings</h3>
-                <p class="text-xs text-slate-400 leading-snug">See your rank instantly on mobile and compete for the top spot on hall TVs.</p>
+                <h3 class="text-xs font-black text-white uppercase tracking-wider mb-1">Hall Ranks</h3>
+                <p class="text-[11px] text-slate-400 leading-snug">See your rank instantly and compete on hall TVs.</p>
             </div>
         </div>
 
-        <!-- 4. Quick How-To Steps & Footer -->
-        <div class="relative z-10 border-t border-slate-800/80 pt-6">
-            <div class="flex flex-wrap items-center justify-between text-xs text-slate-400 gap-2">
+        <!-- 4. Quick How-To Steps Footer -->
+        <div class="relative z-10 border-t border-slate-800 pt-5">
+            <div class="flex items-center justify-between text-xs text-slate-300 font-bold px-2">
                 <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px]">1</span>
-                    <span>Scan QR code</span>
+                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-black flex items-center justify-center text-xs shadow">1</span>
+                    <span>Scan QR</span>
                 </div>
-                <div class="hidden sm:block text-slate-600">➔</div>
+                <span class="text-slate-600">➔</span>
                 <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px]">2</span>
-                    <span>Enter Name & Mobile No.</span>
+                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white font-black flex items-center justify-center text-xs shadow">2</span>
+                    <span>Enter Name & Phone</span>
                 </div>
-                <div class="hidden sm:block text-slate-600">➔</div>
+                <span class="text-slate-600">➔</span>
                 <div class="flex items-center gap-2">
-                    <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px]">3</span>
+                    <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-black flex items-center justify-center text-xs shadow">3</span>
                     <span>Select Hall & Play</span>
                 </div>
             </div>
@@ -151,36 +157,36 @@
 
     <!-- Scripts -->
     <script>
-        // Generate QR Code
+        // Generate High-Resolution QR Code
         const targetUrl = "https://ifascon-2026.vercel.app/delegate_live.html";
         new QRCode(document.getElementById("posterQrCode"), {
             text: targetUrl,
-            width: 170,
-            height: 170,
-            colorDark : "#020617",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
+            width: 180,
+            height: 180,
+            colorDark: "#020617",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
         });
 
-        // Robust Mac / Safari / Chrome JPG Export
+        // Robust JPG Export (WhatsApp & High-DPI Friendly)
         async function downloadPosterJpg() {
-            const poster = document.getElementById('posterElement');
+            const poster = document.getElementById('posterCanvas');
             const btn = document.getElementById('downloadJpgBtn');
             const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rendering...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             btn.disabled = true;
 
             try {
                 const canvas = await html2canvas(poster, {
-                    scale: 2,
+                    scale: 2, // Generates sharp 1440 x 2560 px high-res JPG
                     useCORS: true,
                     allowTaint: true,
                     backgroundColor: '#020617',
-                    logging: false
+                    logging: false,
+                    width: 720,
+                    height: 1280
                 });
 
-                // Convert canvas to Blob (Works reliably on Safari & Chrome on Mac)
                 canvas.toBlob((blob) => {
                     if (!blob) {
                         showFallbackPreview(canvas.toDataURL('image/jpeg', 0.95));
@@ -196,18 +202,17 @@
                     link.click();
                     document.body.removeChild(link);
 
-                    // Clean up URL object after delay
                     setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
                     resetBtn();
                 }, 'image/jpeg', 0.95);
 
             } catch (err) {
-                console.error("Canvas export failed:", err);
-                // Fallback for strict browser security policies
+                console.error("JPG export error:", err);
+                // Fallback for strict browser policies
                 html2canvas(poster, { scale: 1.5, allowTaint: true }).then(c => {
                     showFallbackPreview(c.toDataURL('image/jpeg', 0.9));
                 }).catch(() => {
-                    alert("Could not trigger direct download. Please use Print -> Save as PDF.");
+                    alert("Download failed. Please use Print -> Save as PDF.");
                 });
                 resetBtn();
             }
