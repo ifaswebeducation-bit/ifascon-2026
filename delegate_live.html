@@ -29,20 +29,23 @@
         <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
     </div>
 
+    <!-- Top Identity Banner -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
-        <div id="identityLoggedOutState" class="w-full flex flex-row items-center gap-3">
-            <i class="fas fa-user-circle text-2xl text-slate-500"></i>
-            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white max-w-[180px] font-mono outline-none focus:border-indigo-500 shadow-inner" placeholder="Mobile Number">
-            <button onclick="window.saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm px-4 py-2 rounded-lg transition ml-auto shadow-md active:scale-95">Login to Play</button>
+        <div id="identityLoggedOutState" class="w-full flex flex-wrap items-center gap-2">
+            <i class="fas fa-user-circle text-2xl text-slate-500 hidden sm:inline"></i>
+            <input type="text" id="topNameRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-white flex-1 min-w-[120px] outline-none focus:border-indigo-500 shadow-inner" placeholder="Your Name">
+            <input type="tel" id="topPhoneRegisterInput" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-white w-28 sm:w-36 font-mono outline-none focus:border-indigo-500 shadow-inner" placeholder="Mobile No.">
+            <button onclick="window.saveTopBannerIdentity()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-lg transition ml-auto shadow-md active:scale-95">Login</button>
         </div>
         <div id="identityLoggedInState" class="w-full hidden flex flex-row items-center justify-between">
-            <div class="flex items-center gap-2 text-sm font-semibold text-emerald-400">
-                <i class="fas fa-check-circle"></i> <span>ID: <span id="identityBannerLabel" class="font-mono text-white tracking-widest"></span></span>
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold text-emerald-400 truncate">
+                <i class="fas fa-check-circle flex-shrink-0"></i> <span class="truncate"><span id="identityBannerLabel" class="font-bold text-white tracking-wide"></span></span>
             </div>
-            <button onclick="window.clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-3 py-1.5 border border-slate-700 hover:border-rose-900 rounded-md transition"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+            <button onclick="window.clearDelegateIdentity()" class="text-slate-400 hover:text-rose-400 text-xs font-bold px-3 py-1.5 border border-slate-700 hover:border-rose-900 rounded-md transition ml-2 flex-shrink-0"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
         </div>
     </div>
 
+    <!-- Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="lbTitle" class="text-3xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg text-center"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
         <p id="lbSub" class="text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-6 text-center">Calculating Data...</p>
@@ -138,9 +141,8 @@
             '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '22c': "22nd August 2026 - Hall C",
             '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
         };
-        const buttonLabels = { 'ao_seminar': "AO Sem", 'workshop_diabetic': "Diabetic", 'workshop_mis': "MIS", '22a': "Hall A", '22b': "Hall B", '22c': "Hall C", '23a': "Hall A", '23b': "Hall B", '23c': "Hall C" };
 
-        // 1. --- CORE UTILS (Must run first) ---
+        // 1. --- CORE UTILS ---
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
@@ -148,12 +150,14 @@
             if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
             if (str.includes('diabet')) return 'workshop_diabetic';
             if (str.includes('mis')) return 'workshop_mis';
+            if (str === '22c' || str === 'hallc' || str === 'c22') return '22c';
+            if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
             if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
             if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
-            if (str.includes('22c') || (str.includes('22') && str.includes('c'))) return '22c';
+            if (str.includes('22c')) return '22c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
-            if (str.includes('23c') || (str.includes('23') && str.includes('c'))) return '23c';
+            if (str.includes('23c')) return '23c';
             return str;
         }
         function checkIfCorrect(optionText, correctAnswer, index) {
@@ -177,9 +181,9 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v87'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v90'; 
 
-        // --- FIX: LEADERBOARD FUNCTIONS ---
+        // --- LEADERBOARD DISPLAY ---
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
             if (modal) modal.classList.add('hidden');
@@ -208,12 +212,13 @@
                 mathResults.sorted.slice(0, 50).forEach((item, idx) => {
                     let phone = item[0];
                     let score = item[1];
-                    let mask = phone.length >= 4 ? phone.substring(0, 2) + "******" + phone.slice(-2) : phone;
+                    let name = mathResults.names[phone] || 'Delegate';
+                    let last4 = phone.length >= 4 ? phone.slice(-4) : phone;
                     let rankColor = idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-700' : 'text-indigo-400';
                     
                     html += `
                         <div class="flex justify-between items-center bg-slate-900 border border-slate-700 p-4 rounded-xl mb-2 shadow-inner">
-                            <span class="text-white font-bold"><span class="${rankColor} mr-3">#${idx + 1}</span> ${mask}</span>
+                            <span class="text-white font-bold"><span class="${rankColor} mr-3">#${idx + 1}</span> ${name} <span class="text-slate-400 font-mono text-xs">(••••${last4})</span></span>
                             <span class="text-emerald-400 font-black">${score} pts</span>
                         </div>
                     `;
@@ -224,7 +229,7 @@
             }
         };
 
-        // --- AMNESIA FIX & SYNC ---
+        // --- IDENTITY & SYNC ---
         window.syncMyAnswers = async function() {
             let phone = localStorage.getItem('delegate_phone');
             if(!phone) return;
@@ -239,12 +244,14 @@
 
         window.refreshIdentityStateUI = function() {
             let num = localStorage.getItem('delegate_phone');
+            let name = localStorage.getItem('delegate_name');
             let loggedInView = document.getElementById('identityLoggedInState');
             let loggedOutView = document.getElementById('identityLoggedOutState');
-            if (num && loggedInView && loggedOutView) {
+            if (num && name && loggedInView && loggedOutView) {
                 loggedOutView.classList.add('hidden');
                 loggedInView.classList.remove('hidden');
-                document.getElementById('identityBannerLabel').innerText = num;
+                let last4 = num.length >= 4 ? num.slice(-4) : num;
+                document.getElementById('identityBannerLabel').innerText = `${name} (••••${last4})`;
             } else if (loggedInView && loggedOutView) {
                 loggedInView.classList.add('hidden');
                 loggedOutView.classList.remove('hidden');
@@ -252,24 +259,28 @@
         };
 
         window.saveTopBannerIdentity = async function() {
-            let val = document.getElementById('topPhoneRegisterInput').value.trim();
-            if (val.length >= 7) {
-                localStorage.setItem('delegate_phone', val);
-                window.refreshIdentityStateUI();
-                await window.syncMyAnswers();
-                window.updateLiveDisplay(true);
-                window.updatePersistentFooter();
-            } else { alert('Please supply a valid telephone number.'); }
+            let nameVal = document.getElementById('topNameRegisterInput').value.trim();
+            let phoneVal = document.getElementById('topPhoneRegisterInput').value.trim();
+            if (!nameVal || nameVal.length < 2) { alert('Please enter your full name.'); return; }
+            if (!phoneVal || phoneVal.length < 7) { alert('Please supply a valid telephone number.'); return; }
+
+            localStorage.setItem('delegate_name', nameVal);
+            localStorage.setItem('delegate_phone', phoneVal);
+            window.refreshIdentityStateUI();
+            await window.syncMyAnswers();
+            window.updateLiveDisplay(true);
+            window.updatePersistentFooter();
         };
 
         window.clearDelegateIdentity = function() {
+            localStorage.removeItem('delegate_name');
             localStorage.removeItem('delegate_phone');
             window.refreshIdentityStateUI();
             window.updateLiveDisplay(true);
             window.updatePersistentFooter();
         };
 
-        // --- FETCH & PARSE WITH SMART CSV LOGIC ---
+        // --- FETCH & PARSE WITH HALL C FIX ---
         window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
@@ -291,7 +302,6 @@
 
                         parsedCsv.forEach((r, idx) => {
                             if (idx === 0 || !r || r.length < 3) return;
-                            
                             let rawHall = cleanText(r[0 + colOffset]);
                             let rawSymp = cleanText(r[1 + colOffset]);
                             let rawTitle = cleanText(r[2 + colOffset]);
@@ -360,7 +370,6 @@
             });
         }
 
-        // --- HALL C FIX IN PARSER ---
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
             const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
@@ -377,21 +386,17 @@
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
                 
-                // HALL C LEAK BLOCKER
                 if (hallTitle && !isHallC) {
                     if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
                 }
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                // --- HALL C CUSTOM PARSER ---
                 if (isHallC) {
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
                     let topic = col3;
-                    
                     if (!topic && !time_raw) return; 
                     if (!topic) topic = "Session"; 
-                    
                     let display_time = convertTo12HourFormat(time_raw);
 
                     if (breakRegex.test(topic.toLowerCase())) {
@@ -399,17 +404,14 @@
                         if (topic.toLowerCase().includes("registration")) text = "Registration";
                         else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
                         else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        
                         events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
                     } else {
                         events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
                     }
-                    return; // Skip normal parsing for Hall C rows
+                    return;
                 }
-                // -----------------------------
 
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
-                
                 if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
@@ -444,7 +446,6 @@
                     }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
-                    
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: display_time, title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
@@ -455,7 +456,6 @@
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    
                     let display_time = convertTo12HourFormat(time_raw);
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
@@ -475,12 +475,10 @@
         window.switchDelegateHall = function(newHall) {
             let radar = document.getElementById('quizRadarBanner');
             if (radar) radar.classList.add('hidden'); 
-            
             let hijack = document.getElementById('globalHijackOverlay');
             if (hijack) hijack.classList.add('hidden');
             
             window.hideLeaderboard(); 
-            
             liveHall = normalizeHallId(newHall);
             remoteOverrideIndex = null;
             quizStartTimeStamp = null;
@@ -504,7 +502,6 @@
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    
                     let boardType = data.force_leaderboard;
                     if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
                     else window.hideLeaderboard(); 
@@ -518,11 +515,9 @@
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        
                         let boardType = payload.new.force_leaderboard;
                         if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
                         else window.hideLeaderboard();
-
                         lastRenderHash = ""; 
                         window.updateLiveDisplay(true); 
                     }
@@ -586,7 +581,11 @@
                 else { titleText = "Grand Conference Leaderboard"; }
 
                 let scores = {};
-                filteredData.forEach(r => { scores[r.phone] = 0; }); 
+                let names = {};
+                filteredData.forEach(r => { 
+                    scores[r.phone] = 0; 
+                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
+                }); 
                 
                 let qGroups = {};
                 filteredData.forEach(r => {
@@ -601,12 +600,13 @@
                 });
                 
                 let sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
-                return { sorted, titleText };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
+                return { sorted, titleText, names };
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
         }
 
         window.submitDelegateQuiz = async function(encOpt, encCor, encTit, optIdx) {
             let phone = localStorage.getItem('delegate_phone');
+            let name = localStorage.getItem('delegate_name') || 'Delegate';
             if (!phone) { alert("Please login first to submit."); return; }
 
             let optionText = decodeURIComponent(encOpt);
@@ -618,10 +618,17 @@
             localStorage.setItem('answered_' + cleanKey, 'true');
             
             window.updateLiveDisplay(true); 
-            
             let isCorrect = checkIfCorrect(optionText, correctAnswer, optIdx);
             
-            try { await supabaseClient.from('quiz_responses').insert([{ phone: phone, question: questionText, hall_id: liveHall, is_correct: isCorrect }]); } catch(e) {}
+            try { 
+                await supabaseClient.from('quiz_responses').insert([{ 
+                    phone: phone, 
+                    name: name, 
+                    question: questionText, 
+                    hall_id: liveHall, 
+                    is_correct: isCorrect 
+                }]); 
+            } catch(e) {}
             window.updatePersistentFooter();
         };
 
@@ -688,19 +695,19 @@
                     let secondsLeft = 45;
                     if (quizStartTimeStamp) {
                         let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
-                        secondsLeft = 45 - diff;
-                        if (secondsLeft < 0) secondsLeft = 0;
+                        secondsLeft = Math.max(0, 45 - diff);
                     }
 
                     if (!phone) {
                         html = `
                             <div class="bg-gradient-to-b from-indigo-950 to-slate-950 p-8 rounded-3xl border-2 border-indigo-500 shadow-2xl text-center my-6">
                                 <i class="fas fa-id-card text-6xl text-indigo-400 mb-6 animate-bounce"></i>
-                                <h2 class="text-3xl font-black text-white mb-3">Login Required to Play</h2>
-                                <p class="text-slate-300 mb-8 text-sm max-w-sm mx-auto">Enter your mobile identifier token inside the box below to instantly unlock the running conference quiz.</p>
-                                <div class="max-w-sm mx-auto">
-                                    <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-4 text-white text-center text-xl mb-6 font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
-                                    <button onclick="let v = document.getElementById('qzPh').value.trim(); if(v.length >= 7){ localStorage.setItem('delegate_phone', v); window.refreshIdentityStateUI(); window.syncMyAnswers().then(() => { window.updateLiveDisplay(true); window.updatePersistentFooter(); }); }else{alert('Invalid number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
+                                <h2 class="text-3xl font-black text-white mb-3">Join Live Quiz</h2>
+                                <p class="text-slate-300 mb-6 text-sm max-w-sm mx-auto">Enter your Name and Mobile Number to unlock the quiz and compete on the live leaderboard.</p>
+                                <div class="max-w-sm mx-auto space-y-3">
+                                    <input type="text" id="qzName" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-3.5 text-white text-center text-lg font-bold outline-none focus:border-indigo-500" placeholder="Full Name">
+                                    <input type="tel" id="qzPh" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-3.5 text-white text-center text-lg font-mono outline-none focus:border-indigo-500" placeholder="Mobile Number">
+                                    <button onclick="let n = document.getElementById('qzName').value.trim(); let v = document.getElementById('qzPh').value.trim(); if(n.length >= 2 && v.length >= 7){ localStorage.setItem('delegate_name', n); localStorage.setItem('delegate_phone', v); window.refreshIdentityStateUI(); window.syncMyAnswers().then(() => { window.updateLiveDisplay(true); window.updatePersistentFooter(); }); }else{alert('Please enter your full name and valid phone number');}" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-black py-4 rounded-xl shadow-lg transition active:scale-95">Submit & Join</button>
                                 </div>
                             </div>`;
                     } 
@@ -777,12 +784,16 @@
                                 return `<div class="border p-4 rounded-2xl text-sm flex items-center ${itemClass}"><span class="bg-slate-950 px-3 py-1 rounded mr-4 font-mono text-sm">${String.fromCharCode(65+idx)}</span>${opt}${labelMarker}</div>`;
                             }).join('');
 
-                            let top5Nodes = top5.map((item, idx) => `
-                                <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
-                                    <span><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> &bull; <span class="ml-2">${item[0].substring(0,2)}******${item[0].slice(-2)}</span></span>
-                                    <span class="text-emerald-400 font-black tracking-wide">${item[1]} pts</span>
-                                </div>
-                            `).join('');
+                            let top5Nodes = top5.map((item, idx) => {
+                                let name = mathResults.names[item[0]] || 'Delegate';
+                                let last4 = item[0].length >= 4 ? item[0].slice(-4) : item[0];
+                                return `
+                                    <div class="flex justify-between items-center text-sm font-bold text-slate-300 bg-slate-800/50 px-4 py-2.5 rounded-lg border border-slate-700/50">
+                                        <span class="truncate pr-2"><span class="${idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-indigo-400'} mr-2">#${idx+1}</span> ${name} <span class="text-slate-400 font-mono text-xs">(••••${last4})</span></span>
+                                        <span class="text-emerald-400 font-black tracking-wide flex-shrink-0">${item[1]} pts</span>
+                                    </div>
+                                `;
+                            }).join('');
 
                             injectPoint.innerHTML = `
                                 <div class="bg-slate-950 rounded-3xl border-2 border-red-600/40 p-6 sm:p-8 shadow-2xl mb-8">
@@ -880,7 +891,7 @@
                         else window.hideLeaderboard();
                     } else {
                         if (oIdx !== null && oIdx < 0) {
-                            document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in ${buttonLabels[changedHall]}!`;
+                            document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
                             document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
                             document.getElementById('globalHijackOverlay').classList.remove('hidden');
                         } else if (oIdx === null || oIdx >= 0) {
@@ -903,7 +914,7 @@
 
                 if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && quizStartTimeStamp) {
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
-                    let secondsLeft = 45 - diff;
+                    let secondsLeft = Math.max(0, 45 - diff);
                     
                     if (secondsLeft <= 0) {
                         if (!window.quizExpiredRendered) {
