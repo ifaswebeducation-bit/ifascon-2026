@@ -21,6 +21,15 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
+    <!-- SPLASH SCREEN OVERLAY -->
+    <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center">
+        <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain">
+        </div>
+        <h1 id="splashTitle" class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6"></h1>
+        <p id="splashSub" class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest"></p>
+    </div>
+
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
         <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
@@ -64,33 +73,13 @@
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3"><i class="fas fa-tv mr-1.5 text-indigo-400"></i>Select Hall to View:</span>
                 
                 <div class="block md:hidden relative">
-                    <select id="mobileHallSelect" onchange="window.switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base">
-                        <option value="ao_seminar">21 Aug: AO Seminar</option>
-                        <option value="workshop_diabetic">21 Aug: Diabetic Foot</option>
-                        <option value="workshop_mis">21 Aug: MIS</option>
-                        <option value="22a">22 Aug: Hall A</option>
-                        <option value="22b">22 Aug: Hall B</option>
-                        <option value="22c">22 Aug: Hall C</option>
-                        <option value="23a">23 Aug: Hall A</option>
-                        <option value="23b">23 Aug: Hall B</option>
-                        <option value="23c">23 Aug: Hall C</option>
-                    </select>
+                    <select id="mobileHallSelect" onchange="window.switchDelegateHall(this.value)" class="w-full bg-slate-800 border-2 border-indigo-500/50 text-white rounded-xl px-4 py-3 font-bold outline-none shadow-lg appearance-none text-base"></select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-5 text-indigo-400">
                         <i class="fas fa-chevron-down"></i>
                     </div>
                 </div>
 
-                <div class="hidden md:flex flex-wrap items-center gap-2" id="desktopHallNav">
-                    <button onclick="window.switchDelegateHall('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: AO Seminar</button>
-                    <button onclick="window.switchDelegateHall('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: Diabetic Foot</button>
-                    <button onclick="window.switchDelegateHall('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">21 Aug: MIS</button>
-                    <button onclick="window.switchDelegateHall('22a')" data-hall="22a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall A</button>
-                    <button onclick="window.switchDelegateHall('22b')" data-hall="22b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall B</button>
-                    <button onclick="window.switchDelegateHall('22c')" data-hall="22c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">22 Aug: Hall C</button>
-                    <button onclick="window.switchDelegateHall('23a')" data-hall="23a" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall A</button>
-                    <button onclick="window.switchDelegateHall('23b')" data-hall="23b" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall B</button>
-                    <button onclick="window.switchDelegateHall('23c')" data-hall="23c" class="feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0">23 Aug: Hall C</button>
-                </div>
+                <div class="hidden md:flex flex-wrap items-center gap-2" id="desktopHallNav"></div>
             </div>
 
             <div class="flex flex-col sm:flex-row justify-between items-center pb-6 mb-4 border-b border-slate-800 gap-4">
@@ -179,13 +168,32 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
+        // Date-Based Automatic Hall Availability Filter
+        function getAvailableHallsForToday() {
+            let now = new Date();
+            let yyyy = now.getFullYear();
+            let mm = String(now.getMonth() + 1).padStart(2, '0');
+            let dd = String(now.getDate()).padStart(2, '0');
+            let dateStr = `${yyyy}-${mm}-${dd}`;
+
+            // For testing preview override
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
+                return ['ao_seminar', 'workshop_diabetic', 'workshop_mis', '22a', '22b', '22c', '23a', '23b', '23c'];
+            }
+
+            if (dateStr === '2026-08-21') return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
+            if (dateStr === '2026-08-22') return ['22a', '22b', '22c'];
+            if (dateStr === '2026-08-23') return ['23a', '23b', '23c'];
+
+            // Default fallback if outside conference dates
+            return ['ao_seminar', 'workshop_diabetic', 'workshop_mis', '22a', '22b', '22c', '23a', '23b', '23c'];
+        }
+
         function detectSponsor(eventObj, currentHallTitle) {
             let fullSearch = `${eventObj.title} ${eventObj.parent_session} ${eventObj.hall} ${currentHallTitle}`.toLowerCase();
-            
-            // Check Society Events (GBM, Inauguration, Valedictory, EC Meeting)
             let isSocietyEvent = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee|executive meeting)\b/i.test(fullSearch);
 
-            // Check if logo exists from sheet
             if (eventObj.sponsorLogo) {
                 let rawLogo = eventObj.sponsorLogo.toLowerCase();
                 let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
@@ -194,7 +202,6 @@
                 return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO, isSociety: isSocietyEvent };
             }
 
-            // Keyword fallbacks
             if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
                 return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
             }
@@ -218,16 +225,15 @@
         let globalQuizzes = [];
         
         let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
-        if(!liveHall || liveHall === "") liveHall = '22a'; 
-        
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '';
         let remoteOverrideIndex = null;
         let quizStartTimeStamp = null;
         let tickerTimer = null;
         let liveUpdateTimer = null;
         let lastRenderHash = "";
+        let forcedSplashState = null;
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v150'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v160'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -324,13 +330,6 @@
             window.updatePersistentFooter();
         };
 
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
-            if (parts.length < 2) return null;
-            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-        }
-
         window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
@@ -369,21 +368,14 @@
                         });
                     } else if (key === 'ao') {
                         let semRows = [], diaRows = [], misRows = [];
-
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
                             if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                            
-                            // MIS Workshop rows
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
                                 misRows.push(r);
-                            } 
-                            // Diabetic Foot Workshop rows
-                            else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
                                 diaRows.push(r);
-                            } 
-                            // Main AO Seminar rows
-                            else {
+                            } else {
                                 semRows.push(r);
                             }
                         });
@@ -608,8 +600,13 @@
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
                     let boardType = data.force_leaderboard;
-                    if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                    else window.hideLeaderboard(); 
+                    if (boardType && boardType.startsWith('splash_')) {
+                        applySplashState(boardType.replace('splash_', ''));
+                    } else {
+                        hideSplashState();
+                        if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
+                        else window.hideLeaderboard(); 
+                    }
                 }
                 lastRenderHash = ""; 
                 window.updateLiveDisplay(true);
@@ -621,13 +618,49 @@
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
                         let boardType = payload.new.force_leaderboard;
-                        if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
-                        else window.hideLeaderboard();
+                        if (boardType && boardType.startsWith('splash_')) {
+                            applySplashState(boardType.replace('splash_', ''));
+                        } else {
+                            hideSplashState();
+                            if (boardType && boardType !== 'none') window.showLeaderboard(boardType);
+                            else window.hideLeaderboard();
+                        }
                         lastRenderHash = ""; 
                         window.updateLiveDisplay(true); 
                     }
                 ).subscribe();
         };
+
+        function applySplashState(stateName) {
+            let overlay = document.getElementById('delegateSplashOverlay');
+            let titleEl = document.getElementById('splashTitle');
+            let subEl = document.getElementById('splashSub');
+            if (!overlay) return;
+
+            forcedSplashState = stateName;
+            if (stateName === 'pre_conf') {
+                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                subEl.innerText = "See you tomorrow!";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day1') {
+                titleEl.innerText = "Wait for the main conference which starts tomorrow at 8am";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day2') {
+                titleEl.innerText = "The conference resumes at 8:00 a.m. tomorrow";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+                forcedSplashState = null;
+            }
+        }
+
+        function hideSplashState() {
+            let overlay = document.getElementById('delegateSplashOverlay');
+            if (overlay) overlay.classList.add('hidden');
+            forcedSplashState = null;
+        }
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
@@ -788,19 +821,29 @@
         };
 
         window.updateLiveDisplay = function(forceRender = false) {
-            const data = appData[liveHall]; if (!data) return;
+            let availableHalls = getAvailableHallsForToday();
+            if (!availableHalls.includes(liveHall)) {
+                liveHall = availableHalls[0];
+            }
 
-            document.querySelectorAll('.feed-btn').forEach(btn => {
-                let targetHall = btn.dataset.hall;
-                if (targetHall === liveHall) {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-indigo-600 text-white border-indigo-500 shadow-md";
-                } else {
-                    btn.className = "feed-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700";
-                }
-            });
+            let mobileSel = document.getElementById('mobileHallSelect');
+            let desktopNav = document.getElementById('desktopHallNav');
             
-            let mobileSelect = document.getElementById('mobileHallSelect');
-            if (mobileSelect) { mobileSelect.value = liveHall; }
+            if (mobileSel && desktopNav) {
+                let optionsHtml = availableHalls.map(h => `<option value="${h}">${configTitles[h] ? configTitles[h].split(' - ')[1] : h}</option>`).join('');
+                mobileSel.innerHTML = optionsHtml;
+                mobileSel.value = liveHall;
+
+                let buttonsHtml = availableHalls.map(h => {
+                    let btnName = configTitles[h] ? configTitles[h].split(' - ')[1] : h;
+                    let isActive = h === liveHall;
+                    let c = isActive ? "bg-indigo-600 text-white border-indigo-500 shadow-md" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700";
+                    return `<button onclick="window.switchDelegateHall('${h}')" data-hall="${h}" class="feed-btn px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0 ${c}">${btnName}</button>`;
+                }).join('');
+                desktopNav.innerHTML = buttonsHtml;
+            }
+
+            const data = appData[liveHall]; if (!data) return;
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
@@ -957,10 +1000,7 @@
                         }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
-                    let lowTitle = currentEvent.title.toLowerCase();
-                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
-
-                    if (currentEvent.adLink && !isSocietyMeeting) {
+                    if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -975,24 +1015,25 @@
                         html = `<div class="mb-8 p-6 sm:p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-6"><span class="bg-amber-500 text-slate-900 px-5 py-2 rounded-full text-sm font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400 bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700 shadow-inner">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
+                        else if (/\b(gbm|general body|inauguration|valedictory|ec meeting)\b/i.test(lowTitle)) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
                         let societyLogoHtml = currentEvent.sponsorLogo ? `
                             <div class="mb-6 flex justify-center">
                                 <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
-                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-16 sm:h-20 w-auto object-contain" alt="Society Logo">
+                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-20 sm:h-28 w-auto object-contain" alt="Society Logo">
                                 </div>
                             </div>
                         ` : '';
 
                         html = `
-                            <div class="text-center py-20 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner px-6">
+                            <div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner px-6">
                                 ${societyLogoHtml}
                                 ${!societyLogoHtml ? `<i class="fas ${breakIcon} text-7xl sm:text-8xl mb-8 ${iconColor} animate-pulse drop-shadow-lg"></i>` : ''}
-                                <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-widest leading-tight">${currentEvent.title}</h2>
+                                <h2 class="text-4xl sm:text-5xl font-black text-white uppercase tracking-widest leading-tight">${currentEvent.title}</h2>
                                 <p class="text-2xl text-slate-400 mt-4 font-semibold">${currentEvent.display_time}</p>
                             </div>`;
                     }
@@ -1005,16 +1046,15 @@
                     if (sponsorInfo) {
                         if (sponsorInfo.logo) {
                             if (sponsorInfo.isAO) {
-                                // High-Impact Solid AO Tile
                                 sponsorHtml = `
-                                    <div class="aspect-square h-12 sm:h-14 rounded-xl overflow-hidden shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399]">
+                                    <div class="aspect-square h-14 sm:h-16 rounded-xl overflow-hidden shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399]">
                                         <img src="${sponsorInfo.logo}" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
                                     </div>
                                 `;
                             } else if (sponsorInfo.isSociety) {
                                 sponsorHtml = `
                                     <div class="bg-white p-2 rounded-xl shadow-lg border border-white/20 inline-flex items-center justify-center flex-shrink-0">
-                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="h-8 sm:h-9 w-auto object-contain block" onerror="this.style.display='none'">
+                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="h-10 sm:h-12 w-auto object-contain block" onerror="this.style.display='none'">
                                     </div>
                                 `;
                             } else {
@@ -1022,21 +1062,21 @@
                                 sponsorHtml = `
                                     <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
                                         ${labelTag}
-                                        <img src="${sponsorInfo.logo}" alt="Logo" class="h-6 sm:h-7 w-auto object-contain" onerror="this.style.display='none'">
+                                        <img src="${sponsorInfo.logo}" alt="Logo" class="h-8 sm:h-9 w-auto object-contain" onerror="this.style.display='none'">
                                     </div>
                                 `;
                             }
                         } else if (sponsorInfo.name) {
                             if (sponsorInfo.isAO) {
                                 sponsorHtml = `
-                                    <div class="aspect-square h-12 sm:h-14 rounded-xl shadow-lg border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-[11px] leading-tight text-center p-1">
+                                    <div class="aspect-square h-14 sm:h-16 rounded-xl shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-xs leading-tight text-center p-1">
                                         <span>AO</span><span>TRAUMA</span>
                                     </div>
                                 `;
                             } else if (sponsorInfo.isSociety) {
                                 sponsorHtml = `
                                     <div class="bg-slate-900 border border-indigo-500/40 px-3 py-1.5 rounded-xl flex items-center shadow-md">
-                                        <span class="text-xs font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
+                                        <span class="text-xs sm:text-sm font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
                                     </div>
                                 `;
                             } else {
@@ -1114,8 +1154,13 @@
                     let lBoard = payload.new.force_leaderboard;
                     
                     if (changedHall === liveHall) {
-                        if (lBoard && lBoard !== 'none') window.showLeaderboard(lBoard);
-                        else window.hideLeaderboard();
+                        if (lBoard && lBoard.startsWith('splash_')) {
+                            applySplashState(lBoard.replace('splash_', ''));
+                        } else {
+                            hideSplashState();
+                            if (lBoard && lBoard !== 'none') window.showLeaderboard(lBoard);
+                            else window.hideLeaderboard();
+                        }
                     } else {
                         if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
