@@ -143,7 +143,7 @@
     </div>
 
     <!-- SHARED TOP BANNER (Shown in Dual-Split Mode) -->
-    <header id="sharedTopHeader" class="hidden w-full bg-slate-950/95 border-b border-slate-800/80 px-8 py-3.5 flex items-center justify-between z-50 flex-shrink-0 shadow-xl backdrop-blur">
+    <header id="sharedTopHeader" class="hidden w-full bg-slate-950/95 border-b border-slate-800/80 px-8 py-4 flex items-center justify-between z-50 flex-shrink-0 shadow-xl backdrop-blur">
         <div class="flex items-center gap-5">
             <div class="bg-white/95 p-1.5 rounded-xl shadow-md">
                 <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-12 sm:h-14 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
@@ -214,9 +214,8 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v2';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v5';
 
-        // State for up to 2 simultaneous halls
         let activeHalls = [];
         let hallArrows = {};
         let hallCustomNames = {};
@@ -532,48 +531,47 @@
             }
 
             const { currentEvent, nextEvent } = getLiveStatusForHall(hallId, stateObj.remoteIndex);
-            let newHash = `${hallId}|${currentEvent ? currentEvent.title + currentEvent.time : 'none'}|${nextEvent ? nextEvent.title : 'none'}|${stateObj.remoteIndex}`;
+            let newHash = `${hallId}|${currentEvent ? currentEvent.title + currentEvent.time : 'none'}|${nextEvent ? nextEvent.title : 'none'}|${stateObj.remoteIndex}|${isSplit}`;
             if (newHash === stateObj.lastHash) return;
             stateObj.lastHash = newHash;
 
-            // Big, bold door direction arrow badge
             let arrowBadgeHtml = '';
+            let arrowSizeClass = isSplit ? "text-2xl sm:text-3xl px-3 py-1 mr-2 rounded-xl" : "text-3xl sm:text-5xl px-5 py-2 mr-4 rounded-2xl";
             if (arrowDir === 'left') {
-                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 px-4 py-1.5 rounded-2xl text-2xl sm:text-4xl font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse mr-3"><i class="fas fa-arrow-left"></i></span>`;
+                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 ${arrowSizeClass} font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse"><i class="fas fa-arrow-left"></i></span>`;
             } else if (arrowDir === 'right') {
-                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 px-4 py-1.5 rounded-2xl text-2xl sm:text-4xl font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse mr-3"><i class="fas fa-arrow-right"></i></span>`;
+                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 ${arrowSizeClass} font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse"><i class="fas fa-arrow-right"></i></span>`;
             } else if (arrowDir === 'up') {
-                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 px-4 py-1.5 rounded-2xl text-2xl sm:text-4xl font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse mr-3"><i class="fas fa-arrow-up"></i></span>`;
+                arrowBadgeHtml = `<span class="inline-flex items-center bg-amber-500/20 border-2 border-amber-400 text-amber-400 ${arrowSizeClass} font-black shadow-[0_0_20px_rgba(251,191,36,0.3)] animate-pulse"><i class="fas fa-arrow-up"></i></span>`;
             }
 
-            // Determine custom vs default display name
             let hallHeaderTitle = hallCustomNames[hallId] || data.title.split(' - ')[1] || data.title;
             let hallSub = data.title.split(' - ')[0];
 
             let singleBrandingHeader = '';
             if (!isSplit) {
                 singleBrandingHeader = `
-                    <div class="flex justify-between items-center pb-6 mb-6 border-b border-slate-800">
-                        <div class="flex items-center gap-5">
-                            <div class="bg-white/95 p-2.5 rounded-2xl shadow-xl">
-                                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                    <div class="flex justify-between items-center pb-8 mb-8 border-b border-slate-800 flex-shrink-0">
+                        <div class="flex items-center gap-6">
+                            <div class="bg-white/95 p-3 rounded-2xl shadow-xl">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
                             </div>
                             <div>
-                                <h1 class="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight">IFASCON 2026, Chandigarh</h1>
-                                <div class="flex items-center mt-2">
+                                <h1 class="text-3xl sm:text-5xl font-black text-white tracking-tight leading-none mb-3">IFASCON 2026, Chandigarh</h1>
+                                <div class="flex items-center">
                                     ${arrowBadgeHtml}
-                                    <span class="text-xl sm:text-3xl font-black text-indigo-400 tracking-wide">${hallHeaderTitle}</span>
+                                    <span class="text-2xl sm:text-4xl font-black text-indigo-400 tracking-wide">${hallHeaderTitle}</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-slate-900 border border-slate-700/80 px-6 py-3.5 rounded-2xl flex items-center gap-3 shadow-inner">
-                            <i class="far fa-clock text-indigo-400 text-2xl"></i>
-                            <span class="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider sharedDigitalClock">--:-- --</span>
+                        <div class="bg-slate-900 border border-slate-700/80 px-8 py-4 rounded-3xl flex items-center gap-4 shadow-inner">
+                            <i class="far fa-clock text-indigo-400 text-3xl"></i>
+                            <span class="text-4xl sm:text-5xl font-black text-white font-mono tracking-wider sharedDigitalClock">--:-- --</span>
                         </div>
                     </div>`;
             } else {
                 singleBrandingHeader = `
-                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800 flex-shrink-0">
                         <div class="flex items-center">
                             ${arrowBadgeHtml}
                             <div>
@@ -584,7 +582,7 @@
                     </div>`;
             }
 
-            let bodyHtml = `<div class="text-center py-20 bg-slate-900/40 rounded-3xl border border-slate-800/80 my-4"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Active</h2></div>`;
+            let bodyHtml = `<div class="flex-1 flex flex-col items-center justify-center text-center py-20 bg-slate-900/40 rounded-3xl border border-slate-800/80 my-4"><i class="fas fa-calendar-check text-6xl mb-4 text-slate-600"></i><h2 class="text-3xl font-bold text-slate-400">No Session Active</h2></div>`;
 
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
@@ -596,33 +594,37 @@
                     let qrContainerId = `qrContainer_${hallId}`;
                     let isExpired = secondsLeft <= 0;
 
+                    let quizTitleClass = isSplit ? "text-2xl sm:text-3xl font-black mb-6 leading-snug" : "text-3xl sm:text-5xl lg:text-6xl font-black mb-8 leading-tight";
+                    let optTextClass = isSplit ? "text-base sm:text-lg p-4 font-bold" : "text-xl sm:text-3xl p-6 font-bold";
+                    let timerClass = isSplit ? "text-xl sm:text-2xl px-4 py-1" : "text-3xl sm:text-4xl px-6 py-2";
+
                     bodyHtml = `
-                        <div class="flex-1 bg-gradient-to-b ${isExpired ? 'from-slate-950 to-slate-900 border-red-600/50' : 'from-indigo-950/80 to-slate-900 border-indigo-500/50'} rounded-3xl border-2 p-6 sm:p-8 shadow-2xl flex flex-col justify-between mb-4">
+                        <div class="flex-1 bg-gradient-to-b ${isExpired ? 'from-slate-950 to-slate-900 border-red-600/50' : 'from-indigo-950/80 to-slate-900 border-indigo-500/50'} rounded-3xl border-2 ${isSplit ? 'p-6 sm:p-8' : 'p-8 sm:p-12'} shadow-2xl flex flex-col justify-between mb-4">
                             <div>
-                                <div class="flex justify-between items-center mb-4">
-                                    <span class="${isExpired ? 'bg-red-600' : 'bg-rose-600'} text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center shadow-lg">
+                                <div class="flex justify-between items-center mb-6">
+                                    <span class="${isExpired ? 'bg-red-600' : 'bg-rose-600'} text-white ${isSplit ? 'px-4 py-1.5 text-xs' : 'px-6 py-2.5 text-sm sm:text-base'} rounded-full font-black uppercase tracking-widest flex items-center shadow-lg">
                                         <i class="fas ${isExpired ? 'fa-stopwatch' : 'fa-bolt'} mr-2"></i> ${isExpired ? 'Time Up!' : 'Live Audience Quiz'}
                                     </span>
-                                    <span class="bg-slate-950 border border-rose-500/50 text-rose-500 font-mono text-xl sm:text-2xl font-black px-4 py-1 rounded-xl">
+                                    <span class="bg-slate-950 border border-rose-500/50 text-rose-500 font-mono ${timerClass} font-black rounded-2xl">
                                         <i class="fas fa-hourglass-half mr-2 ${isExpired ? '' : 'animate-spin'}"></i>${secondsLeft}s
                                     </span>
                                 </div>
-                                <h2 class="text-2xl sm:text-3xl font-black text-white leading-snug mb-6">${currentEvent.title}</h2>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                <h2 class="${quizTitleClass} text-white">${currentEvent.title}</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                                     ${currentEvent.options.map((opt, i) => {
                                         let isCor = checkIfCorrect(opt, currentEvent.correct, i);
                                         let stateClass = isExpired ? (isCor ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200 font-black ring-1 ring-emerald-400' : 'bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50') : 'bg-slate-900 border-slate-700 text-slate-200';
-                                        return `<div class="border p-4 rounded-xl text-base sm:text-lg font-bold flex items-center ${stateClass}"><span class="bg-slate-950 px-3 py-1 rounded text-xs text-indigo-400 mr-3 font-mono">${String.fromCharCode(65+i)}</span> ${opt}</div>`;
+                                        return `<div class="border rounded-2xl flex items-center ${optTextClass} ${stateClass}"><span class="bg-slate-950 px-3.5 py-1.5 rounded-lg text-indigo-400 mr-4 font-mono">${String.fromCharCode(65+i)}</span> ${opt}</div>`;
                                     }).join('')}
                                 </div>
                             </div>
                             ${!isExpired ? `
-                            <div class="bg-slate-950/90 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between gap-4 mt-auto">
+                            <div class="bg-slate-950/90 border border-slate-700/80 ${isSplit ? 'p-4' : 'p-6'} rounded-3xl flex items-center justify-between gap-6 mt-auto">
                                 <div>
-                                    <span class="text-xs font-black text-amber-400 uppercase tracking-widest block"><i class="fas fa-mobile-alt mr-1"></i> Scan Phone to Play</span>
-                                    <span class="text-xs text-slate-400">Join instantly from your phone</span>
+                                    <span class="${isSplit ? 'text-xs' : 'text-base sm:text-lg'} font-black text-amber-400 uppercase tracking-widest block mb-1"><i class="fas fa-mobile-alt mr-2"></i> Scan Phone to Play Live</span>
+                                    <span class="${isSplit ? 'text-xs' : 'text-sm sm:text-base'} text-slate-400">Point your camera to submit your answer right now</span>
                                 </div>
-                                <div id="${qrContainerId}" class="bg-white p-1.5 rounded-lg shadow-lg flex-shrink-0"></div>
+                                <div id="${qrContainerId}" class="bg-white p-2 rounded-xl shadow-xl flex-shrink-0"></div>
                             </div>` : ''}
                         </div>`;
 
@@ -632,8 +634,8 @@
                             if (el && el.innerHTML === "") {
                                 new QRCode(el, {
                                     text: `${DELEGATE_APP_URL}?hall=${hallId}`,
-                                    width: 68,
-                                    height: 68,
+                                    width: isSplit ? 68 : 96,
+                                    height: isSplit ? 68 : 96,
                                     colorDark : "#020617",
                                     colorLight : "#ffffff",
                                     correctLevel : QRCode.CorrectLevel.M
@@ -646,18 +648,18 @@
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
-                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com')) {
                             let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[40vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto ${isSplit ? 'max-h-[40vh]' : 'max-h-[50vh]'} object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
                         } else {
-                            media = `<img src="${link}" class="w-full h-auto max-h-[40vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                            media = `<img src="${link}" class="w-full h-auto ${isSplit ? 'max-h-[40vh]' : 'max-h-[50vh]'} object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
                         }
                         bodyHtml = `
-                            <div class="flex-1 bg-slate-900 border border-slate-700/80 rounded-3xl p-6 shadow-2xl flex flex-col justify-between mb-4">
-                                <div class="flex items-center justify-between mb-4">
-                                    <span class="bg-amber-500 text-slate-950 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider"><i class="fas fa-play-circle mr-1.5"></i> ${currentEvent.title}</span>
-                                    <span class="text-lg font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg">${currentEvent.display_time}</span>
+                            <div class="flex-1 bg-slate-900 border border-slate-700/80 rounded-3xl ${isSplit ? 'p-6' : 'p-8 sm:p-10'} shadow-2xl flex flex-col justify-between mb-4">
+                                <div class="flex items-center justify-between mb-6">
+                                    <span class="bg-amber-500 text-slate-950 ${isSplit ? 'px-4 py-1.5 text-xs' : 'px-6 py-2.5 text-sm sm:text-base'} rounded-full font-black uppercase tracking-wider shadow"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span>
+                                    <span class="${isSplit ? 'text-lg px-3 py-1' : 'text-2xl sm:text-3xl px-5 py-2'} font-bold text-slate-300 bg-slate-950 rounded-xl border border-slate-800">${currentEvent.display_time}</span>
                                 </div>
                                 ${media}
                             </div>`;
@@ -669,62 +671,136 @@
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
 
                         bodyHtml = `
-                            <div class="flex-1 flex flex-col items-center justify-center text-center py-16 bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner">
-                                <i class="fas ${breakIcon} text-6xl sm:text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i>
-                                <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
-                                <p class="text-xl text-slate-400 mt-3 font-mono font-semibold">${currentEvent.display_time}</p>
+                            <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-28'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner">
+                                <i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>
+                                <h2 class="${isSplit ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-7xl'} font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
+                                <p class="${isSplit ? 'text-xl mt-3' : 'text-3xl sm:text-4xl mt-6'} text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
                             </div>`;
                     }
                 } else {
                     let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
-                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-xs sm:text-sm mb-2 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : '';
+                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
+                        ? `<div class="text-indigo-400 font-bold uppercase ${isSplit ? 'text-xs sm:text-sm mb-2' : 'text-base sm:text-xl mb-4'} flex items-center tracking-wider"><i class="fas fa-layer-group mr-2.5"></i>${currentEvent.parent_session}</div>` 
+                        : '';
+
+                    let titleStyle = isSplit 
+                        ? "text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight mb-6" 
+                        : "text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-tight mb-8";
+
+                    let speakerCardStyle = isSplit 
+                        ? `<div class="flex items-center bg-slate-950/80 p-4 rounded-2xl border border-slate-800 shadow-inner">
+                                <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0 border border-indigo-500/30">
+                                    <i class="fas fa-microphone"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Speaker</span>
+                                    <span class="text-lg sm:text-xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
+                                </div>
+                           </div>` 
+                        : `<div class="flex items-center bg-slate-950/90 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl inline-flex max-w-full">
+                                <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-3xl sm:text-5xl mr-6 flex-shrink-0 border border-indigo-500/30 shadow-inner">
+                                    <i class="fas fa-microphone"></i>
+                                </div>
+                                <div>
+                                    <span class="block text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Speaker</span>
+                                    <span class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-snug">${currentEvent.speaker}</span>
+                                </div>
+                           </div>`;
+
+                    let statusBadgeClass = isSplit ? "px-3.5 py-1 text-xs" : "px-6 py-2.5 text-sm sm:text-base";
+                    let clockBadgeClass = isSplit ? "px-3.5 py-1 text-base sm:text-lg" : "px-6 py-2.5 text-xl sm:text-2xl";
 
                     bodyHtml = `
-                        <div class="flex-1 bg-gradient-to-br from-slate-900 to-slate-900/80 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between mb-4">
+                        <div class="flex-1 bg-gradient-to-br from-slate-900 to-slate-900/80 border border-slate-700/80 rounded-3xl ${isSplit ? 'p-6 sm:p-8' : 'p-8 sm:p-12'} shadow-2xl flex flex-col justify-between mb-4">
                             <div>
-                                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                                    <span class="${bStyle} px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest flex items-center shadow-md"><span class="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span> LIVE NOW</span>
-                                    <span class="text-base sm:text-lg font-bold text-slate-300 bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800"><i class="far fa-clock mr-1.5 text-indigo-400"></i>${currentEvent.display_time}</span>
+                                <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                                    <span class="${bStyle} ${statusBadgeClass} rounded-full font-black uppercase tracking-widest flex items-center shadow-lg">
+                                        <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5 animate-pulse"></span> LIVE NOW
+                                    </span>
+                                    <span class="${clockBadgeClass} font-bold text-slate-300 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
+                                        <i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}
+                                    </span>
                                 </div>
                                 ${pSess}
-                                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight mb-6">${currentEvent.title}</h1>
+                                <h1 class="${titleStyle}">${currentEvent.title}</h1>
                             </div>
-                            ${currentEvent.speaker ? `
-                                <div class="flex items-center bg-slate-950/80 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                                    <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0 border border-indigo-500/30">
-                                        <i class="fas fa-microphone"></i>
-                                    </div>
-                                    <div>
-                                        <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Speaker</span>
-                                        <span class="text-lg sm:text-xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
-                                    </div>
-                                </div>
-                            ` : ''}
+                            ${currentEvent.speaker ? speakerCardStyle : ''}
                         </div>`;
                 }
             }
 
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
-                upNextHtml = `
-                    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-3 shadow-md flex-shrink-0">
-                        <div class="flex-1 truncate">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-amber-400 block mb-1 flex items-center"><i class="fas fa-step-forward mr-1.5"></i>Coming Up &bull; ${nextEvent.display_time}</span>
-                            <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
-                            ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
-                        </div>
-                        <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
-                    </div>`;
+                if (isSplit) {
+                    upNextHtml = `
+                        <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-3 shadow-md flex-shrink-0">
+                            <div class="flex-1 truncate">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-amber-400 block mb-1 flex items-center"><i class="fas fa-step-forward mr-1.5"></i>Coming Up &bull; ${nextEvent.display_time}</span>
+                                <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
+                                ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
+                            </div>
+                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
+                        </div>`;
+                } else {
+                    upNextHtml = `
+                        <div class="bg-slate-900/70 border border-slate-800/90 rounded-3xl p-6 sm:p-8 flex items-center justify-between gap-6 shadow-xl flex-shrink-0">
+                            <div class="flex-1 truncate">
+                                <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-amber-400 block mb-2 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span>
+                                <h4 class="text-2xl sm:text-3xl font-bold text-slate-100 leading-snug truncate">${nextEvent.title}</h4>
+                                ${nextEvent.speaker ? `<p class="text-slate-400 text-base sm:text-lg font-semibold mt-2 truncate flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
+                            </div>
+                            <span class="bg-slate-950 text-slate-300 text-xs sm:text-sm font-black px-4 py-2 rounded-xl border border-slate-800 uppercase flex-shrink-0 shadow">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span>
+                        </div>`;
+                }
             }
 
             container.innerHTML = singleBrandingHeader + bodyHtml + upNextHtml;
         }
 
+        function isQuizRunning(stateObj) {
+            if (stateObj.remoteIndex === null || stateObj.remoteIndex >= 0) return false;
+            if (stateObj.quizStart) {
+                let diff = Math.floor((new Date() - new Date(stateObj.quizStart)) / 1000);
+                return diff < 45;
+            }
+            return true;
+        }
+
         function refreshDisplays() {
-            let isSplit = activeHalls.length > 1;
-            renderHallPanel('panelHall1', activeHalls[0], hallStates.hall1, hallArrows[activeHalls[0]], isSplit);
-            if (isSplit) {
-                renderHallPanel('panelHall2', activeHalls[1], hallStates.hall2, hallArrows[activeHalls[1]], isSplit);
+            let panel1 = document.getElementById('panelHall1');
+            let panel2 = document.getElementById('panelHall2');
+            let sharedHdr = document.getElementById('sharedTopHeader');
+
+            // SINGLE HALL MODE: ALWAYS stay in single hall format, before, during, and after quiz
+            if (activeHalls.length === 1) {
+                panel1.classList.remove('hidden');
+                panel2.classList.add('hidden');
+                sharedHdr.classList.add('hidden');
+                renderHallPanel('panelHall1', activeHalls[0], hallStates.hall1, hallArrows[activeHalls[0]], false);
+                return;
+            }
+
+            // DUAL SPLIT SCREEN MODE: Fullscreen takeover while quiz active; restore back to 50/50 split once finished
+            let h1QuizActive = isQuizRunning(hallStates.hall1);
+            let h2QuizActive = isQuizRunning(hallStates.hall2);
+
+            if (h1QuizActive && !h2QuizActive) {
+                sharedHdr.classList.add('hidden');
+                panel2.classList.add('hidden');
+                panel1.classList.remove('hidden');
+                renderHallPanel('panelHall1', activeHalls[0], hallStates.hall1, hallArrows[activeHalls[0]], false);
+            } else if (h2QuizActive && !h1QuizActive) {
+                sharedHdr.classList.add('hidden');
+                panel1.classList.add('hidden');
+                panel2.classList.remove('hidden');
+                renderHallPanel('panelHall2', activeHalls[1], hallStates.hall2, hallArrows[activeHalls[1]], false);
+            } else {
+                // Restore 50/50 dual split
+                sharedHdr.classList.remove('hidden');
+                panel1.classList.remove('hidden');
+                panel2.classList.remove('hidden');
+                renderHallPanel('panelHall1', activeHalls[0], hallStates.hall1, hallArrows[activeHalls[0]], true);
+                renderHallPanel('panelHall2', activeHalls[1], hallStates.hall2, hallArrows[activeHalls[1]], true);
             }
         }
 
@@ -761,7 +837,6 @@
             }, 1000);
         }
 
-        // Setup Wizard Helper Functions
         function setWizardMode(mode) {
             const singleSec = document.getElementById('wizSingleSection');
             const splitSec = document.getElementById('wizSplitSection');
@@ -868,7 +943,6 @@
             hallStates.hall1.id = activeHalls[0];
             if (activeHalls.length > 1) hallStates.hall2.id = activeHalls[1];
 
-            // Local cache check
             const cached = localStorage.getItem(CACHE_KEY);
             if (cached) {
                 try {
@@ -886,8 +960,7 @@
                 subscribeToHallRealtime(activeHalls[1], hallStates.hall2);
             }
 
-            // Periodic auto-updates
-            setInterval(refreshDisplays, 5000);
+            setInterval(refreshDisplays, 1000);
             setInterval(fetchSchedule, 60000);
         }
 
