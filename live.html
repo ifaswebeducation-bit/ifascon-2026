@@ -25,8 +25,8 @@
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
             <i class="fas fa-lock text-5xl text-indigo-400 mb-4"></i>
-            <h3 class="text-2xl font-black mb-2 text-white">Event Cockpit</h3>
-            <p class="text-slate-400 text-sm mb-6">Enter your assigned secure PIN.</p>
+            <h3 class="text-2xl font-black mb-2 text-white">Event Cockpit Login</h3>
+            <p class="text-slate-400 text-sm mb-6">Enter your assigned secure PIN (AV, Quiz Master, or Admin).</p>
             <input type="password" id="gatePassInput" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest mb-4 font-mono outline-none focus:border-indigo-500" placeholder="••••">
             <button onclick="verifyGatePass()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition shadow-lg">Authenticate</button>
         </div>
@@ -38,7 +38,7 @@
         <!-- Top Row: Hall Selector & Timeline Controls -->
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span>:</span>
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span> (<span id="mgrRoleDisplay" class="text-indigo-400"></span>):</span>
                 
                 <div id="adminHallNav" class="flex flex-wrap gap-1 hidden">
                     <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
@@ -74,7 +74,8 @@
             <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
-                <div id="quizControlBar" class="flex flex-col gap-2">
+                <!-- SMART QUIZ LAUNCHER (Hidden for pure AV Console operators) -->
+                <div id="quizControlSection" class="flex flex-col gap-2">
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
                         <div class="flex gap-2 w-full md:w-auto">
@@ -256,10 +257,18 @@
             myAllowedHalls = assignedHallRaw.split(',').map(s => normalizeHallId(s.trim()));
 
             document.getElementById('mgrNameDisplay').innerText = myName;
+            document.getElementById('mgrRoleDisplay').innerText = myRole.replace('_', ' ').toUpperCase();
             document.getElementById('authGateFrame').classList.add('hidden');
             document.getElementById('masterToolbarSuite').classList.remove('hidden');
 
-            if (myRole === 'admin' || assignedHallRaw === 'ALL') {
+            // ROLE-BASED UI CONTROLS
+            if (myRole === 'av_operator') {
+                // Hide quiz control section completely for AV guys
+                let quizSec = document.getElementById('quizControlSection');
+                if (quizSec) quizSec.classList.add('hidden');
+            }
+
+            if (myRole === 'admin' || myRole === 'quiz_master' || assignedHallRaw === 'ALL') {
                 document.getElementById('adminHallNav').classList.remove('hidden');
                 document.getElementById('adminAuditPanel').classList.remove('hidden');
                 document.getElementById('adminAuditPanel').classList.add('flex');
@@ -267,7 +276,7 @@
                 document.getElementById('adminGlobalBoardControls').classList.add('flex');
                 initAuditLogListener();
             } 
-            else if (myRole === 'floor_manager') {
+            else if (myRole === 'floor_manager' || myRole === 'av_operator') {
                 document.getElementById('adminHallNav').classList.remove('hidden');
                 document.querySelectorAll('#adminHallNav .feed-btn').forEach(btn => {
                     if (!myAllowedHalls.includes(btn.dataset.hall)) btn.classList.add('hidden');
@@ -275,7 +284,7 @@
                 if (!myAllowedHalls.includes(liveHall)) liveHall = myAllowedHalls[0];
                 document.getElementById('floorManagerRoomLabel').classList.remove('hidden');
             }
-            logAction("Logged into system.");
+            logAction(`Logged into system as [${myRole}]`);
             fetchLiveSchedule();
         }
 
@@ -551,7 +560,6 @@
             document.getElementById('eventJumpSelect').value = "";
         }
 
-        // --- RELIABLE QUIZ COCKPIT RENDERER ---
         function renderQuizCockpit(activeSympName = "") {
             let container = document.getElementById('quizButtonsContainer');
             if (!container) return;
@@ -577,7 +585,6 @@
                 return false;
             });
 
-            // If no questions explicitly tagged to this hall, show ALL questions across the event
             if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
                 hallQuizzes = [...globalQuizzes];
             }
