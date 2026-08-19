@@ -35,7 +35,7 @@
     <!-- AV Command Center -->
     <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40 flex-shrink-0">
         
-        <!-- Top Row: Hall Selector & Timeline Controls -->
+        <!-- Row 1: Hall Feed Selector & Timeline Navigation -->
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span> (<span id="mgrRoleDisplay" class="text-indigo-400"></span>):</span>
@@ -62,18 +62,27 @@
             </div>
         </div>
 
-        <!-- Splash Screen & Global Broadcast Controls -->
+        <!-- Row 2: Delegate Visible Halls Controller Matrix -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-bullhorn mr-1"></i>Delegate Splash Overrides:</span>
-                <button onclick="pushSplashGlobal('live')" class="bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700">Normal Live</button>
+                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible Halls:</span>
+                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug Only (AO/Workshops)</button>
+                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug Only (22ABC)</button>
+                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug Only (23ABC)</button>
+                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis','22a','22b','22c','23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Show All 9 Halls</button>
+            </div>
+
+            <!-- Global Splash Screen Overrides -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-bullhorn mr-1"></i>Splash Overrides:</span>
+                <button onclick="pushSplashGlobal('live')" class="bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700">Live View</button>
                 <button onclick="pushSplashGlobal('pre_conf')" class="bg-indigo-900/40 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">1 Day to Go</button>
                 <button onclick="pushSplashGlobal('post_day1')" class="bg-amber-900/40 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Wait for Day 2 (8am)</button>
                 <button onclick="pushSplashGlobal('post_day2')" class="bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Resumes Tomorrow (8am)</button>
             </div>
         </div>
 
-        <!-- Quick Jump Engine -->
+        <!-- Row 3: Quick Jump Engine -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
             <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
@@ -215,6 +224,18 @@
             return str;
         }
 
+        function resolveDirectImageUrl(url) {
+            if (!url) return "";
+            url = url.trim();
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let fIdMatch = url.match(/[-\w]{25,}/);
+                if (fIdMatch && fIdMatch[0]) {
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                }
+            }
+            return url;
+        }
+
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
@@ -317,6 +338,13 @@
                     let time = new Date(payload.new.created_at).toLocaleTimeString();
                     cont.innerHTML = `<div class="border-b border-slate-800 pb-1.5 mb-1.5"><span class="text-slate-500">[${time}]</span> <span class="text-amber-300 font-bold">${payload.new.manager_name}</span> &gt; ${payload.new.action} <span class="text-slate-500">(${payload.new.hall_id})</span></div>` + cont.innerHTML;
                 }).subscribe();
+        }
+
+        async function broadcastVisibleHalls(hallList) {
+            let configPayload = 'halls:' + hallList.join(',');
+            logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: configPayload }).in('hall_id', allHallsList);
+            alert(`Broadcasting visible halls [${hallList.join(', ')}] to all delegate apps!`);
         }
 
         async function pushSplashGlobal(splashState) {
@@ -532,19 +560,22 @@
                             });
                         });
                     } else if (key === 'ao') {
-                        const allAo = parseRawData(parsedCsv, "21 Aug");
-                        let sem = [], dia = [], mis = [];
-                        allAo.forEach(ev => {
-                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                            if (/\b(workshop|16:15|16\.15)\b/i.test(matchStr)) { 
-                                (matchStr.includes('diabetic') || matchStr.includes('nebula') || matchStr.includes('beam')) ? dia.push(ev) : mis.push(ev); 
-                            } else { 
-                                sem.push(ev); 
+                        let semRows = [], diaRows = [], misRows = [];
+                        parsedCsv.forEach((r, idx) => {
+                            let rowStr = r.join(' ').toLowerCase();
+                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
+                                misRows.push(r);
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                                diaRows.push(r);
+                            } else {
+                                semRows.push(r);
                             }
                         });
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else { 
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
                     }
@@ -977,6 +1008,7 @@
         window.hideLeaderboard = hideLeaderboard;
         window.updateLiveDisplay = updateLiveDisplay;
         window.initLiveKiosk = initLiveKiosk;
+        window.broadcastVisibleHalls = broadcastVisibleHalls;
         window.pushSplashGlobal = pushSplashGlobal;
     </script>
 </body>
