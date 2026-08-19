@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IFASCON 2026 - Door Display Kiosk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+        .loader { border: 4px solid #1e293b; border-top: 4px solid #6366f1; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .animate-live { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .custom-scroll::-webkit-scrollbar { display: none; }
+        .custom-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950">
+
+    <!-- SETUP WIZARD (Visible only when no URL parameters are provided) -->
+    <div id="setupWizard" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 text-slate-100">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-xl w-full shadow-2xl">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-800 pb-4">
+                <i class="fas fa-tv text-3xl text-indigo-400"></i>
+                <div>
+                    <h2 class="text-2xl font-black">Door TV Configuration</h2>
+                    <p class="text-xs text-slate-400">Configure this display kiosk for your hall doorway</p>
+                </div>
+            </div>
+            
+            <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">Display Mode</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" onclick="setWizardMode('single')" id="wizModeSingle" class="py-2.5 px-4 rounded-xl border border-indigo-500 bg-indigo-600/30 text-indigo-300 font-bold transition">Single Hall</button>
+                        <button type="button" onclick="setWizardMode('split')" id="wizModeSplit" class="py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold transition">Dual-Hall Split</button>
+                    </div>
+                </div>
+
+                <div id="wizSingleSection">
+                    <label class="block font-bold text-slate-300 mb-1">Target Hall</label>
+                    <select id="wizHall1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white font-bold outline-none"></select>
+                </div>
+
+                <div id="wizSplitSection" class="hidden space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Left / Top Hall</label>
+                            <select id="wizSplitHall1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Door Arrow 1</label>
+                            <select id="wizArrow1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold outline-none">
+                                <option value="left">⬅ Point Left</option>
+                                <option value="right">➔ Point Right</option>
+                                <option value="up">⬆ Straight In</option>
+                                <option value="none">No Arrow</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Right / Bottom Hall</label>
+                            <select id="wizSplitHall2" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold outline-none"></select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-300 mb-1">Door Arrow 2</label>
+                            <select id="wizArrow2" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-white font-bold outline-none">
+                                <option value="right">➔ Point Right</option>
+                                <option value="left">⬅ Point Left</option>
+                                <option value="up">⬆ Straight In</option>
+                                <option value="none">No Arrow</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="launchFromWizard()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-xl shadow-lg transition active:scale-95 text-base">Launch TV Kiosk</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHARED TOP BANNER (Shown in Dual-Split Mode) -->
+    <header id="sharedTopHeader" class="hidden w-full bg-slate-950/90 border-b border-slate-800/80 px-8 py-3 flex items-center justify-between z-50 flex-shrink-0 shadow-lg backdrop-blur">
+        <div class="flex items-center gap-4">
+            <div class="bg-white/95 px-3 py-1.5 rounded-xl shadow-md">
+                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-10 sm:h-12 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+            </div>
+            <div>
+                <span class="text-xs font-black uppercase tracking-widest text-indigo-400 block">IFASCON 2026</span>
+                <span class="text-sm sm:text-base font-bold text-slate-300">Annual Conference Dashboard</span>
+            </div>
+        </div>
+        <div class="bg-slate-900 border border-slate-700/80 px-5 py-2 rounded-xl flex items-center gap-3 shadow-inner">
+            <i class="far fa-clock text-indigo-400 text-lg"></i>
+            <span class="text-2xl font-black text-white font-mono tracking-wider sharedDigitalClock">--:-- --</span>
+        </div>
+    </header>
+
+    <!-- MAIN KIOSK VIEWPORT -->
+    <main id="kioskViewport" class="flex-1 flex flex-col md:flex-row w-full h-full relative overflow-hidden bg-slate-950 divide-y md:divide-y-0 md:divide-x divide-slate-800/80">
+        <!-- Hall Panel 1 -->
+        <div id="panelHall1" class="flex-1 flex flex-col h-full overflow-hidden relative p-4 sm:p-6 lg:p-8"></div>
+        <!-- Hall Panel 2 (populated in split mode) -->
+        <div id="panelHall2" class="hidden flex-1 flex flex-col h-full overflow-hidden relative p-4 sm:p-6 lg:p-8 bg-slate-950/60"></div>
+    </main>
+
+    <!-- FULLSCREEN LEADERBOARD OVERLAY MODAL -->
+    <div id="tvLeaderboardModal" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-lg z-[150] flex flex-col items-center justify-center p-8">
+        <h2 id="tvLbTitle" class="text-4xl sm:text-6xl font-black text-amber-500 mb-2 drop-shadow-xl text-center"><i class="fas fa-trophy mr-4"></i>Live Hall Standings</h2>
+        <p id="tvLbSub" class="text-slate-400 font-bold text-sm sm:text-lg tracking-widest uppercase mb-8 text-center">Calculating Database Weights...</p>
+        <div id="tvLeaderboardList" class="w-full max-w-4xl flex flex-col gap-3.5 max-h-[70vh] overflow-y-auto pr-2 custom-scroll"></div>
+    </div>
+
+    <!-- AUDIO TOGGLE FLOATING BADGE -->
+    <div class="fixed bottom-4 right-4 z-[200]">
+        <button id="globalAudioToggle" onclick="toggleGlobalAudio()" class="bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/80 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-2xl backdrop-blur">
+            <i id="audioIcon" class="fas fa-volume-mute text-rose-400"></i>
+            <span id="audioText">Muted</span>
+        </button>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
+        const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
+        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        const DELEGATE_APP_URL = "https://ifascon-2026.vercel.app/delegate_live.html";
+
+        const sheetLinks = {
+            'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
+            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
+            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
+            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
+            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
+            '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
+        };
+
+        const configTitles = {
+            'ao_seminar': "21st August 2026 - AO Seminar", 
+            'workshop_diabetic': "21st August 2026 - Diabetic Foot", 
+            'workshop_mis': "21st August 2026 - MIS Workshop",
+            '22a': "22nd August 2026 - Hall A", 
+            '22b': "22nd August 2026 - Hall B", 
+            '22c': "22nd August 2026 - Hall C",
+            '23a': "23rd August 2026 - Hall A", 
+            '23b': "23rd August 2026 - Hall B", 
+            '23c': "23rd August 2026 - Hall C"
+        };
+
+        let appData = {};
+        let globalQuizzes = [];
+        let isMuted = true;
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v1';
+
+        // State for up to 2 simultaneous halls
+        let activeHalls = [];
+        let hallArrows = {};
+        let hallStates = {
+            hall1: { id: null, remoteIndex: null, quizStart: null, lastHash: "" },
+            hall2: { id: null, remoteIndex: null, quizStart: null, lastHash: "" }
+        };
+
+        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
+        function normalizeHallId(val) {
+            if (!val) return "";
+            let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
+            if (str.includes('diabet')) return 'workshop_diabetic';
+            if (str.includes('mis')) return 'workshop_mis';
+            if (str === '22c' || str === 'hallc' || str === 'c22') return '22c';
+            if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
+            if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
+            if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
+            if (str.includes('22c')) return '22c';
+            if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
+            if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
+            if (str.includes('23c')) return '23c';
+            return str;
+        }
+
+        function convertTo12HourFormat(timeStr) {
+            if (!timeStr) return "";
+            if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
+            return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
+                let h = parseInt(p1, 10);
+                return (h % 12 || 12) + ':' + p2 + ' ' + (h >= 12 ? 'PM' : 'AM');
+            });
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
+            if (parts.length < 2) return null;
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        }
+
+        function checkIfCorrect(optionText, correctAnswer, index) {
+            let optClean = cleanText(optionText).toLowerCase();
+            let corClean = cleanText(correctAnswer).toLowerCase();
+            let letter = String.fromCharCode(65 + index).toLowerCase(); 
+            return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [], current_session = "";
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
+
+            rows.forEach(r => {
+                while(r.length < 12) r.push("");
+                r = r.map(x => cleanText(x));
+                let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let row_text = r.join(" ").toLowerCase();
+
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
+                if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+                
+                if (hallTitle && !isHallC) {
+                    if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
+                }
+
+                if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+
+                if (isHallC) {
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
+                    let topic = col3;
+                    if (!topic && !time_raw) return; 
+                    if (!topic) topic = "Session"; 
+                    let display_time = convertTo12HourFormat(time_raw);
+
+                    if (breakRegex.test(topic.toLowerCase())) {
+                        let text = topic;
+                        if (topic.toLowerCase().includes("registration")) text = "Registration";
+                        else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
+                        else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
+                    } else {
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
+                    }
+                    return;
+                }
+
+                let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
+                if (isBreakOrAd) {
+                    let text = colTitle || col3 || col0;
+                    if (row_text.includes("registration")) text = "Registration";
+                    else if (row_text.includes("lunch")) text = "Lunch";
+                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
+
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
+                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    return;
+                }
+
+                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                let isSession = false, isOration = false;
+
+                if (row_text.includes('oration')) { isSession = true; isOration = true; } 
+                else if (!isQA && !isPlenary) {
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                }
+
+                if (isSession) {
+                    let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
+                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                        else topic = col3 + ": " + colTitle;
+                    }
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    current_session = topic; 
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
+                    return;
+                }
+
+                if (col1 || colTitle || isQA || isPlenary) {
+                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
+                    events.push({ type: 'presentation', time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: speaker, hall: hallTitle, parent_session: current_session });
+                }
+            });
+            return events;
+        }
+
+        function toggleGlobalAudio() {
+            isMuted = !isMuted;
+            document.querySelectorAll('iframe, video').forEach(media => {
+                if (media.tagName === 'VIDEO') { media.muted = isMuted; }
+            });
+            document.getElementById('audioIcon').className = isMuted ? "fas fa-volume-mute text-rose-400" : "fas fa-volume-up text-emerald-400";
+            document.getElementById('audioText').innerText = isMuted ? "Muted" : "Live Audio";
+        }
+
+        async function fetchSchedule() {
+            let fetchedData = {};
+            let quizzesLoaded = [];
+            for (const [key, link] of Object.entries(sheetLinks)) {
+                if (!link || link.trim() === '') continue;
+                try {
+                    const response = await fetch(link);
+                    if (!response.ok) continue;
+                    const csvText = await response.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
+                    
+                    if (key === 'quizzes') {
+                        let colOffset = 0;
+                        if (parsedCsv.length > 1) {
+                            let firstRow = parsedCsv[1];
+                            let cell0 = cleanText(firstRow[0]);
+                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
+                        }
+                        parsedCsv.forEach((r, idx) => {
+                            if (idx === 0 || !r || r.length < 3) return;
+                            let rawHall = cleanText(r[0 + colOffset]);
+                            let rawSymp = cleanText(r[1 + colOffset]);
+                            let rawTitle = cleanText(r[2 + colOffset]);
+                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
+                            quizzesLoaded.push({ 
+                                type: 'quiz', 
+                                hall_id: normalizeHallId(rawHall), 
+                                symposium: rawSymp || 'General', 
+                                title: rawTitle, 
+                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
+                                correct: cleanText(r[7 + colOffset]) 
+                            });
+                        });
+                    } else if (key === 'ao') {
+                        const allAo = parseRawData(parsedCsv, "21 Aug");
+                        let sem = [], dia = [], mis = [];
+                        allAo.forEach(ev => {
+                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
+                            let isWs = /\b(workshop|16:15|16\.15)\b/i.test(matchStr);
+                            if (isWs) {
+                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
+                                else { ev.hall = "MIS Hall"; mis.push(ev); }
+                            } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
+                        });
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+                    } else {
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
+                    }
+                } catch(e) {}
+            }
+            if (Object.keys(fetchedData).length > 0) {
+                appData = fetchedData;
+                globalQuizzes = quizzesLoaded;
+                localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
+            }
+        }
+
+        async function fetchMathLeaderboard(type) {
+            try {
+                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                if (error) throw error;
+                let filteredData = data;
+                let titleText = "";
+                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Standings"; }
+                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Standings"; }
+                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Standings"; }
+                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Standings"; }
+                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Standings"; }
+                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Standings"; }
+                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Standings"; }
+                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Standings"; }
+                else { titleText = "Grand Overall Standings"; }
+
+                let scores = {};
+                filteredData.forEach(r => { scores[r.phone] = 0; }); 
+                let qGroups = {};
+                filteredData.forEach(r => {
+                    if (!r.is_correct) return;
+                    let key = r.hall_id + "_" + r.question; 
+                    if (!qGroups[key]) qGroups[key] = [];
+                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
+                });
+                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
+                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText };
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
+        }
+
+        async function showTVLeaderboard(type) {
+            const modal = document.getElementById('tvLeaderboardModal');
+            const list = document.getElementById('tvLeaderboardList');
+            if (!modal || !list) return;
+            modal.classList.remove('hidden');
+            document.getElementById('tvLbSub').innerText = "Real-time Computed Database Weights";
+            list.innerHTML = '<div class="flex justify-center my-12"><div class="loader"></div></div>';
+            
+            let math = await fetchMathLeaderboard(type);
+            document.getElementById('tvLbTitle').innerHTML = `<i class="fas fa-trophy mr-4 text-amber-400"></i>${math.titleText}`;
+            
+            if (!math.sorted || math.sorted.length === 0) {
+                list.innerHTML = '<p class="text-slate-400 text-2xl font-bold text-center py-10">No scores recorded yet.</p>';
+                return;
+            }
+
+            let html = '';
+            math.sorted.slice(0, 10).forEach((item, idx) => {
+                let mask = item[0].length >= 4 ? item[0].substring(0, 2) + "******" + item[0].slice(-2) : item[0];
+                let rankColor = idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-700' : 'text-indigo-400';
+                html += `
+                    <div class="flex justify-between items-center bg-slate-900 border border-slate-700/80 p-5 rounded-2xl shadow-xl">
+                        <span class="text-white text-2xl font-black"><span class="${rankColor} mr-4 font-mono">#${idx + 1}</span> ${mask}</span>
+                        <span class="text-emerald-400 text-3xl font-black">${item[1]} pts</span>
+                    </div>`;
+            });
+            list.innerHTML = html;
+        }
+
+        function hideTVLeaderboard() {
+            const modal = document.getElementById('tvLeaderboardModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function getLiveStatusForHall(hallId, remoteIndex) {
+            const data = appData[hallId];
+            if (!data) return { currentEvent: null, nextEvent: null };
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+
+            if (remoteIndex !== null) {
+                if (remoteIndex < 0 && globalQuizzes.length > 0) {
+                    return { currentEvent: globalQuizzes[Math.abs(remoteIndex) - 1], nextEvent: playableEvents[0] || null };
+                }
+                return { currentEvent: playableEvents[remoteIndex] || null, nextEvent: playableEvents[remoteIndex + 1] || null };
+            }
+
+            const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+            let currentEvent = null, nextEvent = null;
+            for (let i = 0; i < playableEvents.length; i++) {
+                const ev = playableEvents[i];
+                const evStart = parseTimeToMinutes(ev.time);
+                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                if (evStart !== null && evEnd !== null) {
+                    if (currentMins >= evStart && currentMins < evEnd) {
+                        currentEvent = ev;
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') currentEvent = playableEvents[i-1];
+                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1];
+                        break;
+                    } else if (currentMins < evStart && !nextEvent) {
+                        nextEvent = ev;
+                    }
+                }
+            }
+            return { currentEvent, nextEvent };
+        }
+
+        function renderHallPanel(panelElId, hallId, stateObj, arrowDir, isSplit) {
+            const container = document.getElementById(panelElId);
+            if (!container) return;
+            const data = appData[hallId];
+            if (!data) {
+                container.innerHTML = `<div class="flex items-center justify-center h-full"><div class="loader"></div></div>`;
+                return;
+            }
+
+            const { currentEvent, nextEvent } = getLiveStatusForHall(hallId, stateObj.remoteIndex);
+            let newHash = `${hallId}|${currentEvent ? currentEvent.title + currentEvent.time : 'none'}|${nextEvent ? nextEvent.title : 'none'}|${stateObj.remoteIndex}`;
+            if (newHash === stateObj.lastHash) return;
+            stateObj.lastHash = newHash;
+
+            let arrowIcon = '';
+            if (arrowDir === 'left') arrowIcon = '<i class="fas fa-arrow-left text-amber-400 animate-pulse mr-2"></i>';
+            else if (arrowDir === 'right') arrowIcon = '<i class="fas fa-arrow-right text-amber-400 animate-pulse mr-2"></i>';
+            else if (arrowDir === 'up') arrowIcon = '<i class="fas fa-arrow-up text-amber-400 animate-pulse mr-2"></i>';
+
+            let hallHeaderTitle = data.title.split(' - ')[1] || data.title;
+            let hallSub = data.title.split(' - ')[0];
+
+            let singleBrandingHeader = '';
+            if (!isSplit) {
+                singleBrandingHeader = `
+                    <div class="flex justify-between items-center pb-6 mb-6 border-b border-slate-800">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-white/95 p-2 rounded-2xl shadow-xl">
+                                <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                            </div>
+                            <div>
+                                <span class="text-xs font-black uppercase tracking-widest text-indigo-400 block">${hallSub}</span>
+                                <h1 class="text-2xl sm:text-3xl font-black text-white">${arrowIcon}${hallHeaderTitle}</h1>
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-700/80 px-6 py-3 rounded-2xl flex items-center gap-3 shadow-inner">
+                            <i class="far fa-clock text-indigo-400 text-xl"></i>
+                            <span class="text-3xl font-black text-white font-mono tracking-wider sharedDigitalClock">--:-- --</span>
+                        </div>
+                    </div>`;
+            } else {
+                singleBrandingHeader = `
+                    <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+                        <div>
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">${hallSub}</span>
+                            <h2 class="text-2xl sm:text-3xl font-black text-white flex items-center">${arrowIcon}${hallHeaderTitle}</h2>
+                        </div>
+                    </div>`;
+            }
+
+            let bodyHtml = `<div class="text-center py-20 bg-slate-900/40 rounded-3xl border border-slate-800/80 my-4"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Active</h2></div>`;
+
+            if (currentEvent) {
+                if (currentEvent.type === 'quiz') {
+                    let secondsLeft = 45;
+                    if (stateObj.quizStart) {
+                        let diff = Math.floor((new Date() - new Date(stateObj.quizStart)) / 1000);
+                        secondsLeft = Math.max(0, 45 - diff);
+                    }
+                    let qrContainerId = `qrContainer_${hallId}`;
+                    let isExpired = secondsLeft <= 0;
+
+                    bodyHtml = `
+                        <div class="flex-1 bg-gradient-to-b ${isExpired ? 'from-slate-950 to-slate-900 border-red-600/50' : 'from-indigo-950/80 to-slate-900 border-indigo-500/50'} rounded-3xl border-2 p-6 sm:p-8 shadow-2xl flex flex-col justify-between mb-4">
+                            <div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <span class="${isExpired ? 'bg-red-600' : 'bg-rose-600'} text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest flex items-center shadow-lg">
+                                        <i class="fas ${isExpired ? 'fa-stopwatch' : 'fa-bolt'} mr-2"></i> ${isExpired ? 'Time Up!' : 'Live Audience Quiz'}
+                                    </span>
+                                    <span class="bg-slate-950 border border-rose-500/50 text-rose-500 font-mono text-xl sm:text-2xl font-black px-4 py-1 rounded-xl">
+                                        <i class="fas fa-hourglass-half mr-2 ${isExpired ? '' : 'animate-spin'}"></i>${secondsLeft}s
+                                    </span>
+                                </div>
+                                <h2 class="text-2xl sm:text-3xl font-black text-white leading-snug mb-6">${currentEvent.title}</h2>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                    ${currentEvent.options.map((opt, i) => {
+                                        let isCor = checkIfCorrect(opt, currentEvent.correct, i);
+                                        let stateClass = isExpired ? (isCor ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200 font-black ring-1 ring-emerald-400' : 'bg-slate-900/40 border-slate-800 text-slate-500 line-through opacity-50') : 'bg-slate-900 border-slate-700 text-slate-200';
+                                        return `<div class="border p-4 rounded-xl text-base sm:text-lg font-bold flex items-center ${stateClass}"><span class="bg-slate-950 px-3 py-1 rounded text-xs text-indigo-400 mr-3 font-mono">${String.fromCharCode(65+i)}</span> ${opt}</div>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                            ${!isExpired ? `
+                            <div class="bg-slate-950/90 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between gap-4 mt-auto">
+                                <div>
+                                    <span class="text-xs font-black text-amber-400 uppercase tracking-widest block"><i class="fas fa-mobile-alt mr-1"></i> Scan Phone to Play</span>
+                                    <span class="text-xs text-slate-400">Join instantly from your phone</span>
+                                </div>
+                                <div id="${qrContainerId}" class="bg-white p-1.5 rounded-lg shadow-lg flex-shrink-0"></div>
+                            </div>` : ''}
+                        </div>`;
+
+                    if (!isExpired) {
+                        setTimeout(() => {
+                            let el = document.getElementById(qrContainerId);
+                            if (el && el.innerHTML === "") {
+                                new QRCode(el, {
+                                    text: `${DELEGATE_APP_URL}?hall=${hallId}`,
+                                    width: 68,
+                                    height: 68,
+                                    colorDark : "#020617",
+                                    colorLight : "#ffffff",
+                                    correctLevel : QRCode.CorrectLevel.M
+                                });
+                            }
+                        }, 50);
+                    }
+                } else if (currentEvent.type === 'break') {
+                    if (currentEvent.adLink) {
+                        let link = currentEvent.adLink, media = '';
+                        if (link.includes('youtube.com') || link.includes('youtu.be')) {
+                            let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+                            if (ytMatch) media = `<iframe class="w-full aspect-video rounded-2xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
+                        } else if (link.includes('drive.google.com')) {
+                            let fId = link.match(/[-\w]{25,}/);
+                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto max-h-[40vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                        } else {
+                            media = `<img src="${link}" class="w-full h-auto max-h-[40vh] object-contain rounded-2xl bg-black border border-slate-700 shadow-2xl">`;
+                        }
+                        bodyHtml = `
+                            <div class="flex-1 bg-slate-900 border border-slate-700/80 rounded-3xl p-6 shadow-2xl flex flex-col justify-between mb-4">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="bg-amber-500 text-slate-950 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider"><i class="fas fa-play-circle mr-1.5"></i> ${currentEvent.title}</span>
+                                    <span class="text-lg font-bold text-slate-300 bg-slate-950 px-3 py-1 rounded-lg">${currentEvent.display_time}</span>
+                                </div>
+                                ${media}
+                            </div>`;
+                    } else {
+                        let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        const lowTitle = currentEvent.title.toLowerCase();
+                        if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
+                        else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
+                        else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
+                        bodyHtml = `
+                            <div class="flex-1 flex flex-col items-center justify-center text-center py-16 bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner">
+                                <i class="fas ${breakIcon} text-6xl sm:text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i>
+                                <h2 class="text-3xl sm:text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
+                                <p class="text-xl text-slate-400 mt-3 font-mono font-semibold">${currentEvent.display_time}</p>
+                            </div>`;
+                    }
+                } else {
+                    let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                    let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') ? `<div class="text-indigo-400 font-bold uppercase text-xs sm:text-sm mb-2 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2"></i>${currentEvent.parent_session}</div>` : '';
+
+                    bodyHtml = `
+                        <div class="flex-1 bg-gradient-to-br from-slate-900 to-slate-900/80 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col justify-between mb-4">
+                            <div>
+                                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                                    <span class="${bStyle} px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-widest flex items-center shadow-md"><span class="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></span> LIVE NOW</span>
+                                    <span class="text-base sm:text-lg font-bold text-slate-300 bg-slate-950 px-3.5 py-1 rounded-xl border border-slate-800"><i class="far fa-clock mr-1.5 text-indigo-400"></i>${currentEvent.display_time}</span>
+                                </div>
+                                ${pSess}
+                                <h1 class="text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight mb-6">${currentEvent.title}</h1>
+                            </div>
+                            ${currentEvent.speaker ? `
+                                <div class="flex items-center bg-slate-950/80 p-4 rounded-2xl border border-slate-800 shadow-inner">
+                                    <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0 border border-indigo-500/30">
+                                        <i class="fas fa-microphone"></i>
+                                    </div>
+                                    <div>
+                                        <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Speaker</span>
+                                        <span class="text-lg sm:text-xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>`;
+                }
+            }
+
+            let upNextHtml = '';
+            if (nextEvent && nextEvent.type !== 'quiz') {
+                upNextHtml = `
+                    <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-3 shadow-md flex-shrink-0">
+                        <div class="flex-1 truncate">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-amber-400 block mb-1 flex items-center"><i class="fas fa-step-forward mr-1.5"></i>Coming Up &bull; ${nextEvent.display_time}</span>
+                            <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
+                            ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
+                        </div>
+                        <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
+                    </div>`;
+            }
+
+            container.innerHTML = singleBrandingHeader + bodyHtml + upNextHtml;
+        }
+
+        function refreshDisplays() {
+            let isSplit = activeHalls.length > 1;
+            renderHallPanel('panelHall1', activeHalls[0], hallStates.hall1, hallArrows[activeHalls[0]], isSplit);
+            if (isSplit) {
+                renderHallPanel('panelHall2', activeHalls[1], hallStates.hall2, hallArrows[activeHalls[1]], isSplit);
+            }
+        }
+
+        function subscribeToHallRealtime(hallId, stateSlot) {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hallId).single().then(({ data }) => {
+                if (data) {
+                    stateSlot.remoteIndex = data.override_index;
+                    stateSlot.quizStart = data.quiz_start_time;
+                    if (data.force_leaderboard && data.force_leaderboard !== 'none') showTVLeaderboard(data.force_leaderboard);
+                    else hideTVLeaderboard();
+                }
+                stateSlot.lastHash = "";
+                refreshDisplays();
+            });
+
+            supabaseClient.channel('tv-feed-' + hallId)
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hallId}` },
+                    (payload) => {
+                        stateSlot.remoteIndex = payload.new.override_index;
+                        stateSlot.quizStart = payload.new.quiz_start_time;
+                        let boardType = payload.new.force_leaderboard;
+                        if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
+                        else hideTVLeaderboard();
+                        stateSlot.lastHash = "";
+                        refreshDisplays();
+                    }
+                ).subscribe();
+        }
+
+        function initClock() {
+            setInterval(() => {
+                let timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                document.querySelectorAll('.sharedDigitalClock').forEach(el => el.innerText = timeStr);
+            }, 1000);
+        }
+
+        // Setup Wizard Helper Functions
+        function setWizardMode(mode) {
+            const singleSec = document.getElementById('wizSingleSection');
+            const splitSec = document.getElementById('wizSplitSection');
+            const btnSingle = document.getElementById('wizModeSingle');
+            const btnSplit = document.getElementById('wizModeSplit');
+            if (mode === 'split') {
+                singleSec.classList.add('hidden');
+                splitSec.classList.remove('hidden');
+                btnSplit.className = "py-2.5 px-4 rounded-xl border border-indigo-500 bg-indigo-600/30 text-indigo-300 font-bold transition";
+                btnSingle.className = "py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold transition";
+            } else {
+                splitSec.classList.add('hidden');
+                singleSec.classList.remove('hidden');
+                btnSingle.className = "py-2.5 px-4 rounded-xl border border-indigo-500 bg-indigo-600/30 text-indigo-300 font-bold transition";
+                btnSplit.className = "py-2.5 px-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 font-bold transition";
+            }
+        }
+
+        function populateWizardDropdowns() {
+            const opts = Object.entries(configTitles).map(([k, title]) => `<option value="${k}">${title}</option>`).join('');
+            document.getElementById('wizHall1').innerHTML = opts;
+            document.getElementById('wizSplitHall1').innerHTML = opts;
+            document.getElementById('wizSplitHall2').innerHTML = opts;
+            document.getElementById('wizSplitHall2').selectedIndex = 1;
+        }
+
+        function launchFromWizard() {
+            let isSplit = !document.getElementById('wizSplitSection').classList.contains('hidden');
+            let newUrl = new URL(window.location);
+            if (isSplit) {
+                let h1 = document.getElementById('wizSplitHall1').value;
+                let h2 = document.getElementById('wizSplitHall2').value;
+                let a1 = document.getElementById('wizArrow1').value;
+                let a2 = document.getElementById('wizArrow2').value;
+                newUrl.searchParams.set('halls', `${h1},${h2}`);
+                newUrl.searchParams.set('arrows', `${a1},${a2}`);
+            } else {
+                let h1 = document.getElementById('wizHall1').value;
+                newUrl.searchParams.set('hall', h1);
+            }
+            window.location.href = newUrl.toString();
+        }
+
+        async function bootApp() {
+            initClock();
+            const params = new URLSearchParams(window.location.search);
+            const hallsParam = params.get('halls') || params.get('hall');
+            const arrowsParam = params.get('arrows') || params.get('arrow') || "";
+
+            if (!hallsParam) {
+                populateWizardDropdowns();
+                document.getElementById('setupWizard').classList.remove('hidden');
+                return;
+            }
+
+            const rawList = hallsParam.split(',').map(s => normalizeHallId(s)).filter(Boolean);
+            const rawArrows = arrowsParam.split(',').map(s => s.trim().toLowerCase());
+
+            activeHalls = rawList.slice(0, 2);
+            activeHalls.forEach((h, i) => {
+                hallArrows[h] = rawArrows[i] || (i === 0 ? 'left' : 'right');
+            });
+
+            if (activeHalls.length > 1) {
+                document.getElementById('sharedTopHeader').classList.remove('hidden');
+                document.getElementById('panelHall2').classList.remove('hidden');
+            }
+
+            hallStates.hall1.id = activeHalls[0];
+            if (activeHalls.length > 1) hallStates.hall2.id = activeHalls[1];
+
+            // Cache check
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                try {
+                    let parsed = JSON.parse(cached);
+                    appData = parsed.halls || {};
+                    globalQuizzes = parsed.quizzes || [];
+                } catch(e){}
+            }
+
+            await fetchSchedule();
+            refreshDisplays();
+
+            subscribeToHallRealtime(activeHalls[0], hallStates.hall1);
+            if (activeHalls.length > 1) {
+                subscribeToHallRealtime(activeHalls[1], hallStates.hall2);
+            }
+
+            // Periodic checks
+            setInterval(refreshDisplays, 5000);
+            setInterval(fetchSchedule, 60000);
+        }
+
+        bootApp();
+    </script>
+</body>
+</html>
