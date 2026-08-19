@@ -74,7 +74,7 @@
 
                 <!-- DUAL SPLIT SETUP -->
                 <div id="wizSplitSection" class="hidden space-y-4">
-                    <!-- Hall 1 (Left / Top) -->
+                    <!-- Hall 1 -->
                     <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-3">
                         <span class="text-xs font-black text-indigo-400 uppercase tracking-wider block">Side 1 (Left / Top Door)</span>
                         <div>
@@ -105,7 +105,7 @@
                         </div>
                     </div>
 
-                    <!-- Hall 2 (Right / Bottom) -->
+                    <!-- Hall 2 -->
                     <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-3">
                         <span class="text-xs font-black text-indigo-400 uppercase tracking-wider block">Side 2 (Right / Bottom Door)</span>
                         <div>
@@ -214,7 +214,7 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v6';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v7';
 
         let activeHalls = [];
         let hallArrows = {};
@@ -225,7 +225,6 @@
         };
 
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
-        
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -442,7 +441,11 @@
                 else { titleText = "Grand Overall Standings"; }
 
                 let scores = {};
-                filteredData.forEach(r => { scores[r.phone] = 0; }); 
+                let names = {};
+                filteredData.forEach(r => { 
+                    scores[r.phone] = 0; 
+                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
+                }); 
                 let qGroups = {};
                 filteredData.forEach(r => {
                     if (!r.is_correct) return;
@@ -451,8 +454,8 @@
                     if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
                 });
                 Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
-                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board" }; }
+                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText, names };
+            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
         }
 
         async function showTVLeaderboard(type) {
@@ -473,12 +476,13 @@
 
             let html = '';
             math.sorted.slice(0, 10).forEach((item, idx) => {
-                let mask = item[0].length >= 4 ? item[0].substring(0, 2) + "******" + item[0].slice(-2) : item[0];
+                let name = math.names[item[0]] || 'Delegate';
+                let last4 = item[0].length >= 4 ? item[0].slice(-4) : item[0];
                 let rankColor = idx === 0 ? 'text-amber-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-700' : 'text-indigo-400';
                 html += `
                     <div class="flex justify-between items-center bg-slate-900 border border-slate-700/80 p-5 rounded-2xl shadow-xl">
-                        <span class="text-white text-2xl font-black"><span class="${rankColor} mr-4 font-mono">#${idx + 1}</span> ${mask}</span>
-                        <span class="text-emerald-400 text-3xl font-black">${item[1]} pts</span>
+                        <span class="text-white text-2xl font-black truncate pr-4"><span class="${rankColor} mr-4 font-mono">#${idx + 1}</span> ${name} <span class="text-slate-400 font-mono text-base font-normal">(••••${last4})</span></span>
+                        <span class="text-emerald-400 text-3xl font-black flex-shrink-0">${item[1]} pts</span>
                     </div>`;
             });
             list.innerHTML = html;
@@ -771,7 +775,6 @@
             let panel2 = document.getElementById('panelHall2');
             let sharedHdr = document.getElementById('sharedTopHeader');
 
-            // SINGLE HALL MODE: ALWAYS stay in single hall format, before, during, and after quiz
             if (activeHalls.length === 1) {
                 panel1.classList.remove('hidden');
                 panel2.classList.add('hidden');
@@ -780,7 +783,6 @@
                 return;
             }
 
-            // DUAL SPLIT SCREEN MODE: Fullscreen takeover while quiz active; restore back to 50/50 split once finished
             let h1QuizActive = isQuizRunning(hallStates.hall1);
             let h2QuizActive = isQuizRunning(hallStates.hall2);
 
@@ -795,7 +797,6 @@
                 panel2.classList.remove('hidden');
                 renderHallPanel('panelHall2', activeHalls[1], hallStates.hall2, hallArrows[activeHalls[1]], false);
             } else {
-                // Restore 50/50 dual split
                 sharedHdr.classList.remove('hidden');
                 panel1.classList.remove('hidden');
                 panel2.classList.remove('hidden');
@@ -834,11 +835,9 @@
 
         function initClockAndSmoothTicker() {
             setInterval(() => {
-                // Update digital clocks
                 let timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 document.querySelectorAll('.sharedDigitalClock').forEach(el => el.innerText = timeStr);
 
-                // Smooth quiz ticker
                 ['hall1', 'hall2'].forEach(slot => {
                     let st = hallStates[slot];
                     if (st.id && st.remoteIndex !== null && st.remoteIndex < 0 && st.quizStart) {
