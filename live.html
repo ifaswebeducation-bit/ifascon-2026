@@ -17,6 +17,8 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .audit-scroll::-webkit-scrollbar { width: 4px; }
         .audit-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar { display: none; }
+        .custom-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden bg-slate-900">
@@ -81,15 +83,23 @@
             </div>
         </div>
 
-        <!-- Row 3: Quick Jump Engine -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800">
+        <!-- NEW ROW 3: Custom Powerpoint Slides -->
+        <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 overflow-hidden">
+            <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center"><i class="fas fa-images mr-1.5"></i>Custom Presentations & Slides:</span>
+            <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scroll">
+                <!-- Javascript will populate these buttons -->
+            </div>
+        </div>
+
+        <!-- Row 4: Quick Jump Engine -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 pb-2">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
             <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
                 <option value="">-- Select an event to jump timeline directly --</option>
             </select>
         </div>
         
-        <div class="flex flex-col lg:flex-row gap-6 pt-1">
+        <div class="flex flex-col lg:flex-row gap-6 pt-1 border-t border-slate-800 mt-1">
             <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
@@ -205,6 +215,41 @@
         };
         const allHallsList = Object.keys(configTitles);
 
+        // --- CUSTOM SLIDES MAP ---
+        const slideFiles = [
+            { file: 'AO nextgen.jpeg', label: 'AO Nextgen' },
+            { file: 'Diabetic Foot workshop.jpeg', label: 'Diabetic Foot' },
+            { file: 'Fibulink.jpeg', label: 'Fibulink' },
+            { file: 'Gala dinner.jpeg', label: 'Gala Dinner' },
+            { file: 'GBM.jpeg', label: 'GBM' },
+            { file: 'IFAS Orations.jpeg', label: 'IFAS Orations' },
+            { file: 'IFASCON CME Dinner.jpeg', label: 'CME Dinner' },
+            { file: 'Inauguration.jpeg', label: 'Inauguration' },
+            { file: 'Lunch break 21.jpeg', label: 'Lunch 21st' },
+            { file: 'Lunch break 22.jpeg', label: 'Lunch 22nd' },
+            { file: 'MIS workshop.jpeg', label: 'MIS Workshop' },
+            { file: 'Orthobiologics.jpeg', label: 'Orthobiologics' },
+            { file: 'Valedictory.jpeg', label: 'Valedictory' }
+        ];
+
+        function renderSlideButtons() {
+            const container = document.getElementById('customSlidesContainer');
+            if(!container) return;
+            let html = '';
+            slideFiles.forEach(slide => {
+                let encodedFile = encodeURIComponent(slide.file);
+                html += `
+                    <button onclick="pushSplashGlobal('${slide.file}')" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-slate-600 hover:border-pink-500 hover:ring-2 hover:ring-pink-500/50 transition flex-shrink-0 group">
+                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150?text=Missing'">
+                        <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent">
+                            <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${slide.label}</span>
+                        </div>
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
@@ -292,6 +337,8 @@
             document.getElementById('authGateFrame').classList.add('hidden');
             document.getElementById('masterToolbarSuite').classList.remove('hidden');
             document.getElementById('adminHallNav').classList.remove('hidden');
+            
+            renderSlideButtons(); // Initialize custom slides gallery
 
             if (myRole === 'av_operator') {
                 let quizSec = document.getElementById('quizControlSection');
@@ -339,7 +386,6 @@
                 }).subscribe();
         }
 
-        // --- NEW ISOLATED COMMANDS ---
         async function broadcastVisibleHalls(hallList) {
             logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
             await supabaseClient.from('hall_states').update({ visible_halls: hallList }).in('hall_id', allHallsList);
@@ -347,9 +393,9 @@
         }
 
         async function pushSplashGlobal(splashState) {
-            logAction(`BROADCAST: Pushed Delegate Splash Screen [${splashState}]`);
+            logAction(`BROADCAST: Pushed Display Command [${splashState}]`);
             await supabaseClient.from('hall_states').update({ active_splash: splashState }).in('hall_id', allHallsList);
-            alert(`Pushed state [${splashState}] to all delegates!`);
+            if(splashState !== 'live') alert(`Pushed presentation [${splashState}] to all delegates!`);
         }
 
         async function pushLeaderboardGlobal(type) {
@@ -363,7 +409,6 @@
             hideLeaderboard();
             await supabaseClient.from('hall_states').update({ active_leaderboard: 'none' }).in('hall_id', allHallsList);
         }
-        // ------------------------------
 
         async function fetchMathLeaderboard(type) {
             try {
@@ -788,7 +833,6 @@
             if (liveHall.includes('ao') || liveHall.includes('diabet') || liveHall.includes('mis')) expectedDate = '2026-08-21';
             if (liveHall.includes('23')) expectedDate = '2026-08-23';
 
-            // IF TODAY IS NOT THE DAY OF THE CONFERENCE, SHOW THE FIRST EVENT
             if (todayStr !== expectedDate) {
                 return { currentEvent: playableEvents[0], nextEvent: playableEvents[1] || null };
             }
@@ -833,7 +877,6 @@
             
             return { currentEvent, nextEvent };
         }
-        // ----------------------------------------
 
         function switchHallFeed(newHall) {
             let normalizedNew = normalizeHallId(newHall);
@@ -974,27 +1017,14 @@
 
         function initLiveKiosk() {
             populateEventJump();
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard').eq('hall_id', liveHall).single().then(({ data }) => {
-                if (data) { 
-                    manualOverrideIndex = data.override_index; 
-                    quizStartTimeStamp = data.quiz_start_time; 
-                    if(data.active_leaderboard && data.active_leaderboard !== 'none') showLeaderboard(data.active_leaderboard);
-                }
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
+                if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
                 updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { 
-                        manualOverrideIndex = payload.new.override_index; 
-                        quizStartTimeStamp = payload.new.quiz_start_time; 
-                        
-                        let lBoard = payload.new.active_leaderboard;
-                        if(lBoard && lBoard !== 'none') showLeaderboard(lBoard);
-                        else hideLeaderboard();
-
-                        updateLiveDisplay(true); 
-                    }
+                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
