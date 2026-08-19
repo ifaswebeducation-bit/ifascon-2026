@@ -179,7 +179,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v99'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v105'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -429,7 +429,12 @@
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
+                }
+
+                // FORCE "Hands-on" and "Demonstrations" to be playable presentations
+                if (col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration')) {
+                    isSession = false;
                 }
 
                 if (isSession) {
@@ -447,7 +452,7 @@
                     return;
                 }
 
-                if (col1 || colTitle || isQA || isPlenary) {
+                if (col1 || colTitle || isQA || isPlenary || col3) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
@@ -525,7 +530,7 @@
                 return false;
             });
             
-            if (remoteOverrideIndex !== null) {
+            if (typeof remoteOverrideIndex !== 'undefined' && remoteOverrideIndex !== null) {
                 if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
                     return { currentEvent: globalQuizzes[Math.abs(remoteOverrideIndex) - 1], nextEvent: playableEvents[0] || null };
                 }
