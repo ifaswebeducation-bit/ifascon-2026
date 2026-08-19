@@ -24,7 +24,7 @@
     <!-- SPLASH SCREEN OVERLAY -->
     <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center">
         <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
-            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
         </div>
         <h1 id="splashTitle" class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6"></h1>
         <p id="splashSub" class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest"></p>
@@ -32,7 +32,7 @@
 
     <!-- HIGH-STAKES QUIZ HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
+        <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
         <p id="hijackMessage" class="text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
         <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-xl font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4">Jump to Hall & Play</button>
@@ -179,20 +179,12 @@
             }
 
             if (customVisibleHalls && customVisibleHalls.length > 0) {
-                return customVisibleHalls;
+                // Ensure only halls that exist in our config are returned
+                let filtered = customVisibleHalls.filter(h => allHallsList.includes(h));
+                if (filtered.length > 0) return filtered;
             }
 
-            let now = new Date();
-            let yyyy = now.getFullYear();
-            let mm = String(now.getMonth() + 1).padStart(2, '0');
-            let dd = String(now.getDate()).padStart(2, '0');
-            let dateStr = `${yyyy}-${mm}-${dd}`;
-
-            if (dateStr === '2026-08-21') return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
-            if (dateStr === '2026-08-22') return ['22a', '22b', '22c'];
-            if (dateStr === '2026-08-23') return ['23a', '23b', '23c'];
-
-            return allHallsList;
+            return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
         }
 
         function detectSponsor(eventObj, currentHallTitle) {
@@ -695,13 +687,13 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
-        // --- FIXED DATE-AWARE TIMELINE LOGIC ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
                 if (e.isOration && (e.speaker || '').trim() !== '') return true; 
                 return false;
             });
+            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
             
             if (typeof remoteOverrideIndex !== 'undefined' && remoteOverrideIndex !== null) {
                 if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
@@ -720,9 +712,8 @@
             if (liveHall.includes('ao') || liveHall.includes('diabet') || liveHall.includes('mis')) expectedDate = '2026-08-21';
             if (liveHall.includes('23')) expectedDate = '2026-08-23';
 
-            // IF TODAY IS NOT THE DAY OF THE CONFERENCE, SHOW THE FIRST EVENT
             if (todayStr !== expectedDate) {
-                return { currentEvent: playableEvents[0] || null, nextEvent: playableEvents[1] || null };
+                return { currentEvent: playableEvents[0], nextEvent: playableEvents[1] || null };
             }
 
             const currentMins = now.getHours() * 60 + now.getMinutes();
@@ -760,12 +751,11 @@
             }
             
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[playableEvents.length - 1];
+                currentEvent = playableEvents[0];
             }
             
             return { currentEvent, nextEvent };
         }
-        // ------------------------------------------
 
         async function fetchMathLeaderboard(type) {
             try {
@@ -892,7 +882,8 @@
                 desktopNav.innerHTML = buttonsHtml;
             }
 
-            const data = appData[liveHall]; if (!data) return;
+            const data = appData[liveHall]; 
+            if (!data) return;
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
@@ -1197,6 +1188,30 @@
         };
 
         window.initLiveDashboard = function() { 
+            // 1. Initial State Fetch across all halls to set visible halls immediately
+            supabaseClient.from('hall_states').select('*').then(({ data }) => {
+                if (data && data.length > 0) {
+                    let firstRow = data[0];
+                    if (firstRow.visible_halls && firstRow.visible_halls.length > 0) {
+                        customVisibleHalls = firstRow.visible_halls;
+                    }
+                    if (firstRow.active_splash && firstRow.active_splash !== 'live') {
+                        applySplashState(firstRow.active_splash);
+                    } else {
+                        hideSplashState();
+                    }
+                }
+                
+                let available = getAvailableHalls();
+                if (!liveHall || !available.includes(liveHall)) {
+                    liveHall = available[0];
+                }
+
+                window.subscribeToHall(liveHall);
+                window.updateLiveDisplay(true);
+            });
+
+            // 2. Realtime listener for broadcast changes
             supabaseClient.channel('global-radar-feed')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
@@ -1205,17 +1220,24 @@
                     let splash = payload.new.active_splash;
                     let visHalls = payload.new.visible_halls;
                     
+                    if (visHalls && visHalls.length > 0) {
+                        customVisibleHalls = visHalls;
+                        let available = getAvailableHalls();
+                        if (!available.includes(liveHall)) {
+                            liveHall = available[0];
+                            window.subscribeToHall(liveHall);
+                        }
+                        window.updateLiveDisplay(true);
+                    }
+
+                    if (splash) {
+                        if (splash !== 'live') applySplashState(splash);
+                        else hideSplashState();
+                    }
+
                     if (changedHall === liveHall) {
                         if (lBoard && lBoard !== 'none') showLeaderboard(lBoard);
                         else hideLeaderboard();
-
-                        if (splash && splash !== 'live') applySplashState(splash);
-                        else hideSplashState();
-
-                        if (visHalls && visHalls.length > 0) {
-                            customVisibleHalls = visHalls;
-                            window.updateLiveDisplay(false);
-                        }
                     } else {
                         if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
@@ -1260,7 +1282,6 @@
                 }
             }, 1000);
             
-            window.subscribeToHall(liveHall); 
             window.updatePersistentFooter();
         };
 
