@@ -93,7 +93,7 @@
             <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
-                <!-- Smart Quiz Launcher (Hidden for av_operator) -->
+                <!-- Smart Quiz Launcher -->
                 <div id="quizControlSection" class="flex flex-col gap-2">
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
@@ -339,19 +339,31 @@
                 }).subscribe();
         }
 
+        // --- NEW ISOLATED COMMANDS ---
         async function broadcastVisibleHalls(hallList) {
-            let configPayload = 'halls:' + hallList.join(',');
             logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: configPayload }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ visible_halls: hallList }).in('hall_id', allHallsList);
             alert(`Broadcasting visible halls [${hallList.join(', ')}] to all delegate screens!`);
         }
 
         async function pushSplashGlobal(splashState) {
             logAction(`BROADCAST: Pushed Delegate Splash Screen [${splashState}]`);
-            let payload = splashState === 'live' ? null : ('splash_' + splashState);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_splash: splashState }).in('hall_id', allHallsList);
             alert(`Pushed state [${splashState}] to all delegates!`);
         }
+
+        async function pushLeaderboardGlobal(type) {
+            logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
+            showLeaderboard(type);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).in('hall_id', allHallsList);
+        }
+
+        async function clearLeaderboardGlobal() {
+            logAction("BROADCAST: Cleared Leaderboard across ALL halls");
+            hideLeaderboard();
+            await supabaseClient.from('hall_states').update({ active_leaderboard: 'none' }).in('hall_id', allHallsList);
+        }
+        // ------------------------------
 
         async function fetchMathLeaderboard(type) {
             try {
@@ -405,18 +417,6 @@
             }).join('');
         }
         function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
-
-        async function pushLeaderboardGlobal(type) {
-            logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
-            showLeaderboard(type);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).in('hall_id', allHallsList);
-        }
-
-        async function clearLeaderboardGlobal() {
-            logAction("BROADCAST: Cleared Leaderboard across ALL halls");
-            hideLeaderboard();
-            await supabaseClient.from('hall_states').update({ force_leaderboard: null }).in('hall_id', allHallsList);
-        }
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
@@ -629,7 +629,7 @@
             manualOverrideIndex = parseInt(idx);
             updateLiveDisplay(true);
             logAction(`Timeline JUMP: Forced play of Index ${idx}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
         }
 
@@ -725,7 +725,7 @@
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
             logAction(`Launched Quiz: ${title}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function terminateActiveQuiz() {
@@ -733,7 +733,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Cleared active quiz on screen");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function resumeAutoSync() {
@@ -741,7 +741,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Resumed Auto-Sync mode");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function manualShift(step) {
@@ -758,16 +758,18 @@
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
             logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: null }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function forceLeaderboardLocal(type) {
             logAction(`Forced Leaderboard TV output: ${type}`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).eq('hall_id', liveHall);
         }
 
+        // --- FIXED DATE-AWARE TIMELINE LOGIC ---
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
             
             if (manualOverrideIndex !== null) {
                 if (manualOverrideIndex < 0 && globalQuizzes.length > 0) {
@@ -777,6 +779,20 @@
             }
             
             const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+            
+            let expectedDate = '2026-08-22';
+            if (liveHall.includes('ao') || liveHall.includes('diabet') || liveHall.includes('mis')) expectedDate = '2026-08-21';
+            if (liveHall.includes('23')) expectedDate = '2026-08-23';
+
+            // IF TODAY IS NOT THE DAY OF THE CONFERENCE, SHOW THE FIRST EVENT
+            if (todayStr !== expectedDate) {
+                return { currentEvent: playableEvents[0], nextEvent: playableEvents[1] || null };
+            }
+
             const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
             
@@ -817,6 +833,7 @@
             
             return { currentEvent, nextEvent };
         }
+        // ----------------------------------------
 
         function switchHallFeed(newHall) {
             let normalizedNew = normalizeHallId(newHall);
@@ -957,14 +974,27 @@
 
         function initLiveKiosk() {
             populateEventJump();
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
-                if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard').eq('hall_id', liveHall).single().then(({ data }) => {
+                if (data) { 
+                    manualOverrideIndex = data.override_index; 
+                    quizStartTimeStamp = data.quiz_start_time; 
+                    if(data.active_leaderboard && data.active_leaderboard !== 'none') showLeaderboard(data.active_leaderboard);
+                }
                 updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
+                    (payload) => { 
+                        manualOverrideIndex = payload.new.override_index; 
+                        quizStartTimeStamp = payload.new.quiz_start_time; 
+                        
+                        let lBoard = payload.new.active_leaderboard;
+                        if(lBoard && lBoard !== 'none') showLeaderboard(lBoard);
+                        else hideLeaderboard();
+
+                        updateLiveDisplay(true); 
+                    }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
