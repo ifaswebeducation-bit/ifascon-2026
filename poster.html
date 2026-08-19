@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- HTML2Canvas library to convert DOM to JPG -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -27,16 +26,29 @@
 </head>
 <body class="bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-0 sm:p-6 min-h-screen">
 
-    <!-- Action Toolbar (Hidden during print / image capture) -->
+    <!-- Action Toolbar (Fixed top-right) -->
     <div class="no-print fixed top-4 right-4 z-50 flex flex-wrap gap-3">
         <!-- Download as JPG Button -->
-        <button id="downloadJpgBtn" onclick="downloadPosterJpg()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95">
-            <i class="fas fa-file-image"></i> Save as JPG
+        <button id="downloadJpgBtn" onclick="downloadPosterJpg()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
+            <i class="fas fa-file-image"></i> Download JPG
         </button>
-        <!-- Print / PDF Button -->
-        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95">
+        <!-- Print / Save PDF Button -->
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider transition active:scale-95 cursor-pointer">
             <i class="fas fa-print"></i> Print / PDF
         </button>
+    </div>
+
+    <!-- Safari / Mac Image Modal Fallback -->
+    <div id="imageFallbackModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 text-center">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl max-w-lg w-full shadow-2xl flex flex-col items-center">
+            <i class="fas fa-check-circle text-4xl text-emerald-400 mb-3"></i>
+            <h3 class="text-xl font-black text-white mb-1">Poster Image Ready</h3>
+            <p class="text-xs text-slate-400 mb-4">Right-click (or two-finger tap) the image below and select <strong>"Save Image As..."</strong></p>
+            <div class="max-h-[50vh] overflow-auto rounded-xl border border-slate-800 mb-4 bg-black">
+                <img id="fallbackImagePreview" class="w-full h-auto object-contain" alt="IFASCON Poster">
+            </div>
+            <button onclick="document.getElementById('imageFallbackModal').classList.add('hidden')" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition text-sm">Close</button>
+        </div>
     </div>
 
     <!-- Poster Canvas Container (Target for JPG Export & Printing) -->
@@ -50,7 +62,7 @@
         <div class="relative z-10 text-center flex flex-col items-center">
             <div class="flex items-center justify-between w-full border-b border-slate-800/80 pb-6 mb-6">
                 <div class="bg-white p-2.5 rounded-2xl shadow-xl">
-                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" crossorigin="anonymous" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON 2026 Logo" class="h-16 w-auto object-contain" onerror="this.src='https://via.placeholder.com/140x50?text=IFASCON+2026'">
                 </div>
                 <div class="text-right">
                     <span class="inline-block bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-mono text-xs font-black uppercase px-3 py-1 rounded-full tracking-widest shadow-inner mb-1">Live Companion</span>
@@ -150,32 +162,65 @@
             correctLevel : QRCode.CorrectLevel.H
         });
 
-        // Function to export element as JPG image
-        function downloadPosterJpg() {
+        // Robust Mac / Safari / Chrome JPG Export
+        async function downloadPosterJpg() {
             const poster = document.getElementById('posterElement');
             const btn = document.getElementById('downloadJpgBtn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating JPG...';
+            
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rendering...';
             btn.disabled = true;
 
-            html2canvas(poster, {
-                scale: 2, // High resolution (2x scale for crisp prints/displays)
-                useCORS: true,
-                backgroundColor: '#020617'
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'IFASCON_2026_Delegate_Poster.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.95);
-                link.click();
+            try {
+                const canvas = await html2canvas(poster, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#020617',
+                    logging: false
+                });
 
+                // Convert canvas to Blob (Works reliably on Safari & Chrome on Mac)
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        showFallbackPreview(canvas.toDataURL('image/jpeg', 0.95));
+                        resetBtn();
+                        return;
+                    }
+
+                    const blobUrl = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = 'IFASCON_2026_Delegate_Poster.jpg';
+                    link.href = blobUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Clean up URL object after delay
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                    resetBtn();
+                }, 'image/jpeg', 0.95);
+
+            } catch (err) {
+                console.error("Canvas export failed:", err);
+                // Fallback for strict browser security policies
+                html2canvas(poster, { scale: 1.5, allowTaint: true }).then(c => {
+                    showFallbackPreview(c.toDataURL('image/jpeg', 0.9));
+                }).catch(() => {
+                    alert("Could not trigger direct download. Please use Print -> Save as PDF.");
+                });
+                resetBtn();
+            }
+
+            function resetBtn() {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-            }).catch(err => {
-                console.error("JPG generation failed: ", err);
-                alert("Failed to create image. You can also use Print -> Save as PDF.");
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            });
+            }
+
+            function showFallbackPreview(dataUrl) {
+                document.getElementById('fallbackImagePreview').src = dataUrl;
+                document.getElementById('imageFallbackModal').classList.remove('hidden');
+            }
         }
     </script>
 </body>
