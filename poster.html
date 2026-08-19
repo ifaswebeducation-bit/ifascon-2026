@@ -8,19 +8,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Montserrat:wght@800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
-    <!-- Switched to html-to-image for 1:1 exact screen capturing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.11/html-to-image.min.js"></script>
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #020617;}
+        body { font-family: 'Inter', sans-serif; background-color: #020617; }
         .font-brand { font-family: 'Montserrat', sans-serif; }
         
         @page { size: A4 portrait; margin: 0; }
         @media print {
             body { background: transparent; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
-            .poster-container { min-height: 100vh !important; height: 100vh !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; transform: none !important; margin: 0 !important;}
+            .poster-container { min-height: 100vh !important; height: 100vh !important; border: none !important; box-shadow: none !important; border-radius: 0 !important; transform: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important;}
         }
     </style>
 </head>
@@ -36,9 +34,8 @@
         </button>
     </div>
 
-    <!-- EXACT POSTER CANVAS -->
-    <!-- Fixed max-width ensures aspect ratio remains perfect for mobile viewing & export -->
-    <div id="posterElement" class="poster-container w-full max-w-[720px] bg-slate-950 border-0 sm:border border-slate-800 rounded-none sm:rounded-[2rem] shadow-2xl overflow-hidden p-8 sm:p-10 flex flex-col justify-between relative bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 mx-auto" style="min-height: 1100px;">
+    <!-- EXACT POSTER CANVAS (Locked to fixed 720px width to prevent right-side clipping) -->
+    <div id="posterElement" class="poster-container w-[720px] bg-slate-950 border border-slate-800 rounded-[2rem] shadow-2xl overflow-hidden p-8 flex flex-col justify-between relative bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950 mx-auto" style="min-height: 1100px;">
         
         <!-- Ambient Accent Background Glows -->
         <div class="absolute -top-24 -left-24 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -56,10 +53,10 @@
                 </div>
             </div>
 
-            <h1 class="font-brand text-4xl sm:text-5xl font-black text-white tracking-tight uppercase leading-none mb-4">
+            <h1 class="font-brand text-5xl font-black text-white tracking-tight uppercase leading-none mb-4">
                 Scan. Track. <span class="bg-gradient-to-r from-amber-400 via-rose-500 to-indigo-400 bg-clip-text text-transparent">Compete.</span>
             </h1>
-            <p class="text-sm sm:text-base text-slate-300 font-medium max-w-lg mx-auto leading-relaxed">
+            <p class="text-base text-slate-300 font-medium max-w-lg mx-auto leading-relaxed">
                 Connect your smartphone directly to the stage screens for live presentation tracking, interactive quizzes, and instant leaderboards.
             </p>
         </div>
@@ -78,12 +75,12 @@
 
             <div class="mt-6 bg-slate-900/90 border border-slate-700/80 px-5 py-2 rounded-full flex items-center justify-center gap-2 shadow-inner">
                 <i class="fas fa-globe text-indigo-400 text-sm"></i>
-                <span class="font-mono text-sm font-bold text-slate-300 tracking-wide">ifascon-2026.vercel.app/delegate_live.html</span>
+                <span class="font-mono text-sm font-bold text-slate-300 tracking-wide">ifascon-2026.vercel.app/live</span>
             </div>
         </div>
 
-        <!-- 3. Key Feature Highlights (Flexbox restored, rendered natively via SVG) -->
-        <div class="relative z-10 w-full grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <!-- 3. Key Feature Highlights -->
+        <div class="relative z-10 w-full grid grid-cols-3 gap-4 mb-8">
             <div class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-lg flex flex-col items-center justify-center text-center">
                 <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mb-3 border border-indigo-500/30">
                     <i class="fas fa-tv"></i>
@@ -111,17 +108,17 @@
 
         <!-- 4. Footer -->
         <div class="relative z-10 border-t border-slate-800/80 pt-5 flex-shrink-0 w-full">
-            <div class="flex flex-wrap items-center justify-between text-[11px] text-slate-400 w-full px-2">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 w-full px-2">
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px] shadow-md">1</span>
                     <span class="font-bold text-slate-300">Scan QR Code</span>
                 </div>
-                <div class="hidden sm:flex items-center justify-center text-slate-600 font-bold">➔</div>
+                <div class="flex items-center justify-center text-slate-600 font-bold">➔</div>
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-[10px] shadow-md">2</span>
-                    <span class="font-bold text-slate-300">Enter Name & Mobile No.</span>
+                    <span class="font-bold text-slate-300">Enter Name & Phone</span>
                 </div>
-                <div class="hidden sm:flex items-center justify-center text-slate-600 font-bold">➔</div>
+                <div class="flex items-center justify-center text-slate-600 font-bold">➔</div>
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-[10px] shadow-md">3</span>
                     <span class="font-bold text-slate-300">Select Hall & Play</span>
@@ -170,11 +167,12 @@
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
             btn.disabled = true;
 
-            // Use html-to-image to take a literal snapshot of the DOM
             htmlToImage.toJpeg(poster, { 
                 quality: 0.95, 
-                pixelRatio: 2, // High resolution output
-                backgroundColor: '#020617' 
+                pixelRatio: 2, 
+                backgroundColor: '#020617',
+                width: 720,
+                height: 1100
             })
             .then(function (dataUrl) {
                 const link = document.createElement('a');
