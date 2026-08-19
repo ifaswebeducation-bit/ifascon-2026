@@ -214,7 +214,7 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v7';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v200';
 
         let activeHalls = [];
         let hallArrows = {};
@@ -242,12 +242,27 @@
             return str;
         }
 
+        function resolveDirectImageUrl(url) {
+            if (!url) return "";
+            url = url.trim();
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let fIdMatch = url.match(/[-\w]{25,}/);
+                if (fIdMatch && fIdMatch[0]) {
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                }
+            }
+            return url;
+        }
+
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
             return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
                 let h = parseInt(p1, 10);
-                return (h % 12 || 12) + ':' + p2 + ' ' + (h >= 12 ? 'PM' : 'AM');
+                let ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12; h = h ? h : 12; 
+                let paddedH = h < 10 ? '0' + h : h;
+                return paddedH + ':' + p2 + ' ' + ampm;
             });
         }
 
@@ -265,9 +280,39 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
+        function detectSponsor(eventObj, currentHallTitle) {
+            let fullSearch = `${eventObj.title} ${eventObj.parent_session} ${eventObj.hall} ${currentHallTitle}`.toLowerCase();
+            let isSocietyEvent = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee|executive meeting)\b/i.test(fullSearch);
+
+            if (eventObj.sponsorLogo) {
+                let rawLogo = eventObj.sponsorLogo.toLowerCase();
+                let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
+                let noLabel = isAO || isSocietyEvent || eventObj.sponsorLabel === "" || (eventObj.sponsorLabel && eventObj.sponsorLabel.toLowerCase().includes('no_label'));
+                let lbl = noLabel ? "" : (eventObj.sponsorLabel || "Supported by");
+                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO, isSociety: isSocietyEvent };
+            }
+
+            if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
+                return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
+            }
+            if (isSocietyEvent) {
+                return { name: 'IFAS Official', isBadge: true, label: '', isSociety: true };
+            }
+            if (fullSearch.includes('nebula')) {
+                return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by', isAO: false };
+            }
+            if (fullSearch.includes('arthrex')) {
+                return { name: 'Arthrex', isBadge: true, label: 'Supported by', isAO: false };
+            }
+            if (fullSearch.includes('biotek')) {
+                return { name: 'Biotek', isBadge: true, label: 'Supported by', isAO: false };
+            }
+            return null;
+        }
+
         function parseRawData(rows, hallTitle) {
-            let events = [], current_session = "";
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+            let events = [], current_session = "", current_sponsor_logo = "", current_sponsor_label = "";
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
@@ -277,6 +322,20 @@
                 let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
                 let row_text = r.join(" ").toLowerCase();
+
+                let logoUrl = "";
+                let customLabel = "Supported by";
+                
+                for (let cell of r) {
+                    if (cell.includes('http://') || cell.includes('https://')) {
+                        let linkPart = cell.match(/https?:\/\/[^\s]+/);
+                        if (linkPart) {
+                            logoUrl = linkPart[0];
+                            let textBefore = cell.replace(linkPart[0], '').replace(/[:\-]/g, '').trim();
+                            if (textBefore) customLabel = textBefore;
+                        }
+                    }
+                }
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
@@ -299,9 +358,10 @@
                         if (topic.toLowerCase().includes("registration")) text = "Registration";
                         else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
                         else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
+                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '', sponsorLogo: logoUrl });
                     } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', sponsorLogo: logoUrl });
                     }
                     return;
                 }
@@ -312,11 +372,22 @@
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("gbm")) text = "Annual General Body Meeting (GBM)";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '', 
+                        adLink: adLink,
+                        sponsorLogo: logoUrl
+                    });
                     return;
                 }
 
@@ -329,7 +400,13 @@
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop')) isSession = true;
+                    else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
+                }
+
+                // Strictly keep Hands-on and Demonstrations as playable presentations
+                let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
+                if (isHandsOn) {
+                    isSession = false;
                 }
 
                 if (isSession) {
@@ -341,16 +418,44 @@
                     }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
+                    current_sponsor_logo = logoUrl || "";
+                    current_sponsor_label = customLabel || "Supported by";
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
+                    let display_time = convertTo12HourFormat(time_raw);
+                    events.push({ 
+                        type: 'session', 
+                        isOration: isOration, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        title: topic, 
+                        speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
+                        hall: hallTitle, 
+                        parent_session: current_session, 
+                        sponsorLogo: current_sponsor_logo,
+                        sponsorLabel: current_sponsor_label
+                    });
                     return;
                 }
 
-                if (col1 || colTitle || isQA || isPlenary) {
+                if (col1 || colTitle || isQA || isPlenary || col3) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    events.push({ type: 'presentation', time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
+                    events.push({ 
+                        type: 'presentation', 
+                        isHandsOn: isHandsOn, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        tag: (isQA && !colTitle) ? "Discussion" : col3, 
+                        title: displayTitle, 
+                        speaker: speaker, 
+                        hall: hallTitle, 
+                        parent_session: current_session,
+                        sponsorLogo: logoUrl || current_sponsor_logo,
+                        sponsorLabel: logoUrl ? customLabel : current_sponsor_label
+                    });
                 }
             });
             return events;
@@ -399,19 +504,23 @@
                             });
                         });
                     } else if (key === 'ao') {
-                        const allAo = parseRawData(parsedCsv, "21 Aug");
-                        let sem = [], dia = [], mis = [];
-                        allAo.forEach(ev => {
-                            let matchStr = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
-                            let isWs = /\b(workshop|16:15|16\.15)\b/i.test(matchStr);
-                            if (isWs) {
-                                if (matchStr.includes('diabetic') || matchStr.includes('nebula')) { ev.hall = "Diabetic Foot Hall"; dia.push(ev); }
-                                else { ev.hall = "MIS Hall"; mis.push(ev); }
-                            } else { ev.hall = "AO Seminar Hall"; sem.push(ev); }
+                        let semRows = [], diaRows = [], misRows = [];
+                        parsedCsv.forEach((r, idx) => {
+                            let rowStr = r.join(' ').toLowerCase();
+                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            
+                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
+                                misRows.push(r);
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                                diaRows.push(r);
+                            } else {
+                                semRows.push(r);
+                            }
                         });
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: sem };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: dia };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: mis };
+
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
@@ -505,12 +614,24 @@
                 return { currentEvent: playableEvents[remoteIndex] || null, nextEvent: playableEvents[remoteIndex + 1] || null };
             }
 
-            const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
+            const now = new Date();
+            const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
+            
             for (let i = 0; i < playableEvents.length; i++) {
                 const ev = playableEvents[i];
                 const evStart = parseTimeToMinutes(ev.time);
-                let evEnd = (ev.time && ev.time.includes('-')) ? parseTimeToMinutes(ev.time.split('-')[1].trim()) : (evStart !== null ? evStart + 15 : null);
+                let evEnd = null;
+                if (ev.time && ev.time.includes('-')) {
+                    let parts = ev.time.split('-');
+                    if (parts.length > 1) {
+                        evEnd = parseTimeToMinutes(parts[1]);
+                    }
+                }
+                if (evEnd === null && evStart !== null) {
+                    evEnd = evStart + 15;
+                }
+                
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev;
@@ -522,6 +643,11 @@
                     }
                 }
             }
+
+            if (!currentEvent && playableEvents.length > 0) {
+                currentEvent = playableEvents[playableEvents.length - 1];
+            }
+
             return { currentEvent, nextEvent };
         }
 
@@ -539,6 +665,14 @@
             if (newHash === stateObj.lastHash) return;
             stateObj.lastHash = newHash;
 
+            let isWorkshopHall = (hallId === 'workshop_diabetic' || hallId === 'workshop_mis');
+            let workshopNotice = isWorkshopHall ? `
+                <div class="mb-4 bg-amber-500/15 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-center gap-3 text-amber-300 font-bold ${isSplit ? 'text-xs' : 'text-sm sm:text-base'} shadow-inner text-center">
+                    <i class="fas fa-random text-amber-400 text-base flex-shrink-0"></i>
+                    <span>Two Parallel Workshops Running Simultaneously — Delegates Can Attend Any 1</span>
+                </div>
+            ` : '';
+
             let arrowBadgeHtml = '';
             let arrowSizeClass = isSplit ? "text-2xl sm:text-3xl px-3 py-1 mr-2 rounded-xl" : "text-3xl sm:text-5xl px-5 py-2 mr-4 rounded-2xl";
             if (arrowDir === 'left') {
@@ -555,7 +689,7 @@
             let singleBrandingHeader = '';
             if (!isSplit) {
                 singleBrandingHeader = `
-                    <div class="flex justify-between items-center pb-8 mb-8 border-b border-slate-800 flex-shrink-0">
+                    <div class="flex justify-between items-center pb-6 mb-6 border-b border-slate-800 flex-shrink-0">
                         <div class="flex items-center gap-6">
                             <div class="bg-white/95 p-3 rounded-2xl shadow-xl">
                                 <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
@@ -648,14 +782,17 @@
                         }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
-                    if (currentEvent.adLink) {
+                    let lowTitle = currentEvent.title.toLowerCase();
+                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
+
+                    if (currentEvent.adLink && !isSocietyMeeting) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
-                        } else if (link.includes('drive.google.com')) {
-                            let fId = link.match(/[-\w]{25,}/);
-                            if (fId) media = `<img src="https://lh3.googleusercontent.com/d/${fId[0]}" class="w-full h-auto ${isSplit ? 'max-h-[40vh]' : 'max-h-[50vh]'} object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
+                        } else if (link.includes('drive.google.com') || link.includes('docs.google.com')) {
+                            let dUrl = resolveDirectImageUrl(link);
+                            media = `<img src="${dUrl}" class="w-full h-auto ${isSplit ? 'max-h-[40vh]' : 'max-h-[50vh]'} object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl" onerror="this.src='${link}'">`;
                         } else {
                             media = `<img src="${link}" class="w-full h-auto ${isSplit ? 'max-h-[40vh]' : 'max-h-[50vh]'} object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`;
                         }
@@ -669,20 +806,82 @@
                             </div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
-                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
+
+                        let societyLogoHtml = currentEvent.sponsorLogo ? `
+                            <div class="mb-6 flex justify-center">
+                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
+                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-20 sm:h-28 w-auto object-contain" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '';
 
                         bodyHtml = `
-                            <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-28'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner">
-                                <i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>
+                            <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-24'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner px-6">
+                                ${societyLogoHtml}
+                                ${!societyLogoHtml ? `<i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>` : ''}
                                 <h2 class="${isSplit ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-7xl'} font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
                                 <p class="${isSplit ? 'text-xl mt-3' : 'text-3xl sm:text-4xl mt-6'} text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
                             </div>`;
                     }
                 } else {
-                    let bStyle = currentEvent.isOration ? "bg-rose-600" : "bg-indigo-600";
+                    let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
+                    let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
+                    
+                    let sponsorInfo = detectSponsor(currentEvent, data.title);
+                    let sponsorHtml = '';
+                    if (sponsorInfo) {
+                        if (sponsorInfo.logo) {
+                            if (sponsorInfo.isAO) {
+                                sponsorHtml = `
+                                    <div class="aspect-square ${isSplit ? 'h-11 sm:h-12' : 'h-14 sm:h-16'} rounded-xl overflow-hidden shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399]">
+                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-white p-2 rounded-xl shadow-lg border border-white/20 inline-flex items-center justify-center flex-shrink-0">
+                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="${isSplit ? 'h-8 sm:h-9' : 'h-10 sm:h-12'} w-auto object-contain block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-600">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
+                                        ${labelTag}
+                                        <img src="${sponsorInfo.logo}" alt="Logo" class="${isSplit ? 'h-6 sm:h-7' : 'h-8 sm:h-9'} w-auto object-contain" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            }
+                        } else if (sponsorInfo.name) {
+                            if (sponsorInfo.isAO) {
+                                sponsorHtml = `
+                                    <div class="aspect-square ${isSplit ? 'h-11 sm:h-12' : 'h-14 sm:h-16'} rounded-xl shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-xs leading-tight text-center p-1">
+                                        <span>AO</span><span>TRAUMA</span>
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-slate-900 border border-indigo-500/40 px-3 py-1.5 rounded-xl flex items-center shadow-md">
+                                        <span class="text-xs sm:text-sm font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-slate-900/90 border border-amber-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-md">
+                                        ${labelTag}
+                                        <span class="text-xs sm:text-sm font-black text-amber-400 tracking-wide">${sponsorInfo.name}</span>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+
+                    let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 ${isSplit ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'} rounded-full font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
                         ? `<div class="text-indigo-400 font-bold uppercase ${isSplit ? 'text-xs sm:text-sm mb-2' : 'text-base sm:text-xl mb-4'} flex items-center tracking-wider"><i class="fas fa-layer-group mr-2.5"></i>${currentEvent.parent_session}</div>` 
                         : '';
@@ -691,22 +890,31 @@
                         ? "text-2xl sm:text-3xl lg:text-4xl font-black text-white leading-tight mb-6" 
                         : "text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-tight mb-8";
 
+                    // Scalpel SVG Icon for Hands-on sessions
+                    let iconHtml = isHandsOn ? `
+                        <div class="${isSplit ? 'w-12 h-12 rounded-xl text-xl mr-4' : 'w-20 h-20 sm:w-24 sm:h-24 rounded-2xl text-3xl sm:text-5xl mr-6'} bg-amber-500/20 text-amber-400 flex items-center justify-center p-3 flex-shrink-0 border border-amber-500/40 shadow-inner">
+                            <svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512">
+                                <path d="M497.9 74.1l-60-60c-18.7-18.7-49.1-18.7-67.9 0L241.8 142.3l-8.5-8.5c-6.2-6.2-16.4-6.2-22.6 0l-33.9 33.9c-6.2 6.2-6.2 16.4 0 22.6l8.5 8.5L25.4 358.6c-33.9 33.9-33.9 88.8 0 122.6s88.8 33.9 122.6 0l160.7-160.7 8.5 8.5c6.2 6.2 16.4 6.2 22.6 0l33.9-33.9c6.2-6.2 6.2-16.4 0-22.6l-8.5-8.5 128.2-128.2c18.7-18.7 18.7-49.1.5-67.7zM113.8 447c-14.7 14.7-38.5 14.7-53.2 0s-14.7-38.5 0-53.2l128-128 53.2 53.2-128 128z"/>
+                            </svg>
+                        </div>
+                    ` : `
+                        <div class="${isSplit ? 'w-12 h-12 rounded-xl text-xl mr-4' : 'w-20 h-20 sm:w-24 sm:h-24 rounded-2xl text-3xl sm:text-5xl mr-6'} bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 border border-indigo-500/30 shadow-inner">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                    `;
+
                     let speakerCardStyle = isSplit 
                         ? `<div class="flex items-center bg-slate-950/80 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                                <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl mr-4 flex-shrink-0 border border-indigo-500/30">
-                                    <i class="fas fa-microphone"></i>
-                                </div>
+                                ${iconHtml}
                                 <div>
-                                    <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Speaker</span>
+                                    <span class="block text-[10px] uppercase tracking-widest text-slate-400 font-bold">Faculty / Speaker</span>
                                     <span class="text-lg sm:text-xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
                                 </div>
                            </div>` 
                         : `<div class="flex items-center bg-slate-950/90 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-2xl inline-flex max-w-full">
-                                <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-3xl sm:text-5xl mr-6 flex-shrink-0 border border-indigo-500/30 shadow-inner">
-                                    <i class="fas fa-microphone"></i>
-                                </div>
+                                ${iconHtml}
                                 <div>
-                                    <span class="block text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Speaker</span>
+                                    <span class="block text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Faculty / Speaker</span>
                                     <span class="text-2xl sm:text-4xl lg:text-5xl font-black text-white leading-snug">${currentEvent.speaker}</span>
                                 </div>
                            </div>`;
@@ -718,12 +926,18 @@
                         <div class="flex-1 bg-gradient-to-br from-slate-900 to-slate-900/80 border border-slate-700/80 rounded-3xl ${isSplit ? 'p-6 sm:p-8' : 'p-8 sm:p-12'} shadow-2xl flex flex-col justify-between mb-4">
                             <div>
                                 <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-                                    <span class="${bStyle} ${statusBadgeClass} rounded-full font-black uppercase tracking-widest flex items-center shadow-lg">
-                                        <span class="w-2.5 h-2.5 bg-white rounded-full mr-2.5 animate-pulse"></span> LIVE NOW
-                                    </span>
-                                    <span class="${clockBadgeClass} font-bold text-slate-300 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
-                                        <i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}
-                                    </span>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="${bStyle} ${statusBadgeClass} rounded-full font-black uppercase tracking-widest flex items-center shadow-lg">
+                                            <span class="w-2.5 h-2.5 bg-current rounded-full mr-2.5 animate-pulse"></span> LIVE NOW
+                                        </span>
+                                        ${handsOnBadge}
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        ${sponsorHtml}
+                                        <span class="${clockBadgeClass} font-bold text-slate-300 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
+                                            <i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}
+                                        </span>
+                                    </div>
                                 </div>
                                 ${pSess}
                                 <h1 class="${titleStyle}">${currentEvent.title}</h1>
@@ -758,7 +972,7 @@
                 }
             }
 
-            container.innerHTML = singleBrandingHeader + bodyHtml + upNextHtml;
+            container.innerHTML = singleBrandingHeader + workshopNotice + bodyHtml + upNextHtml;
         }
 
         function isQuizRunning(stateObj) {
