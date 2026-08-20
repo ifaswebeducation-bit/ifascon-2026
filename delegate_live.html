@@ -21,9 +21,13 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
-    <!-- SPLASH SCREEN OVERLAY -->
+    <!-- SPLASH SCREEN & CUSTOM SLIDE OVERLAY -->
     <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center transition-all duration-300">
-        <!-- JS fills this -->
+        <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
+        </div>
+        <h1 id="splashTitle" class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6"></h1>
+        <p id="splashSub" class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest"></p>
     </div>
 
     <!-- HIGH-STAKES QUIZ HIJACK OVERLAY -->
@@ -653,30 +657,60 @@
 
             overlay.classList.remove('hidden');
 
+            // 1. Dynamic On-The-Fly Custom Slide from Cockpit
+            if (stateName.startsWith('custom_slide:')) {
+                try {
+                    let data = JSON.parse(stateName.replace('custom_slide:', ''));
+                    let sponsorHtml = data.sponsorLogo ? `
+                        <div class="mt-8 bg-white/10 border border-white/20 px-6 py-3 rounded-2xl flex items-center gap-4">
+                            ${data.sponsorLabel ? `<span class="text-xs uppercase font-bold text-slate-300 tracking-wider">${data.sponsorLabel}</span>` : ''}
+                            <img src="${data.sponsorLogo}" class="h-10 sm:h-12 w-auto object-contain" onerror="this.style.display='none'">
+                        </div>
+                    ` : '';
+
+                    overlay.className = "absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 z-[300] flex flex-col items-center justify-center p-6 text-center";
+                    overlay.innerHTML = `
+                        <div class="bg-white/95 p-3 rounded-2xl shadow-2xl mb-6">
+                            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                        </div>
+                        <h1 class="text-3xl sm:text-5xl font-black text-white mb-6 leading-tight max-w-2xl">${data.heading}</h1>
+                        <div class="flex flex-wrap items-center justify-center gap-3">
+                            ${data.datetime ? `<span class="bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-bold px-4 py-2 rounded-xl text-sm sm:text-base"><i class="far fa-clock mr-2"></i>${data.datetime}</span>` : ''}
+                            ${data.hall ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold px-4 py-2 rounded-xl text-sm sm:text-base"><i class="fas fa-map-marker-alt mr-2"></i>${data.hall}</span>` : ''}
+                        </div>
+                        ${sponsorHtml}
+                    `;
+                    return;
+                } catch(e) {}
+            }
+
+            // 2. Pre-made Fullscreen Graphic Slides (.jpeg, .jpg, .png)
             if (stateName.toLowerCase().endsWith('.jpeg') || stateName.toLowerCase().endsWith('.jpg') || stateName.toLowerCase().endsWith('.png')) {
                 overlay.className = "absolute inset-0 bg-black z-[300] flex items-center justify-center p-0 transition-all duration-300";
                 overlay.innerHTML = `<img src="${encodeURIComponent(stateName)}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/800x600?text=Slide+Not+Found'">`;
-            } else {
-                overlay.className = "absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center transition-all duration-300";
-                let titleText = "", subText = "";
-                if (stateName === 'pre_conf') {
-                    titleText = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
-                    subText = "See you tomorrow!";
-                } else if (stateName === 'post_day1') {
-                    titleText = "Wait for the main conference which starts tomorrow at 8am";
-                    subText = "IFASCON 2026";
-                } else if (stateName === 'post_day2') {
-                    titleText = "The conference resumes at 8:00 a.m. tomorrow";
-                    subText = "IFASCON 2026";
-                }
-                overlay.innerHTML = `
-                    <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
-                        <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain">
-                    </div>
-                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6">${titleText}</h1>
-                    <p class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest">${subText}</p>
-                `;
+                return;
             }
+
+            // 3. Preset Text Splashes
+            overlay.className = "absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center transition-all duration-300";
+            let titleText = "", subText = "";
+            if (stateName === 'pre_conf') {
+                titleText = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                subText = "See you tomorrow!";
+            } else if (stateName === 'post_day1') {
+                titleText = "Wait for the main conference which starts tomorrow at 8am";
+                subText = "IFASCON 2026";
+            } else if (stateName === 'post_day2') {
+                titleText = "The conference resumes at 8:00 a.m. tomorrow";
+                subText = "IFASCON 2026";
+            }
+            overlay.innerHTML = `
+                <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                </div>
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6">${titleText}</h1>
+                <p class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest">${subText}</p>
+            `;
         }
 
         function hideSplashState() {
@@ -686,9 +720,23 @@
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
-            const parts = cleanText(timeStr).split('-')[0].trim().split(/[.:]/);
+            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
+            let isPM = clean.includes('pm');
+            let isAM = clean.includes('am');
+            
+            let timePart = clean.replace(/[^\d:.]/g, '');
+            let parts = timePart.split(/[:.]/);
             if (parts.length < 2) return null;
-            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+            
+            let hours = parseInt(parts[0], 10);
+            let minutes = parseInt(parts[1], 10);
+            if (isNaN(hours) || isNaN(minutes)) return null;
+            
+            if (isPM && hours < 12) hours += 12;
+            if (isAM && hours === 12) hours = 0;
+            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
+            
+            return hours * 60 + minutes;
         }
 
         function getLiveStatus(events) {
@@ -707,19 +755,6 @@
             }
             
             const now = new Date();
-            const yyyy = now.getFullYear();
-            const mm = String(now.getMonth() + 1).padStart(2, '0');
-            const dd = String(now.getDate()).padStart(2, '0');
-            const todayStr = `${yyyy}-${mm}-${dd}`;
-            
-            let expectedDate = '2026-08-22';
-            if (liveHall.includes('ao') || liveHall.includes('diabet') || liveHall.includes('mis')) expectedDate = '2026-08-21';
-            if (liveHall.includes('23')) expectedDate = '2026-08-23';
-
-            if (todayStr !== expectedDate) {
-                return { currentEvent: playableEvents[0], nextEvent: playableEvents[1] || null };
-            }
-
             const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null, nextEvent = null;
             
@@ -749,13 +784,15 @@
                         break;
                     } else if (currentMins < evStart) { 
                         nextEvent = ev; 
+                        currentEvent = (i > 0) ? playableEvents[i - 1] : playableEvents[0];
                         break; 
                     }
                 }
             }
             
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[playableEvents.length - 1];
+                currentEvent = playableEvents[0];
+                nextEvent = playableEvents[1] || null;
             }
             
             return { currentEvent, nextEvent };
