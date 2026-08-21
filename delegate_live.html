@@ -21,22 +21,18 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
-    <!-- FULL-SCREEN SPLASH & CUSTOM FLYER OVERLAY -->
-    <div id="delegateSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 sm:p-10 text-center overflow-y-auto hide-scrollbar">
-        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-6 flex-shrink-0">
-            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+    <!-- SPLASH SCREEN & CUSTOM SLIDE OVERLAY -->
+    <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center transition-all duration-300">
+        <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
         </div>
-        <div id="flyerImageContainer" class="hidden mb-6 max-w-lg w-full flex-shrink-0">
-            <img id="flyerImgEl" src="" alt="Flyer" class="w-full max-h-[45vh] object-contain rounded-2xl border border-slate-700 shadow-2xl mx-auto">
-        </div>
-        <h1 id="splashTitle" class="text-2xl sm:text-4xl lg:text-5xl font-black text-white max-w-3xl leading-tight mb-3"></h1>
-        <p id="splashSub" class="text-indigo-400 font-bold text-base sm:text-xl uppercase tracking-widest mb-3"></p>
-        <p id="splashDesc" class="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed"></p>
+        <h1 id="splashTitle" class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6"></h1>
+        <p id="splashSub" class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest"></p>
     </div>
 
     <!-- HIGH-STAKES QUIZ HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-siren-on text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
+        <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
         <p id="hijackMessage" class="text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
         <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-xl font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4">Jump to Hall & Play</button>
@@ -183,20 +179,11 @@
             }
 
             if (customVisibleHalls && customVisibleHalls.length > 0) {
-                return customVisibleHalls;
+                let filtered = customVisibleHalls.filter(h => allHallsList.includes(h));
+                if (filtered.length > 0) return filtered;
             }
 
-            let now = new Date();
-            let yyyy = now.getFullYear();
-            let mm = String(now.getMonth() + 1).padStart(2, '0');
-            let dd = String(now.getDate()).padStart(2, '0');
-            let dateStr = `${yyyy}-${mm}-${dd}`;
-
-            if (dateStr === '2026-08-21') return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
-            if (dateStr === '2026-08-22') return ['22a', '22b', '22c'];
-            if (dateStr === '2026-08-23') return ['23a', '23b', '23c'];
-
-            return allHallsList;
+            return ['ao_seminar', 'workshop_diabetic', 'workshop_mis'];
         }
 
         function detectSponsor(eventObj, currentHallTitle) {
@@ -241,7 +228,7 @@
         let liveUpdateTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v210'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v170'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -338,40 +325,6 @@
             window.updatePersistentFooter();
         };
 
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
-            let isPM = clean.includes('pm');
-            let isAM = clean.includes('am');
-            
-            let timePart = clean.replace(/[^\d:.]/g, '');
-            let parts = timePart.split(/[:.]/);
-            if (parts.length < 2) return null;
-            
-            let hours = parseInt(parts[0], 10);
-            let minutes = parseInt(parts[1], 10);
-            if (isNaN(hours) || isNaN(minutes)) return null;
-            
-            if (isPM && hours < 12) hours += 12;
-            if (isAM && hours === 12) hours = 0;
-            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
-            
-            return hours * 60 + minutes;
-        }
-
-        function timeSorter(a, b) {
-            let mA = parseTimeToMinutes(a.time);
-            let mB = parseTimeToMinutes(b.time);
-            
-            mA = mA === null ? 9999 : mA;
-            mB = mB === null ? 9999 : mB;
-            
-            if (a.type === 'session') mA -= 0.1;
-            if (b.type === 'session') mB -= 0.1;
-            
-            return mA - mB;
-        }
-
         window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
@@ -409,47 +362,23 @@
                             });
                         });
                     } else if (key === 'ao') {
-                        let allAoEvents = parseRawData(parsedCsv, "AO Seminar Hall");
                         let semRows = [], diaRows = [], misRows = [];
-                        
-                        allAoEvents.forEach(ev => {
-                            let searchStr = (ev.title + " " + ev.tag + " " + ev.parent_session).toLowerCase();
-                            let isWorkshop = false;
-                            let track = 'diabetic';
-
-                            if (searchStr.includes('mis hallux') || searchStr.includes('calcaneum osteotomy') || searchStr.includes('mis zadek') || searchStr.includes('mis - extended') || searchStr.includes('mis hands-on') || searchStr.includes('getting started with mis')) {
-                                isWorkshop = true;
-                                track = 'mis';
-                            } else if (searchStr.includes('charcot foot') || searchStr.includes('preventing amputations') || searchStr.includes('hind foot and mid foot charcot') || searchStr.includes('beaming in mid foot') || searchStr.includes('flipper technique') || searchStr.includes('beam screw hands-on')) {
-                                isWorkshop = true;
-                                track = 'diabetic';
+                        parsedCsv.forEach((r, idx) => {
+                            let rowStr = r.join(' ').toLowerCase();
+                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            
+                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
+                                misRows.push(r);
+                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
+                                diaRows.push(r);
                             } else {
-                                let mins = parseTimeToMinutes(ev.time);
-                                if (mins >= 975 && mins <= 1095) { 
-                                    isWorkshop = true;
-                                    if (ev.parent_session && ev.parent_session.toLowerCase().includes('mis')) track = 'mis';
-                                    else track = 'diabetic';
-                                }
-                            }
-
-                            if (isWorkshop) {
-                                ev.hall = "Workshops";
-                                ev.workshopTrack = track;
-                                if (track === 'mis') misRows.push(ev);
-                                else diaRows.push(ev);
-                            } else {
-                                ev.hall = "AO Seminar";
-                                semRows.push(ev);
+                                semRows.push(r);
                             }
                         });
 
-                        semRows.sort(timeSorter);
-                        diaRows.sort(timeSorter);
-                        misRows.sort(timeSorter);
-
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: semRows };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diaRows };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misRows };
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
@@ -531,10 +460,16 @@
 
                     if (breakRegex.test(topic.toLowerCase())) {
                         let text = topic;
-                        if (topic.toLowerCase().includes("registration")) text = "Registration";
-                        else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
-                        else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                        let targetText = topic.toLowerCase();
+                        if (/\b(tea|coffee)\b/i.test(targetText)) {
+                            text = "Tea / Coffee Break";
+                        } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
+                            text = "Lunch Break";
+                        } else if (targetText.includes("registration")) {
+                            text = "Registration";
+                        } else if (targetText.includes("gbm")) {
+                            text = "Annual General Body Meeting (GBM)";
+                        }
                         events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '', sponsorLogo: logoUrl });
                     } else {
                         events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', sponsorLogo: logoUrl });
@@ -545,10 +480,17 @@
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
-                    if (row_text.includes("registration")) text = "Registration";
-                    else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
-                    else if (row_text.includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                    let targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
+
+                    if (/\b(tea|coffee)\b/i.test(targetText)) {
+                        text = "Tea / Coffee Break";
+                    } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
+                        text = "Lunch Break";
+                    } else if (/\bregistration\b/i.test(targetText)) {
+                        text = "Registration";
+                    } else if (/\bgbm\b/i.test(targetText)) {
+                        text = "Annual General Body Meeting (GBM)";
+                    }
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
@@ -573,10 +515,10 @@
 
                 if (row_text.includes('oration')) { isSession = true; isOration = true; } 
                 else if (!isQA && !isPlenary) {
-                    if (!col0 && col1 && col2 && !colTitle) isSession = true; 
-                    else if (!col1 && !col2 && !col0) isSession = true; 
+                    if (!col1 && !col2 && !col0) isSession = true; 
+                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop') || row_text.includes('ao seminar')) isSession = true;
+                    else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
                 }
 
                 let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
@@ -633,10 +575,6 @@
                     });
                 }
             });
-
-            // Master Chronological Sorting
-            events.sort(timeSorter);
-
             return events;
         }
 
@@ -667,11 +605,26 @@
             if (!hall_id) return;
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
             
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hall_id).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, visible_halls, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     quizStartTimeStamp = data.quiz_start_time;
-                    handlePayload(data.force_leaderboard);
+                    
+                    if (data.visible_halls && data.visible_halls.length > 0) {
+                        customVisibleHalls = data.visible_halls;
+                    }
+
+                    if (data.active_splash && data.active_splash !== 'live') {
+                        applySplashState(data.active_splash);
+                    } else {
+                        hideSplashState();
+                    }
+
+                    if (data.active_leaderboard && data.active_leaderboard !== 'none') {
+                        window.showLeaderboard(data.active_leaderboard);
+                    } else {
+                        window.hideLeaderboard();
+                    }
                 }
                 lastRenderHash = ""; 
                 window.updateLiveDisplay(true);
@@ -682,69 +635,28 @@
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
                         quizStartTimeStamp = payload.new.quiz_start_time;
-                        handlePayload(payload.new.force_leaderboard);
+                        
+                        if (payload.new.visible_halls && payload.new.visible_halls.length > 0) {
+                            customVisibleHalls = payload.new.visible_halls;
+                        }
+
+                        if (payload.new.active_splash && payload.new.active_splash !== 'live') {
+                            applySplashState(payload.new.active_splash);
+                        } else {
+                            hideSplashState();
+                        }
+
+                        if (payload.new.active_leaderboard && payload.new.active_leaderboard !== 'none') {
+                            window.showLeaderboard(payload.new.active_leaderboard);
+                        } else {
+                            window.hideLeaderboard();
+                        }
+
                         lastRenderHash = ""; 
                         window.updateLiveDisplay(true); 
                     }
                 ).subscribe();
         };
-
-        function handlePayload(val) {
-            if (!val || val === 'none' || val === 'splash_live') {
-                hideSplashState();
-                window.hideLeaderboard();
-                return;
-            }
-            if (val.startsWith('halls:')) {
-                let hStr = val.replace('halls:', '').trim();
-                customVisibleHalls = hStr.split(',').map(s => normalizeHallId(s.trim())).filter(Boolean);
-                window.updateLiveDisplay(true);
-                return;
-            }
-            if (val.startsWith('splash_flyer:')) {
-                let flyerDataRaw = val.replace('splash_flyer:', '');
-                try {
-                    let flyerObj = JSON.parse(flyerDataRaw);
-                    applyFlyerSplash(flyerObj);
-                } catch(e){}
-                return;
-            }
-            if (val.startsWith('splash_')) {
-                applySplashState(val.replace('splash_', ''));
-                return;
-            }
-            hideSplashState();
-            window.showLeaderboard(val);
-        }
-
-        function applyFlyerSplash(flyerObj) {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
-                hideSplashState();
-                return;
-            }
-
-            let overlay = document.getElementById('delegateSplashOverlay');
-            let imgContainer = document.getElementById('flyerImageContainer');
-            let imgEl = document.getElementById('flyerImgEl');
-            let titleEl = document.getElementById('splashTitle');
-            let subEl = document.getElementById('splashSub');
-            let descEl = document.getElementById('splashDesc');
-            if (!overlay) return;
-
-            if (flyerObj.img) {
-                imgEl.src = resolveDirectImageUrl(flyerObj.img);
-                imgContainer.classList.remove('hidden');
-            } else {
-                imgContainer.classList.add('hidden');
-            }
-
-            titleEl.innerText = flyerObj.title || '';
-            subEl.innerText = flyerObj.subtitle || '';
-            descEl.innerText = flyerObj.desc || '';
-
-            overlay.classList.remove('hidden');
-        }
 
         function applySplashState(stateName) {
             let urlParams = new URLSearchParams(window.location.search);
@@ -754,35 +666,87 @@
             }
 
             let overlay = document.getElementById('delegateSplashOverlay');
-            let imgContainer = document.getElementById('flyerImageContainer');
-            let titleEl = document.getElementById('splashTitle');
-            let subEl = document.getElementById('splashSub');
-            let descEl = document.getElementById('splashDesc');
             if (!overlay) return;
 
-            imgContainer.classList.add('hidden');
-            descEl.innerText = '';
+            overlay.classList.remove('hidden');
 
-            if (stateName === 'pre_conf') {
-                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
-                subEl.innerText = "See you tomorrow!";
-                overlay.classList.remove('hidden');
-            } else if (stateName === 'post_day1') {
-                titleEl.innerText = "Wait for the main conference which starts tomorrow at 8am";
-                subEl.innerText = "IFASCON 2026";
-                overlay.classList.remove('hidden');
-            } else if (stateName === 'post_day2') {
-                titleEl.innerText = "The conference resumes at 8:00 a.m. tomorrow";
-                subEl.innerText = "IFASCON 2026";
-                overlay.classList.remove('hidden');
-            } else {
-                overlay.classList.add('hidden');
+            if (stateName.startsWith('custom_slide:')) {
+                try {
+                    let data = JSON.parse(stateName.replace('custom_slide:', ''));
+                    let sponsorHtml = data.sponsorLogo ? `
+                        <div class="mt-8 bg-white/10 border border-white/20 px-6 py-3 rounded-2xl flex items-center gap-4">
+                            ${data.sponsorLabel ? `<span class="text-xs uppercase font-bold text-slate-300 tracking-wider">${data.sponsorLabel}</span>` : ''}
+                            <img src="${data.sponsorLogo}" class="h-10 sm:h-12 w-auto object-contain" onerror="this.style.display='none'">
+                        </div>
+                    ` : '';
+
+                    overlay.className = "absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 z-[300] flex flex-col items-center justify-center p-6 text-center";
+                    overlay.innerHTML = `
+                        <div class="bg-white/95 p-3 rounded-2xl shadow-2xl mb-6">
+                            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                        </div>
+                        <h1 class="text-3xl sm:text-5xl font-black text-white mb-6 leading-tight max-w-2xl">${data.heading}</h1>
+                        <div class="flex flex-wrap items-center justify-center gap-3">
+                            ${data.datetime ? `<span class="bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-bold px-4 py-2 rounded-xl text-sm sm:text-base"><i class="far fa-clock mr-2"></i>${data.datetime}</span>` : ''}
+                            ${data.hall ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold px-4 py-2 rounded-xl text-sm sm:text-base"><i class="fas fa-map-marker-alt mr-2"></i>${data.hall}</span>` : ''}
+                        </div>
+                        ${sponsorHtml}
+                    `;
+                    return;
+                } catch(e) {}
             }
+
+            if (stateName.toLowerCase().endsWith('.jpeg') || stateName.toLowerCase().endsWith('.jpg') || stateName.toLowerCase().endsWith('.png')) {
+                overlay.className = "absolute inset-0 bg-black z-[300] flex items-center justify-center p-0 transition-all duration-300";
+                overlay.innerHTML = `<img src="${encodeURIComponent(stateName)}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/800x600?text=Slide+Not+Found'">`;
+                return;
+            }
+
+            overlay.className = "absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-8 text-center transition-all duration-300";
+            let titleText = "", subText = "";
+            if (stateName === 'pre_conf') {
+                titleText = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                subText = "See you tomorrow!";
+            } else if (stateName === 'post_day1') {
+                titleText = "Wait for the main conference which starts tomorrow at 8am";
+                subText = "IFASCON 2026";
+            } else if (stateName === 'post_day2') {
+                titleText = "The conference resumes at 8:00 a.m. tomorrow";
+                subText = "IFASCON 2026";
+            }
+            overlay.innerHTML = `
+                <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
+                    <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+                </div>
+                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6">${titleText}</h1>
+                <p class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest">${subText}</p>
+            `;
         }
 
         function hideSplashState() {
             let overlay = document.getElementById('delegateSplashOverlay');
             if (overlay) overlay.classList.add('hidden');
+        }
+
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
+            let isPM = clean.includes('pm');
+            let isAM = clean.includes('am');
+            
+            let timePart = clean.replace(/[^\d:.]/g, '');
+            let parts = timePart.split(/[:.]/);
+            if (parts.length < 2) return null;
+            
+            let hours = parseInt(parts[0], 10);
+            let minutes = parseInt(parts[1], 10);
+            if (isNaN(hours) || isNaN(minutes)) return null;
+            
+            if (isPM && hours < 12) hours += 12;
+            if (isAM && hours === 12) hours = 0;
+            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
+            
+            return hours * 60 + minutes;
         }
 
         function getLiveStatus(events) {
@@ -791,6 +755,7 @@
                 if (e.isOration && (e.speaker || '').trim() !== '') return true; 
                 return false;
             });
+            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
             
             if (typeof remoteOverrideIndex !== 'undefined' && remoteOverrideIndex !== null) {
                 if (remoteOverrideIndex < 0 && globalQuizzes.length > 0) {
@@ -829,13 +794,15 @@
                         break;
                     } else if (currentMins < evStart) { 
                         nextEvent = ev; 
+                        currentEvent = (i > 0) ? playableEvents[i - 1] : playableEvents[0];
                         break; 
                     }
                 }
             }
             
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[playableEvents.length - 1];
+                currentEvent = playableEvents[0];
+                nextEvent = playableEvents[1] || null;
             }
             
             return { currentEvent, nextEvent };
@@ -966,7 +933,8 @@
                 desktopNav.innerHTML = buttonsHtml;
             }
 
-            const data = appData[liveHall]; if (!data) return;
+            const data = appData[liveHall]; 
+            if (!data) return;
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
@@ -1271,18 +1239,56 @@
         };
 
         window.initLiveDashboard = function() { 
+            supabaseClient.from('hall_states').select('*').then(({ data }) => {
+                if (data && data.length > 0) {
+                    let firstRow = data[0];
+                    if (firstRow.visible_halls && firstRow.visible_halls.length > 0) {
+                        customVisibleHalls = firstRow.visible_halls;
+                    }
+                    if (firstRow.active_splash && firstRow.active_splash !== 'live') {
+                        applySplashState(firstRow.active_splash);
+                    } else {
+                        hideSplashState();
+                    }
+                }
+                
+                let available = getAvailableHalls();
+                if (!liveHall || !available.includes(liveHall)) {
+                    liveHall = available[0];
+                }
+
+                window.subscribeToHall(liveHall);
+                window.updateLiveDisplay(true);
+            });
+
             supabaseClient.channel('global-radar-feed')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
                     let oIdx = payload.new.override_index;
-                    let lBoard = payload.new.force_leaderboard;
+                    let lBoard = payload.new.active_leaderboard;
+                    let splash = payload.new.active_splash;
+                    let visHalls = payload.new.visible_halls;
                     
+                    if (visHalls && visHalls.length > 0) {
+                        customVisibleHalls = visHalls;
+                        let available = getAvailableHalls();
+                        if (!available.includes(liveHall)) {
+                            liveHall = available[0];
+                            window.subscribeToHall(liveHall);
+                        }
+                        window.updateLiveDisplay(true);
+                    }
+
+                    if (splash) {
+                        if (splash !== 'live') applySplashState(splash);
+                        else hideSplashState();
+                    }
+
                     if (changedHall === liveHall) {
-                        handlePayload(lBoard);
+                        if (lBoard && lBoard !== 'none') showLeaderboard(lBoard);
+                        else hideLeaderboard();
                     } else {
-                        if (lBoard && (lBoard.startsWith('halls:') || lBoard.startsWith('splash_'))) {
-                            handlePayload(lBoard);
-                        } else if (oIdx !== null && oIdx < 0) {
+                        if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
                             document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
                             document.getElementById('globalHijackOverlay').classList.remove('hidden');
@@ -1325,7 +1331,6 @@
                 }
             }, 1000);
             
-            window.subscribeToHall(liveHall); 
             window.updatePersistentFooter();
         };
 
@@ -1334,19 +1339,7 @@
                 window.refreshIdentityStateUI();
                 try { await window.syncMyAnswers(); } catch(e){}
                 document.getElementById('liveDigitalClock').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                
-                const cachedData = localStorage.getItem(CACHE_KEY);
-                if (cachedData) {
-                    let parsed = JSON.parse(cachedData);
-                    appData = parsed.halls || {};
-                    globalQuizzes = parsed.quizzes || [];
-                    document.getElementById('loadingState').classList.add('hidden');
-                    document.getElementById('staticHeader').classList.remove('hidden');
-                    window.initLiveDashboard();
-                    window.fetchLiveSchedule(true);
-                } else { 
-                    window.fetchLiveSchedule(false); 
-                }
+                window.fetchLiveSchedule(false); 
             } catch(e) {
                 console.error("Boot Error", e);
                 window.fetchLiveSchedule(false);
