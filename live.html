@@ -135,7 +135,7 @@
                 </div>
                 <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push instantly</span>
             </div>
-            <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scroll">
+            <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 custom-scroll min-h-[7rem]">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
             </div>
         </div>
@@ -325,52 +325,52 @@
             if(!container) return;
             let html = '';
             
-            // 1. Render Local GitHub Image Files with Preview on Card + Fast Push
+            // 1. Render Local GitHub Image Files with Explicit Height & Width
             hardcodedSlides.forEach(slide => {
                 let encodedFile = encodeURIComponent(slide.file);
                 html += `
-                    <div class="relative w-36 h-22 rounded-2xl overflow-hidden shadow-md border border-slate-700 bg-slate-950 flex-shrink-0 group">
-                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/6366f1?text=Template'">
+                    <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-slate-700 bg-slate-950 flex-shrink-0 group">
+                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/160x100/1e293b/6366f1?text=Template'">
                         
                         <!-- Top Action Buttons -->
-                        <div class="absolute top-1.5 right-1.5 flex gap-1 z-20">
-                            <button onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" title="Preview" class="bg-slate-800/90 hover:bg-slate-700 text-sky-400 p-1.5 rounded-lg text-[10px] shadow transition active:scale-95 border border-slate-600/60">
+                        <div class="absolute top-2 right-2 flex gap-1.5 z-20">
+                            <button type="button" onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button onclick="pushTemplateSlide('${slide.file}', '${slide.label}')" title="Push to TV" class="bg-pink-600 hover:bg-pink-500 text-white p-1.5 rounded-lg text-[10px] shadow transition active:scale-95">
+                            <button type="button" onclick="pushTemplateSlide('${slide.file}', '${slide.label}')" title="Push to TV" class="bg-pink-600 hover:bg-pink-500 text-white p-2 rounded-lg text-xs shadow-md transition active:scale-95">
                                 <i class="fas fa-paper-plane"></i>
                             </button>
                         </div>
 
                         <!-- Card Body Label (Click to Preview) -->
-                        <button onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" class="absolute inset-0 flex items-end justify-start p-2 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent text-left w-full h-full z-10">
-                            <span class="text-[11px] font-black text-white leading-tight drop-shadow truncate w-24">${slide.label}</span>
+                        <button type="button" onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent text-left w-full h-full z-10">
+                            <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${slide.label}</span>
                         </button>
                     </div>
                 `;
             });
 
-            // 2. Render Dynamic Google Sheets Flyers with Preview + Push
+            // 2. Render Dynamic Google Sheets Flyers with Explicit Height & Width
             if (dynamicFlyers.length > 0) {
                 dynamicFlyers.forEach((flyer, idx) => {
                     let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
                     html += `
-                        <div class="relative w-36 h-22 rounded-2xl overflow-hidden shadow-md border border-blue-600/60 bg-slate-950 flex-shrink-0 group">
+                        <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-blue-600/60 bg-slate-950 flex-shrink-0 group">
                             ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
                             
                             <!-- Top Action Buttons -->
-                            <div class="absolute top-1.5 right-1.5 flex gap-1 z-20">
-                                <button onclick="previewTemplateFlyer(${idx})" title="Preview" class="bg-slate-800/90 hover:bg-slate-700 text-sky-400 p-1.5 rounded-lg text-[10px] shadow transition active:scale-95 border border-slate-600/60">
+                            <div class="absolute top-2 right-2 flex gap-1.5 z-20">
+                                <button type="button" onclick="previewTemplateFlyer(${idx})" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
                                     <i class="fas fa-eye"></i>
                                 </button>
-                                <button onclick="pushTemplateFlyer(${idx})" title="Push to TV" class="bg-emerald-600 hover:bg-emerald-500 text-white p-1.5 rounded-lg text-[10px] shadow transition active:scale-95">
+                                <button type="button" onclick="pushTemplateFlyer(${idx})" title="Push to TV" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg text-xs shadow-md transition active:scale-95">
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
                             </div>
 
                             <!-- Card Body Label (Click to Preview) -->
-                            <button onclick="previewTemplateFlyer(${idx})" class="absolute inset-0 flex items-end justify-start p-2 bg-gradient-to-t from-slate-950 via-blue-950/80 to-transparent text-left w-full h-full z-10">
-                                <span class="text-[11px] font-black text-white leading-tight drop-shadow truncate w-24">${flyer.label}</span>
+                            <button type="button" onclick="previewTemplateFlyer(${idx})" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-blue-950/80 to-transparent text-left w-full h-full z-10">
+                                <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${flyer.label}</span>
                             </button>
                         </div>
                     `;
@@ -687,7 +687,6 @@
             const icon = document.getElementById('refreshFlyersIcon');
             if(icon) icon.classList.add('animate-spin');
             try {
-                // Cache-busting parameter to pull fresh Google Sheets data instantly
                 const res = await fetch(sheetLinks.flyers + '&_cb=' + Date.now());
                 if(res.ok) {
                     const csvText = await res.text();
@@ -924,7 +923,6 @@
             for (const [key, link] of Object.entries(sheetLinks)) {
                 if(!link || link.trim() === '') continue;
                 try {
-                    // Cache-bust every CSV pull
                     const response = await fetch(link + '&_cb=' + Date.now());
                     if(!response.ok) continue;
                     const csvText = await response.text();
@@ -1432,7 +1430,7 @@
             
             liveUpdateTimer = setInterval(() => { 
                 if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); 
-                fetchFlyersOnly(); // Auto-refreshes flyer sheet every 30s in the background
+                fetchFlyersOnly();
             }, 30000);
             
             tickerTimer = setInterval(() => {
