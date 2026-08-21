@@ -722,39 +722,104 @@
             if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         }
 
+        // FULL LEADERBOARD SPEED-WEIGHTED ENGINE WITH FUZZY MATCHING
         async function fetchMathLeaderboard(type) {
             try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                const { data, error } = await supabaseClient
+                    .from('quiz_responses')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                    
                 if (error) throw error;
-                let filteredData = data;
-                let titleText = "";
+                if (!data || data.length === 0) {
+                    return { sorted: [], titleText: "Leaderboard", names: {} };
+                }
 
-                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Leaderboard"; }
-                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Leaderboard"; }
-                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Leaderboard"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Leaders (All Halls)"; }
-                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Leaderboard"; }
-                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Leaderboard"; }
-                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Leaderboard"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Leaders (All Halls)"; }
-                else { titleText = "Grand Conference Leaderboard"; }
+                let titleText = "Live Leaderboard";
+                let targetType = (type || 'grand').toLowerCase().trim();
+
+                let filteredData = data.filter(d => {
+                    if (targetType === 'grand' || targetType === 'all' || !targetType) return true;
+
+                    let dHall = (d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let tHall = targetType.replace(/[^a-z0-9]/g, '');
+
+                    if (targetType === 'day1_cum') {
+                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
+                    }
+                    if (targetType === 'day2_cum') {
+                        return dHall.includes('23');
+                    }
+                    
+                    return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
+                });
+
+                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
+                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
+                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
+                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
+                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
+                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
+                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
+                else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
+                else titleText = "Grand Overall Standings";
 
                 let scores = {};
                 let names = {};
-                filteredData.forEach(r => { 
-                    scores[r.phone] = 0; 
-                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
-                }); 
+
+                filteredData.forEach(r => {
+                    let p = cleanText(r.phone);
+                    if (!p) return;
+                    if (scores[p] === undefined) scores[p] = 0;
+                    if (r.name && cleanText(r.name) && !names[p]) {
+                        names[p] = cleanText(r.name);
+                    }
+                });
+
                 let qGroups = {};
                 filteredData.forEach(r => {
-                    if (!r.is_correct) return;
-                    let key = r.hall_id + "_" + r.question; 
+                    let p = cleanText(r.phone);
+                    if (!p) return;
+
+                    let isCor = r.is_correct === true || 
+                                String(r.is_correct).toLowerCase() === 'true' || 
+                                r.is_correct === 1 || 
+                                String(r.is_correct) === '1' ||
+                                String(r.is_correct).toLowerCase() === 't';
+
+                    if (!isCor) return;
+
+                    let key = (r.hall_id || '') + "_" + (r.question || '');
                     if (!qGroups[key]) qGroups[key] = [];
-                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
+                    if (!qGroups[key].some(x => cleanText(x.phone) === p)) {
+                        qGroups[key].push(r);
+                    }
                 });
-                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
-                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText, names };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
+
+                Object.values(qGroups).forEach(responses => {
+                    responses.forEach((r, idx) => {
+                        let p = cleanText(r.phone);
+                        let pts = Math.max(10 - idx, 2);
+                        scores[p] = (scores[p] || 0) + pts;
+                    });
+                });
+
+                let sorted = Object.entries(scores)
+                    .filter(item => item[1] > 0)
+                    .sort((a, b) => b[1] - a[1]);
+
+                if (sorted.length === 0) {
+                    sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+                }
+
+                return { sorted, titleText, names };
+            } catch(e) {
+                console.error("Leaderboard Error:", e);
+                return { sorted: [], titleText: "Standings", names: {} };
+            }
         }
 
         async function showLeaderboard(presetType) {
@@ -1344,8 +1409,8 @@
                     if (currentEvent.isCeremony) {
                         let societyBadge = currentEvent.societyLogo ? `
                             <div class="mb-6 flex justify-center">
-                                <div class="bg-white p-3 rounded-full shadow-2xl inline-block border-2 border-slate-700">
-                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-24 sm:h-32 w-24 sm:w-32 object-contain rounded-full" alt="Society Logo">
+                                <div class="inline-block">
+                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-36 w-auto object-contain block mx-auto drop-shadow-2xl" alt="Society Logo">
                                 </div>
                             </div>
                         ` : '<i class="fas fa-landmark text-7xl mb-6 text-indigo-400 animate-pulse drop-shadow"></i>';
@@ -1446,7 +1511,7 @@
                             <h4 class="text-2xl sm:text-3xl font-bold text-slate-100 leading-snug truncate">${nextEvent.title}</h4>
                             ${nextEvent.speaker ? `<p class="text-slate-400 text-base sm:text-lg font-semibold mt-2 truncate flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
                         </div>
-                        <span class="bg-slate-950 text-slate-300 text-xs sm:text-sm font-black px-4 py-2 rounded-xl border border-slate-800 uppercase flex-shrink-0 shadow">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span>
+                        <span class="bg-slate-950 text-slate-300 text-xs sm:text-sm font-black px-4 py-2 rounded-xl border border-slate-800 uppercase flex-shrink-0 shadow">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span>
                     </div>`;
             }
 
