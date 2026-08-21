@@ -225,9 +225,8 @@
         };
 
         let appData = {};
-        let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v400';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v500';
 
         let activeHalls = [];
         let hallArrows = {};
@@ -253,18 +252,6 @@
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
             return str;
-        }
-
-        function resolveDirectImageUrl(url) {
-            if (!url) return "";
-            url = url.trim();
-            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-                let fIdMatch = url.match(/[-\w]{25,}/);
-                if (fIdMatch && fIdMatch[0]) {
-                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
-                }
-            }
-            return url;
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -297,11 +284,36 @@
             return hours * 60 + minutes;
         }
 
+        function timeSorter(a, b) {
+            let mA = parseTimeToMinutes(a.time);
+            let mB = parseTimeToMinutes(b.time);
+            
+            mA = mA === null ? 9999 : mA;
+            mB = mB === null ? 9999 : mB;
+            
+            if (a.type === 'session') mA -= 0.1;
+            if (b.type === 'session') mB -= 0.1;
+            
+            return mA - mB;
+        }
+
         function checkIfCorrect(optionText, correctAnswer, index) {
             let optClean = cleanText(optionText).toLowerCase();
             let corClean = cleanText(correctAnswer).toLowerCase();
             let letter = String.fromCharCode(65 + index).toLowerCase(); 
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
+        }
+
+        function resolveDirectImageUrl(url) {
+            if (!url) return "";
+            url = url.trim();
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let fIdMatch = url.match(/[-\w]{25,}/);
+                if (fIdMatch && fIdMatch[0]) {
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                }
+            }
+            return url;
         }
 
         function detectSponsor(eventObj, currentHallTitle) {
@@ -422,10 +434,10 @@
 
                 if (row_text.includes('oration')) { isSession = true; isOration = true; } 
                 else if (!isQA && !isPlenary) {
-                    if (!col1 && !col2 && !col0) isSession = true; 
-                    else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                    else if (!col1 && !col2 && !col0) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
+                    else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop') || row_text.includes('ao seminar')) isSession = true;
                 }
 
                 let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
@@ -483,110 +495,10 @@
                 }
             });
 
-            // Clean Automatic Time Sort
-            events.sort((a, b) => {
-                let mA = parseTimeToMinutes(a.time) || 0;
-                let mB = parseTimeToMinutes(b.time) || 0;
-                return mA - mB;
-            });
+            // Automatic Chronological Sorting
+            events.sort(timeSorter);
 
             return events;
-        }
-
-        function handlePayload(val) {
-            if (!val || val === 'none' || val === 'splash_live') {
-                hideSplashState();
-                hideTVLeaderboard();
-                return;
-            }
-            if (val.startsWith('halls:')) {
-                // TV Kiosk ignores hall filtering payload, only applies to delegate app
-                return;
-            }
-            if (val.startsWith('splash_flyer:')) {
-                hideTVLeaderboard();
-                let flyerDataRaw = val.replace('splash_flyer:', '');
-                try {
-                    let flyerObj = JSON.parse(flyerDataRaw);
-                    applyFlyerSplash(flyerObj);
-                } catch(e){}
-                return;
-            }
-            if (val.startsWith('splash_')) {
-                hideTVLeaderboard();
-                applySplashState(val.replace('splash_', ''));
-                return;
-            }
-            hideSplashState();
-            showTVLeaderboard(val);
-        }
-
-        function applyFlyerSplash(flyerObj) {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true') {
-                hideSplashState();
-                return;
-            }
-
-            let overlay = document.getElementById('delegateSplashOverlay');
-            let imgContainer = document.getElementById('flyerImageContainer');
-            let imgEl = document.getElementById('flyerImgEl');
-            let titleEl = document.getElementById('splashTitle');
-            let subEl = document.getElementById('splashSub');
-            let descEl = document.getElementById('splashDesc');
-            if (!overlay) return;
-
-            if (flyerObj.img) {
-                imgEl.src = resolveDirectImageUrl(flyerObj.img);
-                imgContainer.classList.remove('hidden');
-            } else {
-                imgContainer.classList.add('hidden');
-            }
-
-            titleEl.innerText = flyerObj.title || '';
-            subEl.innerText = flyerObj.subtitle || '';
-            descEl.innerText = flyerObj.desc || '';
-
-            overlay.classList.remove('hidden');
-        }
-
-        function applySplashState(stateName) {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true') {
-                hideSplashState();
-                return;
-            }
-
-            let overlay = document.getElementById('delegateSplashOverlay');
-            let imgContainer = document.getElementById('flyerImageContainer');
-            let titleEl = document.getElementById('splashTitle');
-            let subEl = document.getElementById('splashSub');
-            let descEl = document.getElementById('splashDesc');
-            if (!overlay) return;
-
-            imgContainer.classList.add('hidden');
-            descEl.innerText = '';
-
-            if (stateName === 'pre_conf') {
-                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
-                subEl.innerText = "See you tomorrow!";
-                overlay.classList.remove('hidden');
-            } else if (stateName === 'post_day1') {
-                titleEl.innerText = "Wait for the main conference which starts tomorrow at 8am";
-                subEl.innerText = "IFASCON 2026";
-                overlay.classList.remove('hidden');
-            } else if (stateName === 'post_day2') {
-                titleEl.innerText = "The conference resumes at 8:00 a.m. tomorrow";
-                subEl.innerText = "IFASCON 2026";
-                overlay.classList.remove('hidden');
-            } else {
-                overlay.classList.add('hidden');
-            }
-        }
-
-        function hideSplashState() {
-            let overlay = document.getElementById('delegateSplashOverlay');
-            if (overlay) overlay.classList.add('hidden');
         }
 
         function toggleGlobalAudio() {
@@ -632,23 +544,47 @@
                             });
                         });
                     } else if (key === 'ao') {
+                        let allAoEvents = parseRawData(parsedCsv, "AO Seminar Hall");
                         let semRows = [], diaRows = [], misRows = [];
-                        parsedCsv.forEach((r, idx) => {
-                            let rowStr = r.join(' ').toLowerCase();
-                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                            
-                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
-                                misRows.push(r);
-                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
-                                diaRows.push(r);
+                        
+                        allAoEvents.forEach(ev => {
+                            let searchStr = (ev.title + " " + ev.tag + " " + ev.parent_session).toLowerCase();
+                            let isWorkshop = false;
+                            let track = 'diabetic';
+
+                            if (searchStr.includes('mis hallux') || searchStr.includes('calcaneum osteotomy') || searchStr.includes('mis zadek') || searchStr.includes('mis - extended') || searchStr.includes('mis hands-on') || searchStr.includes('getting started with mis')) {
+                                isWorkshop = true;
+                                track = 'mis';
+                            } else if (searchStr.includes('charcot foot') || searchStr.includes('preventing amputations') || searchStr.includes('hind foot and mid foot charcot') || searchStr.includes('beaming in mid foot') || searchStr.includes('flipper technique') || searchStr.includes('beam screw hands-on')) {
+                                isWorkshop = true;
+                                track = 'diabetic';
                             } else {
-                                semRows.push(r);
+                                let mins = parseTimeToMinutes(ev.time);
+                                if (mins >= 975 && mins <= 1095) { 
+                                    isWorkshop = true;
+                                    if (ev.parent_session && ev.parent_session.toLowerCase().includes('mis')) track = 'mis';
+                                    else track = 'diabetic';
+                                }
+                            }
+
+                            if (isWorkshop) {
+                                ev.hall = "Workshops";
+                                ev.workshopTrack = track;
+                                if (track === 'mis') misRows.push(ev);
+                                else diaRows.push(ev);
+                            } else {
+                                ev.hall = "AO Seminar";
+                                semRows.push(ev);
                             }
                         });
 
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
+                        semRows.sort(timeSorter);
+                        diaRows.sort(timeSorter);
+                        misRows.sort(timeSorter);
+
+                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: semRows };
+                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: diaRows };
+                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: misRows };
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
@@ -1084,7 +1020,7 @@
                                 <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
                                 ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
                             </div>
-                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Next'}</span>
+                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
                         </div>`;
                 } else {
                     upNextHtml = `
@@ -1178,7 +1114,6 @@
                 return;
             }
             if (val.startsWith('halls:')) {
-                // TV Kiosk ignores hall filtering payload, only applies to delegate app
                 return;
             }
             if (val.startsWith('splash_flyer:')) {
