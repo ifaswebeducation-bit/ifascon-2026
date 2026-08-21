@@ -23,9 +23,8 @@
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden bg-slate-900">
 
-    <!-- AV COCKPIT SPLASH SCREEN OVERLAY PREVIEW -->
+    <!-- AV COCKPIT PREVIEW MODAL -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 sm:p-10 text-center overflow-y-auto">
-        <!-- Dynamic Top Right Button (Either Close Preview or End Broadcast) -->
         <button id="cockpitEndBroadcastBtn" onclick="hideCockpitSplash()" class="fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50">
             <i class="fas fa-times"></i> Close Preview
         </button>
@@ -33,9 +32,14 @@
         <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-6 flex-shrink-0 mt-12 sm:mt-0">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
-        <div id="cockpitFlyerImageContainer" class="hidden mb-6 max-w-lg w-full flex-shrink-0">
-            <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="w-full max-h-[45vh] object-contain rounded-2xl border border-slate-700 shadow-[0_0_40px_rgba(0,0,0,0.4)] mx-auto">
+        
+        <!-- Framed Image Container -->
+        <div id="cockpitFlyerImageContainer" class="hidden mb-6 max-w-2xl w-full flex-shrink-0 flex items-center justify-center">
+            <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
+                <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[55vh] max-w-full object-contain rounded-2xl mx-auto">
+            </div>
         </div>
+
         <h1 id="cockpitSplashTitle" class="text-2xl sm:text-4xl lg:text-5xl font-black text-white max-w-3xl leading-tight mb-3"></h1>
         <p id="cockpitSplashSub" class="text-indigo-400 font-bold text-base sm:text-xl uppercase tracking-widest mb-3"></p>
         <p id="cockpitSplashDesc" class="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed"></p>
@@ -82,58 +86,58 @@
             </div>
         </div>
 
-        <!-- Row 2: Delegate Visible Halls Controller Matrix & Splash Overrides -->
+        <!-- Row 2: Delegate Navigation Matrix & TV Splash Overrides -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible Halls:</span>
-                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug (AO/Workshops)</button>
-                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug (22ABC)</button>
-                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug (23ABC)</button>
+                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible:</span>
+                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug</button>
+                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug</button>
+                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug</button>
                 <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis','22a','22b','22c','23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">All 9 Halls</button>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-bullhorn mr-1"></i>Splash Screen:</span>
-                <button onclick="pushSplashGlobal('live')" class="bg-emerald-900/40 text-emerald-300 hover:bg-emerald-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-emerald-500/40">Live Dashboard (Clear)</button>
+                <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-tv mr-1"></i>TV Splash:</span>
+                <button onclick="pushSplashGlobal('live')" class="bg-emerald-900/40 text-emerald-300 hover:bg-emerald-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-emerald-500/40">Clear TV Splash</button>
                 <button onclick="pushSplashGlobal('pre_conf')" class="bg-indigo-900/40 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">1 Day to Go</button>
-                <button onclick="pushSplashGlobal('post_day1')" class="bg-amber-900/40 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Wait for Day 2 (8am)</button>
-                <button onclick="pushSplashGlobal('post_day2')" class="bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Resumes Tomorrow (8am)</button>
+                <button onclick="pushSplashGlobal('post_day1')" class="bg-amber-900/40 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Day 2 Notice</button>
+                <button onclick="pushSplashGlobal('post_day2')" class="bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Day 3 Notice</button>
             </div>
         </div>
 
-        <!-- Row 3: Pre-loaded PowerPoint / Graphic Slides (Hardcoded + Sheets) -->
+        <!-- Row 3: Pre-loaded Template Slides & Google Sheet Flyers -->
         <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 pt-2 overflow-hidden">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                    <i class="fas fa-images mr-1.5"></i>Pre-loaded Template Slides & Flyers:
+                    <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
                 </span>
-                <span class="text-[10px] text-slate-400 italic">Click to broadcast to all screens instantly</span>
+                <span class="text-[10px] text-slate-400 italic">Click card to broadcast to all TV screens</span>
             </div>
             <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scroll">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
             </div>
         </div>
 
-        <!-- Row 4: CUSTOM FULL-SCREEN FLYER BUILDER -->
+        <!-- Row 4: Custom Full-Screen Flyer Creator -->
         <div class="bg-slate-900/90 border border-pink-500/40 rounded-2xl p-3.5 shadow-inner flex flex-col gap-2.5 mt-2">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-black text-pink-400 uppercase tracking-widest flex items-center">
-                    <i class="fas fa-magic mr-1.5"></i> Live On-the-Fly Flyer Builder
+                    <i class="fas fa-magic mr-1.5"></i> Live On-the-Fly Flyer Builder (TV Broadcast)
                 </span>
-                <span class="text-[10px] text-slate-400 italic">Preview or Push emergency announcements directly</span>
+                <span class="text-[10px] text-slate-400 italic">Preview locally or push full-screen directly to Door TV kiosks</span>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
-                <input type="url" id="flyerImageUrl" placeholder="Photo URL (Drive/Imgur)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner lg:col-span-2">
-                <input type="text" id="flyerTitle" placeholder="Main Title (e.g. New Book Launch)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
-                <input type="text" id="flyerSubtitle" placeholder="Subtitle / Author" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
-                <input type="text" id="flyerDesc" placeholder="Description / Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
+                <input type="url" id="flyerImageUrl" placeholder="Photo URL (Google Drive / Imgur link)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner lg:col-span-2">
+                <input type="text" id="flyerTitle" placeholder="Main Heading (e.g. Special Announcement)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerSubtitle" placeholder="Date, Time, or Hall Venue" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerDesc" placeholder="Description / Sponsor Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
                 <div class="flex gap-2">
                     <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50">
                         <i class="fas fa-eye"></i> Preview
                     </button>
                     <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
-                        <i class="fas fa-paper-plane"></i> Push
+                        <i class="fas fa-paper-plane"></i> Push TV
                     </button>
                 </div>
             </div>
@@ -151,7 +155,7 @@
             <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
-                <!-- Smart Quiz Launcher (Hidden for av_operator) -->
+                <!-- Smart Quiz Launcher -->
                 <div id="quizControlSection" class="flex flex-col gap-2">
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
@@ -207,7 +211,7 @@
         </div>
     </div>
 
-    <!-- Live Leaderboard Modal (For Cockpit Preview) -->
+    <!-- Live Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="tvLbTitle" class="text-4xl lg:text-6xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Performers</h2>
         <p id="tvLbSub" class="text-slate-400 font-bold tracking-widest uppercase mb-8">Calculating Live Database Weights...</p>
@@ -280,12 +284,24 @@
             { file: 'Valedictory.jpeg', label: 'Valedictory' }
         ];
 
+        function resolveDirectImageUrl(url) {
+            if (!url) return "";
+            url = url.trim();
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                let fIdMatch = url.match(/[-\w]{25,}/);
+                if (fIdMatch && fIdMatch[0]) {
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                }
+            }
+            return url;
+        }
+
         function renderFlyerButtons() {
             const container = document.getElementById('customSlidesContainer');
             if(!container) return;
             let html = '';
             
-            // Render Original Hardcoded Slides
+            // 1. Render Local GitHub Image Files
             hardcodedSlides.forEach(slide => {
                 let encodedFile = encodeURIComponent(slide.file);
                 html += `
@@ -298,13 +314,13 @@
                 `;
             });
 
-            // Render Dynamic Google Sheets Flyers
+            // 2. Render Dynamic Google Sheets Flyers
             if (dynamicFlyers.length > 0) {
                 dynamicFlyers.forEach((flyer, idx) => {
-                    let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : 'https://via.placeholder.com/150x100/1e293b/3b82f6?text=' + encodeURIComponent(flyer.label);
+                    let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
                     html += `
                         <button onclick="pushTemplateFlyer(${idx})" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-blue-600 hover:border-sky-500 hover:ring-2 hover:ring-sky-500/50 transition flex-shrink-0 group active:scale-95">
-                            <img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/3b82f6?text=No+Image'">
+                            ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
                             <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-blue-900/80 to-transparent">
                                 <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${flyer.label}</span>
                             </div>
@@ -316,13 +332,11 @@
         }
 
         async function pushTemplateSlide(filename, label) {
-            let imgUrl = resolveDirectImageUrl(filename);
-            let flyerObj = { img: imgUrl, title: '', subtitle: '', desc: '' };
+            let flyerObj = { img: filename, title: '', subtitle: '', desc: '' };
             let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             
-            logAction(`BROADCAST: Pushed Template Slide [${label}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
-            
+            logAction(`BROADCAST: Pushed Template Slide [${label}] to Door TVs`);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             applyCockpitFlyerSplash(flyerObj, true);
         }
 
@@ -331,9 +345,8 @@
             let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
             let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             
-            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
-            
+            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label}] to Door TVs`);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             applyCockpitFlyerSplash(flyerObj, true);
         }
 
@@ -358,7 +371,7 @@
             descEl.innerText = flyerObj.desc || '';
 
             if (isLiveBroadcast) {
-                btn.innerHTML = '<i class="fas fa-times-circle"></i> END BROADCAST';
+                btn.innerHTML = '<i class="fas fa-times-circle"></i> END TV BROADCAST';
                 btn.className = "fixed top-6 right-6 bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50";
                 btn.onclick = function() { pushSplashGlobal('live'); hideCockpitSplash(); };
             } else {
@@ -382,7 +395,7 @@
             let desc = document.getElementById('flyerDesc').value.trim();
 
             if (!img && !title && !desc) {
-                alert('Please provide at least an image or some text to preview.');
+                alert('Please provide at least an image or title to preview.');
                 return;
             }
             applyCockpitFlyerSplash({ img, title, subtitle, desc }, false);
@@ -396,15 +409,15 @@
             let desc = document.getElementById('flyerDesc').value.trim();
 
             if (!img && !title && !desc) {
-                alert('Please provide at least an image or some text to broadcast.');
+                alert('Please provide at least an image or title to broadcast.');
                 return;
             }
 
             let flyerObj = { img, title, subtitle, desc };
             let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             
-            logAction(`BROADCAST: Pushed Custom Flyer [${title || 'Image'}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            logAction(`BROADCAST: Pushed Custom Flyer [${title || 'Custom Slide'}] to Door TVs`);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             
             applyCockpitFlyerSplash(flyerObj, true);
             
@@ -505,7 +518,7 @@
             document.getElementById('masterToolbarSuite').classList.remove('hidden');
             document.getElementById('adminHallNav').classList.remove('hidden');
 
-            renderSlideButtons();
+            renderFlyerButtons();
 
             if (myRole === 'av_operator') {
                 let quizSec = document.getElementById('quizControlSection');
@@ -554,21 +567,19 @@
         }
 
         async function broadcastVisibleHalls(hallList) {
-            let configPayload = 'halls:' + hallList.join(',');
             logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: configPayload }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ visible_halls: hallList }).in('hall_id', allHallsList);
             alert(`Broadcasting visible halls [${hallList.join(', ')}] to all delegate screens!`);
         }
 
         async function pushSplashGlobal(splashState) {
-            logAction(`BROADCAST: Pushed Delegate Splash Screen [${splashState}]`);
-            let payload = splashState === 'live' ? 'splash_live' : ('splash_' + splashState);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            logAction(`BROADCAST: Pushed TV Display Command [${splashState}]`);
+            await supabaseClient.from('hall_states').update({ active_splash: splashState }).in('hall_id', allHallsList);
             
             if (splashState !== 'live') {
                 let flyerObj = { img: '', title: '', subtitle: '', desc: '' };
                 if (splashState === 'pre_conf') {
-                    flyerObj.title = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                    flyerObj.title = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
                     flyerObj.subtitle = "See you tomorrow!";
                 } else if (splashState === 'post_day1') {
                     flyerObj.title = "Wait for the main conference which starts tomorrow at 8am";
@@ -637,13 +648,13 @@
         async function pushLeaderboardGlobal(type) {
             logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
             showLeaderboard(type);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: type }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).in('hall_id', allHallsList);
         }
 
         async function clearLeaderboardGlobal() {
             logAction("BROADCAST: Cleared Leaderboard across ALL halls");
             hideLeaderboard();
-            await supabaseClient.from('hall_states').update({ force_leaderboard: null }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: 'none' }).in('hall_id', allHallsList);
         }
 
         function parseRawData(rows, hallTitle) {
@@ -707,7 +718,7 @@
                         speaker: '', 
                         hall: hallTitle, 
                         parent_session: '', 
-                        adLink: adLink
+                        adLink: adLink 
                     });
                     return;
                 }
@@ -747,7 +758,7 @@
                         title: topic, 
                         speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
                         hall: hallTitle, 
-                        parent_session: current_session
+                        parent_session: current_session 
                     });
                     return;
                 }
@@ -770,13 +781,6 @@
                         parent_session: current_session 
                     });
                 }
-            });
-
-            // Clean Automatic Time Sort
-            events.sort((a, b) => {
-                let mA = parseTimeToMinutes(a.time) || 0;
-                let mB = parseTimeToMinutes(b.time) || 0;
-                return mA - mB;
             });
 
             return events;
@@ -841,7 +845,6 @@
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
                             if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                            
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
                                 misRows.push(r);
                             } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
@@ -907,7 +910,7 @@
             manualOverrideIndex = parseInt(idx);
             updateLiveDisplay(true);
             logAction(`Timeline JUMP: Forced play of Index ${idx}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
         }
 
@@ -1003,7 +1006,7 @@
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
             logAction(`Launched Quiz: ${title}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, force_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function terminateActiveQuiz() {
@@ -1011,7 +1014,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Cleared active quiz on screen");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function resumeAutoSync() {
@@ -1019,7 +1022,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Resumed Auto-Sync mode");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, force_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
         }
 
         async function manualShift(step) {
@@ -1036,11 +1039,17 @@
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
             logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, force_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+        }
+
+        async function forceLeaderboardLocal(type) {
+            logAction(`Forced Leaderboard TV output: ${type}`);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).eq('hall_id', liveHall);
         }
 
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
             
             if (manualOverrideIndex !== null) {
                 if (manualOverrideIndex < 0 && globalQuizzes.length > 0) {
@@ -1079,13 +1088,15 @@
                         break;
                     } else if (currentMins < evStart) { 
                         nextEvent = ev; 
+                        currentEvent = (i > 0) ? playableEvents[i - 1] : playableEvents[0];
                         break; 
                     }
                 }
             }
             
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[playableEvents.length - 1];
+                currentEvent = playableEvents[0];
+                nextEvent = playableEvents[1] || null;
             }
             
             return { currentEvent, nextEvent };
@@ -1178,9 +1189,9 @@
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com') || link.includes('docs.google.com')) {
                             let dUrl = resolveDirectImageUrl(link);
-                            media = `<img src="${dUrl}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl" onerror="this.src='${link}'">`;
+                            media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${dUrl}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl" onerror="this.src='${link}'"></div>`;
                         } else { 
-                            media = `<img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-3xl bg-black border border-slate-700 shadow-2xl">`; 
+                            media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl"></div>`; 
                         }
 
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
@@ -1292,12 +1303,18 @@
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
                     
-                    if (secondsLeft <= 0) {
-                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
-                    } else {
-                        window.quizExpiredRendered = false;
-                        let timerEl = document.getElementById('quizCountdownTimer');
-                        if (timerEl && timerEl.dataset.expired === "false") { timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`; }
+                    let timerEl = document.getElementById('quizCountdownTimer');
+                    if (timerEl) {
+                        if (secondsLeft <= 0) {
+                            timerEl.innerHTML = `<i class="fas fa-stopwatch mr-2"></i>Time Up!`;
+                            if (!window.cockpitExpiredTriggered) {
+                                window.cockpitExpiredTriggered = true;
+                                updateLiveDisplay(true);
+                            }
+                        } else {
+                            window.cockpitExpiredTriggered = false;
+                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
+                        }
                     }
                 } else { window.quizExpiredRendered = false; }
             }, 1000);
@@ -1324,6 +1341,7 @@
         window.pushSplashGlobal = pushSplashGlobal;
         window.pushCustomFlyerGlobal = pushCustomFlyerGlobal;
         window.pushTemplateFlyer = pushTemplateFlyer;
+        window.pushTemplateSlide = pushTemplateSlide;
         window.previewCustomFlyer = previewCustomFlyer;
         window.hideCockpitSplash = hideCockpitSplash;
     </script>
