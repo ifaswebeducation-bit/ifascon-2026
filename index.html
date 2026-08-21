@@ -95,7 +95,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v25'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v35'; 
         const container = document.getElementById('contentContainer');
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearSearch');
@@ -116,6 +116,7 @@
             });
         }
 
+        // Bulletproof Chronological Engine
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
             let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
@@ -132,10 +133,24 @@
             
             if (isPM && hours < 12) hours += 12;
             if (isAM && hours === 12) hours = 0;
-            // Fix implicit PM (e.g., 2:00 without AM/PM is usually 14:00)
             if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
             
             return hours * 60 + minutes;
+        }
+
+        function timeSorter(a, b) {
+            let mA = parseTimeToMinutes(a.time);
+            let mB = parseTimeToMinutes(b.time);
+            
+            // Push rows with no valid time to the very bottom to prevent bleeding
+            mA = mA === null ? 9999 : mA;
+            mB = mB === null ? 9999 : mB;
+            
+            // Tie-breaker: Parent session headings ALWAYS sort just before their presentations
+            if (a.type === 'session') mA -= 0.1;
+            if (b.type === 'session') mB -= 0.1;
+            
+            return mA - mB;
         }
 
         async function initializeApp() {
@@ -172,37 +187,54 @@
                     Papa.parse(csvText, {
                         complete: function(results) {
                             if (key === 'ao') {
-                                // Split raw rows perfectly before parsing
-                                let semRows = [], diaRows = [], misRows = [];
-                                results.data.forEach((r, idx) => {
-                                    let rowStr = r.join(' ').toLowerCase();
-                                    if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                                    
-                                    if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
-                                        misRows.push(r);
-                                    } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
-                                        diaRows.push(r);
+                                // 1. Read entire AO sheet chronologically
+                                let allAoEvents = parseRawData(results.data, "AO Seminar Hall");
+                                
+                                let seminarEvents = [];
+                                let diaEvents = [];
+                                let misEvents = [];
+
+                                // 2. Precisely filter out the workshops
+                                allAoEvents.forEach(ev => {
+                                    let searchStr = (ev.title + " " + ev.tag + " " + ev.parent_session).toLowerCase();
+                                    let isWorkshop = false;
+                                    let track = 'diabetic'; // Default
+
+                                    if (searchStr.includes('mis') || searchStr.includes('zadek') || searchStr.includes('hallux') || searchStr.includes('calcaneum osteotomy') || searchStr.includes('mdco')) {
+                                        isWorkshop = true;
+                                        track = 'mis';
+                                    } else if (searchStr.includes('diabet') || searchStr.includes('charcot') || searchStr.includes('amputation') || searchStr.includes('beam') || searchStr.includes('flipper')) {
+                                        isWorkshop = true;
+                                        track = 'diabetic';
                                     } else {
-                                        semRows.push(r);
+                                        let mins = parseTimeToMinutes(ev.time);
+                                        // Catch any ambiguous afternoon events
+                                        if (mins >= 975 && mins <= 1095) { // 16:15 to 18:15
+                                            isWorkshop = true;
+                                            if (ev.parent_session && ev.parent_session.toLowerCase().includes('mis')) track = 'mis';
+                                            else track = 'diabetic';
+                                        }
+                                    }
+
+                                    // Push to correct array
+                                    if (isWorkshop) {
+                                        ev.hall = "Workshops";
+                                        ev.workshopTrack = track;
+                                        if (track === 'mis') misEvents.push(ev);
+                                        else diaEvents.push(ev);
+                                    } else {
+                                        ev.hall = "AO Seminar";
+                                        seminarEvents.push(ev);
                                     }
                                 });
 
-                                let seminarEvents = parseRawData(semRows, "AO Seminar Hall");
-                                let diaEvents = parseRawData(diaRows, "Workshops");
-                                let misEvents = parseRawData(misRows, "Workshops");
-
-                                diaEvents.forEach(ev => ev.workshopTrack = 'diabetic');
-                                misEvents.forEach(ev => ev.workshopTrack = 'mis');
-
-                                let workshopEvents = [...diaEvents, ...misEvents];
-                                workshopEvents.sort((a,b) => {
-                                    let mA = parseTimeToMinutes(a.time) || 0;
-                                    let mB = parseTimeToMinutes(b.time) || 0;
-                                    return mA - mB;
-                                });
+                                // 3. Ensure perfection by strictly sorting each output array
+                                seminarEvents.sort(timeSorter);
+                                diaEvents.sort(timeSorter);
+                                misEvents.sort(timeSorter);
 
                                 fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: seminarEvents };
-                                fetchedData['ao_workshops'] = { title: configTitles['ao_workshops'], events: workshopEvents };
+                                fetchedData['ao_workshops'] = { title: configTitles['ao_workshops'], events: [...diaEvents, ...misEvents] };
                             } else {
                                 fetchedData[key] = { title: configTitles[key], events: parseRawData(results.data, configTitles[key]) };
                             }
@@ -229,142 +261,82 @@
         function parseRawData(rows, hallTitle) {
             let events = [];
             let current_session = "";
-            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
-                r = r.map(x => cleanText(x));
+                r = r.map(x => (x || "").trim());
                 let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
-                let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
-                let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                let colTitle = r[4] || r[5] || "";
+                let colSpeaker = r[4] ? r[5] : r[6];
+                let colChair1 = r[4] ? r[6] : r[7];
+                let colChair2 = r[4] ? r[7] : r[8];
+                let colChair3 = r[4] ? r[8] : r[9];
+
                 let row_text = r.join(" ").toLowerCase();
 
-                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
+                if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("background-image") || row_text.includes("var(--") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
-                
-                if (hallTitle && !isHallC) {
-                    if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
-                }
-
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
+                if (row_text.includes("ifascon 2026")) return;
+                if ((row_text.includes("hall a") || row_text.includes("hall b") || row_text.includes("hall c")) && !col0 && !col1) return;
 
-                if (isHallC) {
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
-                    let topic = col3;
-                    if (!topic && !time_raw) return; 
-                    if (!topic) topic = "Session"; 
-                    let display_time = convertTo12HourFormat(time_raw);
-
-                    if (breakRegex.test(topic.toLowerCase())) {
-                        let text = topic;
-                        if (topic.toLowerCase().includes("registration")) text = "Registration";
-                        else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
-                        else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
-                        events.push({ type: 'break', title: text, time: display_time, speaker: '', hall: hallTitle, parent_session: '', searchable: text.toLowerCase() });
-                    } else {
-                        events.push({ type: 'presentation', time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', searchable: topic.toLowerCase() });
-                    }
-                    return;
-                }
-
-                let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session") && !row_text.includes("ao seminar");
-                if (isBreakOrAd) {
+                const breaks = ["break", "lunch", "tea", "coffee", "registration", "inauguration", "banquet", "gbm", "valedictory"];
+                if (breaks.some(b => row_text.includes(b)) && !row_text.includes("symposium") && !row_text.includes("session") && !row_text.includes("ao seminar")) {
                     let text = colTitle || col3 || col0;
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("coffee") || row_text.includes("tea")) text = "Tea / Coffee Break";
                     else if (row_text.includes("inauguration")) text = "Inauguration";
                     else if (row_text.includes("gbm")) text = "GBM";
                     else if (row_text.includes("valedictory")) text = "Valedictory";
-
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    let display_time = convertTo12HourFormat(time_raw);
-                    events.push({ 
-                        type: 'break', 
-                        title: text, 
-                        time: display_time, 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '', 
-                        searchable: text.toLowerCase()
-                    });
+                    let time_str = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    events.push({ type: 'break', title: text, time: time_str, speaker: '', hall: hallTitle, searchable: text.toLowerCase(), parent_session: '' });
                     return;
                 }
 
-                let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                let isQA = col3.toLowerCase().includes("q&a") || col3.toLowerCase().includes("discussion") || colTitle.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion") || col3.toLowerCase().includes("q & a") || colTitle.toLowerCase().includes("q & a");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
-                let isSession = false, isOration = false;
-
-                if (row_text.includes('oration')) { isSession = true; isOration = true; } 
-                else if (!isQA && !isPlenary) {
+                let isSession = false;
+                let isOration = false;
+                
+                if (!isQA && !isPlenary) {
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
                     else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop') || row_text.includes('ao seminar')) isSession = true;
-                }
-
-                let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
-                if (isHandsOn) {
-                    isSession = false;
+                    else if (row_text.includes('oration')) { isSession = true; isOration = true; }
                 }
 
                 if (isSession) {
-                    let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
-                    if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
-                        if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
-                        else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
-                        else topic = col3 + ": " + colTitle;
-                    }
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                    let topic = isOration ? (col3 || "Oration") + (colTitle ? `: ${colTitle}` : "") : (colTitle || col3 || "Session");
+                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "chairpersons", "tbd", "chair :", "co-chair :"].includes(c.toLowerCase()));
+                    let time_str = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     current_session = topic; 
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     events.push({ 
-                        type: 'session', 
-                        isOration: isOration, 
-                        time: convertTo12HourFormat(time_raw), 
-                        title: topic, 
+                        type: 'session', isOration: isOration, time: time_str, title: topic, 
                         speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
-                        chairpersons: isOration ? chairsArr.join(", ") : "",
-                        hall: hallTitle, 
-                        parent_session: current_session,
-                        searchable: `${topic} ${colSpeaker} ${chairsArr.join(" ")}`.toLowerCase()
+                        chairpersons: isOration ? chairsArr.join(", ") : "", hall: hallTitle, 
+                        searchable: `${topic} ${colSpeaker} ${chairsArr.join(" ")}`.toLowerCase(), parent_session: current_session 
                     });
                     return;
                 }
 
-                if (col1 || colTitle || isQA || isPlenary || col3) {
+                if (col1 || colTitle || isQA || isPlenary) {
                     let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    let display_time = convertTo12HourFormat(time_raw);
-                    if (col0 && !col0.toLowerCase().includes('duration')) { 
+                    let time_display = (col1 && col2) ? `${col1} - ${col2}` : col1;
+                    if (col0) {
                         let cleanDur = col0.replace(/[^0-9]/g, ''); 
                         let durText = cleanDur ? `${cleanDur} mins` : col0; 
-                        display_time = display_time ? `${display_time} (${durText})` : durText;
+                        time_display = time_display ? `${time_display} (${durText})` : durText;
                     }
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
                     let displayTag = (isQA && !colTitle) ? "Discussion" : col3;
-                    events.push({ 
-                        type: 'presentation', 
-                        isHandsOn: isHandsOn, 
-                        time: display_time, 
-                        tag: displayTag, 
-                        title: displayTitle, 
-                        speaker: speaker, 
-                        hall: hallTitle, 
-                        parent_session: current_session,
-                        searchable: `${displayTitle} ${speaker} ${displayTag}`.toLowerCase()
-                    });
+                    events.push({ type: 'presentation', time: time_display, tag: displayTag, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker} ${displayTag}`.toLowerCase(), parent_session: current_session });
                 }
             });
 
-            // Automatic Chronological Sort
-            events.sort((a, b) => {
-                let mA = parseTimeToMinutes(a.time) || 0;
-                let mB = parseTimeToMinutes(b.time) || 0;
-                return mA - mB;
-            });
+            // Master Chronological Sort for all tabs
+            events.sort(timeSorter);
 
             return events;
         }
