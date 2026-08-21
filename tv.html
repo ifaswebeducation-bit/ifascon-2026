@@ -22,11 +22,17 @@
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden select-none bg-slate-950 relative">
 
-    <!-- SPLASH SCREEN / SLIDE OVERLAY FOR TV -->
-    <div id="tvSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300">
-        <div id="tvSplashContent" class="w-full h-full flex flex-col items-center justify-center">
-            <!-- JS fills this dynamically -->
+    <!-- FULL-SCREEN SPLASH & CUSTOM FLYER OVERLAY -->
+    <div id="delegateSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[400] flex flex-col items-center justify-center p-6 sm:p-12 text-center overflow-y-auto custom-scroll">
+        <div class="bg-white/95 p-4 sm:p-6 rounded-3xl shadow-2xl mb-8 flex-shrink-0">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/250x80?text=IFASCON'">
         </div>
+        <div id="flyerImageContainer" class="hidden mb-8 max-w-4xl w-full flex-shrink-0">
+            <img id="flyerImgEl" src="" alt="Flyer" class="w-full max-h-[50vh] object-contain rounded-3xl border border-slate-700 shadow-[0_0_50px_rgba(0,0,0,0.5)] mx-auto">
+        </div>
+        <h1 id="splashTitle" class="text-4xl sm:text-6xl lg:text-8xl font-black text-white max-w-5xl leading-tight mb-4 drop-shadow-lg"></h1>
+        <p id="splashSub" class="text-indigo-400 font-bold text-xl sm:text-3xl lg:text-4xl uppercase tracking-widest mb-4 drop-shadow"></p>
+        <p id="splashDesc" class="text-slate-300 text-lg sm:text-2xl max-w-4xl leading-relaxed"></p>
     </div>
 
     <!-- SETUP WIZARD -->
@@ -221,7 +227,7 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v300';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v400';
 
         let activeHalls = [];
         let hallArrows = {};
@@ -298,9 +304,40 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
+        function detectSponsor(eventObj, currentHallTitle) {
+            let fullSearch = `${eventObj.title} ${eventObj.parent_session} ${eventObj.hall} ${currentHallTitle}`.toLowerCase();
+            let isSocietyEvent = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee|executive meeting)\b/i.test(fullSearch);
+
+            if (eventObj.sponsorLogo) {
+                let rawLogo = eventObj.sponsorLogo.toLowerCase();
+                let isAO = rawLogo.includes('ao') || fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
+                let noLabel = isAO || isSocietyEvent || eventObj.sponsorLabel === "" || (eventObj.sponsorLabel && eventObj.sponsorLabel.toLowerCase().includes('no_label'));
+                let lbl = noLabel ? "" : (eventObj.sponsorLabel || "Supported by");
+                return { logo: resolveDirectImageUrl(eventObj.sponsorLogo), label: lbl, isAO: isAO, isSociety: isSocietyEvent };
+            }
+
+            if (fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar')) {
+                return { name: 'AO Trauma', isBadge: true, label: '', isAO: true };
+            }
+            if (isSocietyEvent) {
+                return { name: 'IFAS Official', isBadge: true, label: '', isSociety: true };
+            }
+            if (fullSearch.includes('nebula')) {
+                return { name: 'Nebula Surgical', isBadge: true, label: 'Supported by', isAO: false };
+            }
+            if (fullSearch.includes('arthrex')) {
+                return { name: 'Arthrex', isBadge: true, label: 'Supported by', isAO: false };
+            }
+            if (fullSearch.includes('biotek')) {
+                return { name: 'Biotek', isBadge: true, label: 'Supported by', isAO: false };
+            }
+
+            return null;
+        }
+
         function parseRawData(rows, hallTitle) {
-            let events = [], current_session = "";
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+            let events = [], current_session = "", current_sponsor_logo = "", current_sponsor_label = "";
+            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
@@ -310,6 +347,20 @@
                 let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
                 let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
                 let row_text = r.join(" ").toLowerCase();
+
+                let logoUrl = "";
+                let customLabel = "Supported by";
+                
+                for (let cell of r) {
+                    if (cell.includes('http://') || cell.includes('https://')) {
+                        let linkPart = cell.match(/https?:\/\/[^\s]+/);
+                        if (linkPart) {
+                            logoUrl = linkPart[0];
+                            let textBefore = cell.replace(linkPart[0], '').replace(/[:\-]/g, '').trim();
+                            if (textBefore) customLabel = textBefore;
+                        }
+                    }
+                }
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
@@ -332,9 +383,10 @@
                         if (topic.toLowerCase().includes("registration")) text = "Registration";
                         else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
                         else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
+                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '', sponsorLogo: logoUrl });
                     } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
+                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '', sponsorLogo: logoUrl });
                     }
                     return;
                 }
@@ -345,11 +397,22 @@
                     if (row_text.includes("registration")) text = "Registration";
                     else if (row_text.includes("lunch")) text = "Lunch";
                     else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
+                    else if (row_text.includes("gbm")) text = "Annual General Body Meeting (GBM)";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '', 
+                        adLink: adLink,
+                        sponsorLogo: logoUrl
+                    });
                     return;
                 }
 
@@ -379,8 +442,22 @@
                     }
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
+                    current_sponsor_logo = logoUrl || "";
+                    current_sponsor_label = customLabel || "Supported by";
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
+                    let display_time = convertTo12HourFormat(time_raw);
+                    events.push({ 
+                        type: 'session', 
+                        isOration: isOration, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        title: topic, 
+                        speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
+                        hall: hallTitle, 
+                        parent_session: current_session, 
+                        sponsorLogo: current_sponsor_logo,
+                        sponsorLabel: current_sponsor_label
+                    });
                     return;
                 }
 
@@ -390,10 +467,126 @@
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
                     let display_time = convertTo12HourFormat(time_raw);
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    events.push({ 
+                        type: 'presentation', 
+                        isHandsOn: isHandsOn, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        tag: (isQA && !colTitle) ? "Discussion" : col3, 
+                        title: displayTitle, 
+                        speaker: speaker, 
+                        hall: hallTitle, 
+                        parent_session: current_session,
+                        sponsorLogo: logoUrl || current_sponsor_logo,
+                        sponsorLabel: logoUrl ? customLabel : current_sponsor_label
+                    });
                 }
             });
+
+            // Clean Automatic Time Sort
+            events.sort((a, b) => {
+                let mA = parseTimeToMinutes(a.time) || 0;
+                let mB = parseTimeToMinutes(b.time) || 0;
+                return mA - mB;
+            });
+
             return events;
+        }
+
+        function handlePayload(val) {
+            if (!val || val === 'none' || val === 'splash_live') {
+                hideSplashState();
+                hideTVLeaderboard();
+                return;
+            }
+            if (val.startsWith('halls:')) {
+                // TV Kiosk ignores hall filtering payload, only applies to delegate app
+                return;
+            }
+            if (val.startsWith('splash_flyer:')) {
+                hideTVLeaderboard();
+                let flyerDataRaw = val.replace('splash_flyer:', '');
+                try {
+                    let flyerObj = JSON.parse(flyerDataRaw);
+                    applyFlyerSplash(flyerObj);
+                } catch(e){}
+                return;
+            }
+            if (val.startsWith('splash_')) {
+                hideTVLeaderboard();
+                applySplashState(val.replace('splash_', ''));
+                return;
+            }
+            hideSplashState();
+            showTVLeaderboard(val);
+        }
+
+        function applyFlyerSplash(flyerObj) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
+            let overlay = document.getElementById('delegateSplashOverlay');
+            let imgContainer = document.getElementById('flyerImageContainer');
+            let imgEl = document.getElementById('flyerImgEl');
+            let titleEl = document.getElementById('splashTitle');
+            let subEl = document.getElementById('splashSub');
+            let descEl = document.getElementById('splashDesc');
+            if (!overlay) return;
+
+            if (flyerObj.img) {
+                imgEl.src = resolveDirectImageUrl(flyerObj.img);
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            titleEl.innerText = flyerObj.title || '';
+            subEl.innerText = flyerObj.subtitle || '';
+            descEl.innerText = flyerObj.desc || '';
+
+            overlay.classList.remove('hidden');
+        }
+
+        function applySplashState(stateName) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
+            let overlay = document.getElementById('delegateSplashOverlay');
+            let imgContainer = document.getElementById('flyerImageContainer');
+            let titleEl = document.getElementById('splashTitle');
+            let subEl = document.getElementById('splashSub');
+            let descEl = document.getElementById('splashDesc');
+            if (!overlay) return;
+
+            imgContainer.classList.add('hidden');
+            descEl.innerText = '';
+
+            if (stateName === 'pre_conf') {
+                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                subEl.innerText = "See you tomorrow!";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day1') {
+                titleEl.innerText = "Wait for the main conference which starts tomorrow at 8am";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day2') {
+                titleEl.innerText = "The conference resumes at 8:00 a.m. tomorrow";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function hideSplashState() {
+            let overlay = document.getElementById('delegateSplashOverlay');
+            if (overlay) overlay.classList.add('hidden');
         }
 
         function toggleGlobalAudio() {
@@ -443,6 +636,7 @@
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
                             if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+                            
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
                                 misRows.push(r);
                             } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
@@ -536,116 +730,26 @@
             if (modal) modal.classList.add('hidden');
         }
 
-        function applySplashState(stateName) {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true') {
-                hideSplashState();
-                return;
-            }
-
-            let overlay = document.getElementById('tvSplashOverlay');
-            let contentDiv = document.getElementById('tvSplashContent');
-            if (!overlay || !contentDiv) return;
-
-            overlay.classList.remove('hidden');
-
-            // 1. Dynamic Custom Slide from Cockpit
-            if (stateName.startsWith('custom_slide:')) {
-                try {
-                    let data = JSON.parse(stateName.replace('custom_slide:', ''));
-                    let sponsorHtml = data.sponsorLogo ? `
-                        <div class="mt-12 bg-white/10 border border-white/20 px-8 py-4 rounded-3xl flex items-center gap-6">
-                            ${data.sponsorLabel ? `<span class="text-lg uppercase font-bold text-slate-300 tracking-wider">${data.sponsorLabel}</span>` : ''}
-                            <img src="${data.sponsorLogo}" class="h-16 sm:h-20 w-auto object-contain" onerror="this.style.display='none'">
-                        </div>
-                    ` : '';
-
-                    overlay.className = "absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 z-[400] flex flex-col items-center justify-center p-12 text-center";
-                    contentDiv.innerHTML = `
-                        <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
-                            <img src="IFASCON chd logo.jpg" class="h-28 sm:h-36 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
-                        </div>
-                        <h1 class="text-5xl sm:text-7xl font-black text-white mb-8 leading-tight max-w-5xl">${data.heading}</h1>
-                        <div class="flex flex-wrap items-center justify-center gap-4">
-                            ${data.datetime ? `<span class="bg-indigo-600/30 border border-indigo-500/50 text-indigo-300 font-bold px-6 py-3 rounded-2xl text-xl sm:text-2xl"><i class="far fa-clock mr-3"></i>${data.datetime}</span>` : ''}
-                            ${data.hall ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold px-6 py-3 rounded-2xl text-xl sm:text-2xl"><i class="fas fa-map-marker-alt mr-3"></i>${data.hall}</span>` : ''}
-                        </div>
-                        ${sponsorHtml}
-                    `;
-                    return;
-                } catch(e) {}
-            }
-
-            // 2. Pre-made Fullscreen Graphic Slides (.jpeg, .jpg, .png)
-            if (stateName.toLowerCase().endsWith('.jpeg') || stateName.toLowerCase().endsWith('.jpg') || stateName.toLowerCase().endsWith('.png')) {
-                overlay.className = "absolute inset-0 bg-black z-[400] flex items-center justify-center p-0 transition-opacity duration-300";
-                contentDiv.innerHTML = `<img src="${encodeURIComponent(stateName)}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/1920x1080?text=Slide+Not+Found'">`;
-                return;
-            }
-
-            // 3. Preset Text Splashes
-            overlay.className = "absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300";
-            let titleText = "", subText = "";
-            if (stateName === 'pre_conf') {
-                titleText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
-                subText = "See you tomorrow!";
-            } else if (stateName === 'post_day1') {
-                titleText = "Wait for the main conference which starts tomorrow at 8am";
-                subText = "IFASCON 2026";
-            } else if (stateName === 'post_day2') {
-                titleText = "The conference resumes at 8:00 a.m. tomorrow";
-                subText = "IFASCON 2026";
-            }
-            contentDiv.innerHTML = `
-                <div class="bg-white/95 p-6 rounded-3xl shadow-2xl mb-12">
-                    <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-32 sm:h-48 w-auto object-contain">
-                </div>
-                <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black text-white max-w-6xl leading-tight mb-8">${titleText}</h1>
-                <p class="text-indigo-400 font-bold text-2xl sm:text-4xl uppercase tracking-widest">${subText}</p>
-            `;
-        }
-
-        function hideSplashState() {
-            let overlay = document.getElementById('tvSplashOverlay');
-            if (overlay) overlay.classList.add('hidden');
-        }
-
         function getLiveStatusForHall(hallId, remoteIndex) {
             const data = appData[hallId];
-            if (!data || !data.events) return { currentEvent: null, nextEvent: null };
-            
-            const playableEvents = data.events.filter(e => {
-                if (e.type === 'presentation' || e.type === 'break') return true;
-                if (e.isOration && (e.speaker || '').trim() !== '') return true;
-                return false;
-            });
-            if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
+            if (!data) return { currentEvent: null, nextEvent: null };
+            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
 
-            // 1. Check Hall-Specific Manual Remote Override (from Cockpit)
-            if (remoteIndex !== null && remoteIndex !== undefined) {
+            if (remoteIndex !== null) {
                 if (remoteIndex < 0 && globalQuizzes.length > 0) {
-                    return {
-                        currentEvent: globalQuizzes[Math.abs(remoteIndex) - 1] || null,
-                        nextEvent: playableEvents[0] || null
-                    };
+                    return { currentEvent: globalQuizzes[Math.abs(remoteIndex) - 1], nextEvent: playableEvents[0] || null };
                 }
-                return {
-                    currentEvent: playableEvents[remoteIndex] || null,
-                    nextEvent: playableEvents[remoteIndex + 1] || null
-                };
+                return { currentEvent: playableEvents[remoteIndex] || null, nextEvent: playableEvents[remoteIndex + 1] || null };
             }
 
-            // 2. Real-Time Clock Progression
             const now = new Date();
             const currentMins = now.getHours() * 60 + now.getMinutes();
-            let currentEvent = null;
-            let nextEvent = null;
-
+            let currentEvent = null, nextEvent = null;
+            
             for (let i = 0; i < playableEvents.length; i++) {
                 const ev = playableEvents[i];
                 const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = null;
-
                 if (ev.time && ev.time.includes('-')) {
                     let parts = ev.time.split('-');
                     if (parts.length > 1) {
@@ -655,28 +759,21 @@
                 if (evEnd === null && evStart !== null) {
                     evEnd = evStart + 15;
                 }
-
+                
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev;
-                        if (ev.type === 'break' && i > 0 && playableEvents[i - 1].type !== 'break') {
-                            currentEvent = playableEvents[i - 1];
-                        }
-                        if (i + 1 < playableEvents.length) {
-                            nextEvent = playableEvents[i + 1];
-                        }
+                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') currentEvent = playableEvents[i-1];
+                        if (i + 1 < playableEvents.length) nextEvent = playableEvents[i + 1];
                         break;
-                    } else if (currentMins < evStart) {
+                    } else if (currentMins < evStart && !nextEvent) {
                         nextEvent = ev;
-                        currentEvent = (i > 0) ? playableEvents[i - 1] : playableEvents[0];
-                        break;
                     }
                 }
             }
 
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[0];
-                nextEvent = playableEvents[1] || null;
+                currentEvent = playableEvents[playableEvents.length - 1];
             }
 
             return { currentEvent, nextEvent };
@@ -842,9 +939,18 @@
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
                         else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
+                        let societyLogoHtml = currentEvent.sponsorLogo ? `
+                            <div class="mb-6 flex justify-center">
+                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
+                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-16 sm:h-20 w-auto object-contain" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '';
+
                         bodyHtml = `
                             <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-24'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner px-6">
-                                <i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>
+                                ${societyLogoHtml}
+                                ${!societyLogoHtml ? `<i class="fas ${breakIcon} ${isSplit ? 'text-6xl sm:text-7xl mb-6' : 'text-8xl sm:text-9xl mb-8'} ${iconColor} animate-pulse drop-shadow-2xl"></i>` : ''}
                                 <h2 class="${isSplit ? 'text-3xl sm:text-4xl' : 'text-5xl sm:text-7xl'} font-black text-white uppercase tracking-widest">${currentEvent.title}</h2>
                                 <p class="${isSplit ? 'text-xl mt-3' : 'text-3xl sm:text-4xl mt-6'} text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
                             </div>`;
@@ -852,6 +958,57 @@
                 } else {
                     let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
                     let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
+                    
+                    let sponsorInfo = detectSponsor(currentEvent, data.title);
+                    let sponsorHtml = '';
+                    if (sponsorInfo) {
+                        if (sponsorInfo.logo) {
+                            if (sponsorInfo.isAO) {
+                                sponsorHtml = `
+                                    <div class="aspect-square ${isSplit ? 'h-11 sm:h-12' : 'h-14 sm:h-16'} rounded-xl overflow-hidden shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399]">
+                                        <img src="${sponsorInfo.logo}" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-white p-2 rounded-xl shadow-lg border border-white/20 inline-flex items-center justify-center flex-shrink-0">
+                                        <img src="${sponsorInfo.logo}" alt="Society Logo" class="${isSplit ? 'h-8 sm:h-9' : 'h-10 sm:h-12'} w-auto object-contain block" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-600">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-xl flex items-center gap-2.5 shadow-lg border border-white/20">
+                                        ${labelTag}
+                                        <img src="${sponsorInfo.logo}" alt="Logo" class="${isSplit ? 'h-6 sm:h-7' : 'h-8 sm:h-9'} w-auto object-contain" onerror="this.style.display='none'">
+                                    </div>
+                                `;
+                            }
+                        } else if (sponsorInfo.name) {
+                            if (sponsorInfo.isAO) {
+                                sponsorHtml = `
+                                    <div class="aspect-square ${isSplit ? 'h-11 sm:h-12' : 'h-14 sm:h-16'} rounded-xl shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399] flex flex-col items-center justify-center text-white font-black text-xs leading-tight text-center p-1">
+                                        <span>AO</span><span>TRAUMA</span>
+                                    </div>
+                                `;
+                            } else if (sponsorInfo.isSociety) {
+                                sponsorHtml = `
+                                    <div class="bg-slate-900 border border-indigo-500/40 px-3 py-1.5 rounded-xl flex items-center shadow-md">
+                                        <span class="text-xs sm:text-sm font-black text-indigo-400 tracking-wider">IFAS OFFICIAL</span>
+                                    </div>
+                                `;
+                            } else {
+                                let labelTag = sponsorInfo.label ? `<span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">${sponsorInfo.label}</span>` : '';
+                                sponsorHtml = `
+                                    <div class="bg-slate-900/90 border border-amber-500/40 px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-md">
+                                        ${labelTag}
+                                        <span class="text-xs sm:text-sm font-black text-amber-400 tracking-wide">${sponsorInfo.name}</span>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 ${isSplit ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm'} rounded-full font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
                         ? `<div class="text-indigo-400 font-bold uppercase ${isSplit ? 'text-xs sm:text-sm mb-2' : 'text-base sm:text-xl mb-4'} flex items-center tracking-wider"><i class="fas fa-layer-group mr-2.5"></i>${currentEvent.parent_session}</div>` 
@@ -902,9 +1059,12 @@
                                         </span>
                                         ${handsOnBadge}
                                     </div>
-                                    <span class="${clockBadgeClass} font-bold text-slate-300 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
-                                        <i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}
-                                    </span>
+                                    <div class="flex items-center gap-3">
+                                        ${sponsorHtml}
+                                        <span class="${clockBadgeClass} font-bold text-slate-300 bg-slate-950 rounded-2xl border border-slate-800 shadow-inner">
+                                            <i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}
+                                        </span>
+                                    </div>
                                 </div>
                                 ${pSess}
                                 <h1 class="${titleStyle}">${currentEvent.title}</h1>
@@ -924,7 +1084,7 @@
                                 <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
                                 ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
                             </div>
-                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
+                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Next'}</span>
                         </div>`;
                 } else {
                     upNextHtml = `
@@ -987,17 +1147,12 @@
         }
 
         function subscribeToHallRealtime(hallId, stateSlot) {
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, active_splash').eq('hall_id', hallId).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, force_leaderboard').eq('hall_id', hallId).single().then(({ data }) => {
                 if (data) {
                     stateSlot.remoteIndex = data.override_index;
                     stateSlot.quizStart = data.quiz_start_time;
                     stateSlot.expiredRendered = false;
-                    
-                    if (data.active_splash && data.active_splash !== 'live') applySplashState(data.active_splash);
-                    else hideSplashState();
-
-                    if (data.active_leaderboard && data.active_leaderboard !== 'none') showTVLeaderboard(data.active_leaderboard);
-                    else hideTVLeaderboard();
+                    handlePayload(data.force_leaderboard);
                 }
                 stateSlot.lastHash = "";
                 refreshDisplays();
@@ -1009,19 +1164,107 @@
                         stateSlot.remoteIndex = payload.new.override_index;
                         stateSlot.quizStart = payload.new.quiz_start_time;
                         stateSlot.expiredRendered = false;
-                        
-                        let splash = payload.new.active_splash;
-                        if (splash && splash !== 'live') applySplashState(splash);
-                        else hideSplashState();
-
-                        let boardType = payload.new.active_leaderboard;
-                        if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
-                        else hideTVLeaderboard();
-                        
+                        handlePayload(payload.new.force_leaderboard);
                         stateSlot.lastHash = "";
                         refreshDisplays();
                     }
                 ).subscribe();
+        }
+
+        function handlePayload(val) {
+            if (!val || val === 'none' || val === 'splash_live') {
+                hideSplashState();
+                hideTVLeaderboard();
+                return;
+            }
+            if (val.startsWith('halls:')) {
+                // TV Kiosk ignores hall filtering payload, only applies to delegate app
+                return;
+            }
+            if (val.startsWith('splash_flyer:')) {
+                hideTVLeaderboard();
+                let flyerDataRaw = val.replace('splash_flyer:', '');
+                try {
+                    let flyerObj = JSON.parse(flyerDataRaw);
+                    applyFlyerSplash(flyerObj);
+                } catch(e){}
+                return;
+            }
+            if (val.startsWith('splash_')) {
+                hideTVLeaderboard();
+                applySplashState(val.replace('splash_', ''));
+                return;
+            }
+            hideSplashState();
+            showTVLeaderboard(val);
+        }
+
+        function applyFlyerSplash(flyerObj) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
+            let overlay = document.getElementById('delegateSplashOverlay');
+            let imgContainer = document.getElementById('flyerImageContainer');
+            let imgEl = document.getElementById('flyerImgEl');
+            let titleEl = document.getElementById('splashTitle');
+            let subEl = document.getElementById('splashSub');
+            let descEl = document.getElementById('splashDesc');
+            if (!overlay) return;
+
+            if (flyerObj.img) {
+                imgEl.src = resolveDirectImageUrl(flyerObj.img);
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            titleEl.innerText = flyerObj.title || '';
+            subEl.innerText = flyerObj.subtitle || '';
+            descEl.innerText = flyerObj.desc || '';
+
+            overlay.classList.remove('hidden');
+        }
+
+        function applySplashState(stateName) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
+            let overlay = document.getElementById('delegateSplashOverlay');
+            let imgContainer = document.getElementById('flyerImageContainer');
+            let titleEl = document.getElementById('splashTitle');
+            let subEl = document.getElementById('splashSub');
+            let descEl = document.getElementById('splashDesc');
+            if (!overlay) return;
+
+            imgContainer.classList.add('hidden');
+            descEl.innerText = '';
+
+            if (stateName === 'pre_conf') {
+                titleEl.innerText = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                subEl.innerText = "See you tomorrow!";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day1') {
+                titleEl.innerText = "Wait for the main conference which starts tomorrow at 8am";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else if (stateName === 'post_day2') {
+                titleEl.innerText = "The conference resumes at 8:00 a.m. tomorrow";
+                subEl.innerText = "IFASCON 2026";
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function hideSplashState() {
+            let overlay = document.getElementById('delegateSplashOverlay');
+            if (overlay) overlay.classList.add('hidden');
         }
 
         function initClockAndSmoothTicker() {
@@ -1036,16 +1279,18 @@
                         let sec = Math.max(0, 45 - diff);
                         
                         let timerEl = document.getElementById(`quizTimer_${st.id}`);
-                        if (timerEl && sec > 0) {
-                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${sec}s`;
-                        }
-                        
-                        if (sec === 0 && !st.expiredRendered) {
-                            st.expiredRendered = true;
-                            st.lastHash = "";
-                            refreshDisplays();
-                        } else if (sec > 0) {
-                            st.expiredRendered = false;
+                        if (timerEl) {
+                            if (sec <= 0) {
+                                timerEl.innerHTML = `<i class="fas fa-stopwatch mr-2"></i>Time Up!`;
+                                if (!st.expiredRendered) {
+                                    st.expiredRendered = true;
+                                    st.lastHash = "";
+                                    refreshDisplays();
+                                }
+                            } else {
+                                st.expiredRendered = false;
+                                timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${sec}s`;
+                            }
                         }
                     }
                 });
