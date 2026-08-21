@@ -194,6 +194,7 @@
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const DELEGATE_APP_URL = "https://ifascon-2026.vercel.app/delegate_live.html";
+        const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
@@ -300,7 +301,6 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
@@ -320,32 +320,38 @@
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                if (isHallC) {
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
-                    let topic = col3;
-                    if (!topic && !time_raw) return; 
-                    if (!topic) topic = "Session"; 
-                    let display_time = convertTo12HourFormat(time_raw);
+                let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
 
-                    if (breakRegex.test(topic.toLowerCase())) {
-                        let text = topic;
-                        let targetText = topic.toLowerCase();
-                        if (/\b(tea|coffee)\b/i.test(targetText)) {
-                            text = "Tea / Coffee Break";
-                        } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
-                            text = "Lunch Break";
-                        } else if (targetText.includes("registration")) {
-                            text = "Registration";
-                        } else if (targetText.includes("gbm")) {
-                            text = "Annual General Body Meeting (GBM)";
-                        }
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
-                    } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
-                    }
+                // 1. CEREMONIES & OFFICIAL MEETINGS
+                if (isCeremonyOrMeeting) {
+                    let text = colTitle || col3 || col0 || "Official Session";
+                    if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
+                    else if (/\bvaledict/i.test(row_text)) text = colTitle || col3 || "Valedictory Function";
+                    else if (/\bgbm\b/i.test(row_text)) text = "Annual General Body Meeting (GBM)";
+                    else if (/\bec meeting|executive committee\b/i.test(row_text)) text = "Executive Committee (EC) Meeting";
+                    else if (/\bbanquet|gala dinner\b/i.test(row_text)) text = "Gala Dinner & Banquet";
+
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let dignitaries = [colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "tbd"].includes(c.toLowerCase())).join(", ");
+
+                    events.push({
+                        type: 'break',
+                        isCeremony: true,
+                        title: text,
+                        time: time_raw,
+                        display_time: display_time,
+                        speaker: dignitaries,
+                        hall: hallTitle,
+                        parent_session: text,
+                        adLink: r.find(c => c.toLowerCase().includes('http')) || "",
+                        societyLogo: SOCIETY_LOGO_URL
+                    });
                     return;
                 }
 
+                // 2. BREAKS & ADS
+                const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
@@ -357,8 +363,6 @@
                         text = "Lunch Break";
                     } else if (/\bregistration\b/i.test(targetText)) {
                         text = "Registration";
-                    } else if (/\bgbm\b/i.test(targetText)) {
-                        text = "Annual General Body Meeting (GBM)";
                     }
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
@@ -366,6 +370,7 @@
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ 
                         type: 'break', 
+                        isCeremony: false,
                         title: text, 
                         time: time_raw, 
                         display_time: display_time, 
@@ -377,6 +382,7 @@
                     return;
                 }
 
+                // 3. REGULAR SCIENTIFIC SESSIONS & PRESENTATIONS
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
@@ -454,7 +460,7 @@
             for (const [key, link] of Object.entries(sheetLinks)) {
                 if (!link || link.trim() === '') continue;
                 try {
-                    const response = await fetch(link);
+                    const response = await fetch(link + '&_cb=' + Date.now());
                     if (!response.ok) continue;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
@@ -736,9 +742,6 @@
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev;
-                        if (ev.type === 'break' && i > 0 && playableEvents[i - 1].type !== 'break') {
-                            currentEvent = playableEvents[i - 1];
-                        }
                         if (i + 1 < playableEvents.length) {
                             nextEvent = playableEvents[i + 1];
                         }
@@ -890,10 +893,24 @@
                         }, 50);
                     }
                 } else if (currentEvent.type === 'break') {
-                    let lowTitle = currentEvent.title.toLowerCase();
-                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
+                    if (currentEvent.isCeremony) {
+                        let societyBadge = currentEvent.societyLogo ? `
+                            <div class="mb-8 flex justify-center">
+                                <div class="bg-white p-4 rounded-full shadow-2xl inline-block border-4 border-slate-700">
+                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-44 w-28 sm:w-44 object-contain rounded-full" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '<i class="fas fa-landmark text-8xl mb-8 text-indigo-400 animate-pulse drop-shadow-2xl"></i>';
 
-                    if (currentEvent.adLink && !isSocietyMeeting) {
+                        bodyHtml = `
+                            <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-12' : 'py-20'} bg-slate-900/80 rounded-3xl border-2 border-indigo-500/50 my-4 shadow-2xl px-8">
+                                ${societyBadge}
+                                <h2 class="${isSplit ? 'text-3xl sm:text-5xl' : 'text-5xl sm:text-7xl'} font-black text-white uppercase tracking-widest leading-tight mb-6">${currentEvent.title}</h2>
+                                ${currentEvent.speaker ? `<p class="${isSplit ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'} text-amber-300 font-extrabold mb-6"><i class="fas fa-users mr-3"></i>Dignitaries: ${currentEvent.speaker}</p>` : ''}
+                                <p class="${isSplit ? 'text-2xl' : 'text-4xl'} text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
+                            </div>
+                        `;
+                    } else if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -914,10 +931,10 @@
                             </div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
                         bodyHtml = `
                             <div class="flex-1 flex flex-col items-center justify-center text-center ${isSplit ? 'py-16' : 'py-24'} bg-slate-900/60 rounded-3xl border border-slate-800 my-4 shadow-inner px-6">
@@ -1001,7 +1018,7 @@
                                 <h4 class="text-base sm:text-lg font-bold text-slate-200 leading-snug truncate">${nextEvent.title}</h4>
                                 ${nextEvent.speaker ? `<p class="text-slate-400 text-xs mt-1 truncate"><i class="fas fa-user-md mr-1 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
                             </div>
-                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? 'Break' : 'Next'}</span>
+                            <span class="bg-slate-950 text-slate-400 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800 uppercase flex-shrink-0">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Next'}</span>
                         </div>`;
                 } else {
                     upNextHtml = `
@@ -1011,7 +1028,7 @@
                                 <h4 class="text-2xl sm:text-3xl font-bold text-slate-100 leading-snug truncate">${nextEvent.title}</h4>
                                 ${nextEvent.speaker ? `<p class="text-slate-400 text-base sm:text-lg font-semibold mt-2 truncate flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}
                             </div>
-                            <span class="bg-slate-950 text-slate-300 text-xs sm:text-sm font-black px-4 py-2 rounded-xl border border-slate-800 uppercase flex-shrink-0 shadow">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span>
+                            <span class="bg-slate-950 text-slate-300 text-xs sm:text-sm font-black px-4 py-2 rounded-xl border border-slate-800 uppercase flex-shrink-0 shadow">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span>
                         </div>`;
                 }
             }
