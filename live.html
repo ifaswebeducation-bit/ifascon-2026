@@ -23,7 +23,7 @@
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden bg-slate-900">
 
-    <!-- AV COCKPIT PREVIEW MODAL (Top Logo + 3-Part Horizontal Split: Left Data / Center Flyer / Right Data) -->
+    <!-- AV COCKPIT PREVIEW MODAL -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
         
         <div class="fixed top-6 right-6 flex items-center gap-3 z-50">
@@ -40,7 +40,7 @@
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
         
-        <!-- 3-Part Showcase Grid (Widescreen 16:9 Optimized) -->
+        <!-- 3-Part Showcase Grid -->
         <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-between gap-6 my-auto px-4">
             <!-- Left Wing: Heading & Subtitle -->
             <div id="cockpitFlyerLeftWing" class="flex-1 min-w-0 text-left flex flex-col justify-center max-w-md">
@@ -129,7 +129,7 @@
                     <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
                         <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
                     </span>
-                    <button onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow transition">
+                    <button type="button" onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95">
                         <i class="fas fa-sync-alt" id="refreshFlyersIcon"></i> Sync Sheet
                     </button>
                 </div>
@@ -325,14 +325,13 @@
             if(!container) return;
             let html = '';
             
-            // 1. Render Local GitHub Image Files with Explicit Height & Width
+            // 1. Render Hardcoded Slides
             hardcodedSlides.forEach(slide => {
                 let encodedFile = encodeURIComponent(slide.file);
                 html += `
                     <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-slate-700 bg-slate-950 flex-shrink-0 group">
                         <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/160x100/1e293b/6366f1?text=Template'">
                         
-                        <!-- Top Action Buttons -->
                         <div class="absolute top-2 right-2 flex gap-1.5 z-20">
                             <button type="button" onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
                                 <i class="fas fa-eye"></i>
@@ -342,7 +341,6 @@
                             </button>
                         </div>
 
-                        <!-- Card Body Label (Click to Preview) -->
                         <button type="button" onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent text-left w-full h-full z-10">
                             <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${slide.label}</span>
                         </button>
@@ -350,15 +348,14 @@
                 `;
             });
 
-            // 2. Render Dynamic Google Sheets Flyers with Explicit Height & Width
-            if (dynamicFlyers.length > 0) {
+            // 2. Render Google Sheets Flyers
+            if (dynamicFlyers && dynamicFlyers.length > 0) {
                 dynamicFlyers.forEach((flyer, idx) => {
                     let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
                     html += `
                         <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-blue-600/60 bg-slate-950 flex-shrink-0 group">
                             ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
                             
-                            <!-- Top Action Buttons -->
                             <div class="absolute top-2 right-2 flex gap-1.5 z-20">
                                 <button type="button" onclick="previewTemplateFlyer(${idx})" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
                                     <i class="fas fa-eye"></i>
@@ -368,9 +365,8 @@
                                 </button>
                             </div>
 
-                            <!-- Card Body Label (Click to Preview) -->
                             <button type="button" onclick="previewTemplateFlyer(${idx})" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-blue-950/80 to-transparent text-left w-full h-full z-10">
-                                <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${flyer.label}</span>
+                                <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${flyer.label || flyer.title || 'Sheet Flyer'}</span>
                             </button>
                         </div>
                     `;
@@ -386,6 +382,7 @@
 
         function previewTemplateFlyer(idx) {
             let flyer = dynamicFlyers[idx];
+            if (!flyer) return;
             let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
             applyCockpitFlyerSplash(flyerObj, false);
         }
@@ -401,10 +398,11 @@
 
         async function pushTemplateFlyer(idx) {
             let flyer = dynamicFlyers[idx];
+            if (!flyer) return;
             let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
             let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             
-            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label}] to Door TVs`);
+            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label || flyer.title}] to Door TVs`);
             await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             applyCockpitFlyerSplash(flyerObj, true);
         }
@@ -640,6 +638,7 @@
 
             logAction(`Logged into system as [${myRole}]`);
             fetchLiveSchedule();
+            fetchFlyersOnly();
         }
 
         function logoutManager() { localStorage.clear(); location.reload(); }
@@ -692,21 +691,34 @@
                     const csvText = await res.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
                     let loadedFlyers = [];
+                    
                     parsedCsv.forEach((r, idx) => {
-                        if (idx === 0 && (r[0] || '').toLowerCase().includes('label')) return; 
-                        if (!r[0]) return;
-                        loadedFlyers.push({
-                            label: cleanText(r[0]),
-                            img: cleanText(r[1]),
-                            title: cleanText(r[2]),
-                            subtitle: cleanText(r[3]),
-                            desc: cleanText(r[4])
-                        });
+                        if (!r || r.length === 0) return;
+                        let firstCell = cleanText(r[0] || '').toLowerCase();
+                        if (firstCell.includes('label') || firstCell.includes('tag') || firstCell === 'name') return;
+                        
+                        let labelVal = cleanText(r[0]);
+                        let imgVal = cleanText(r[1]);
+                        let titleVal = cleanText(r[2]);
+                        let subVal = cleanText(r[3]);
+                        let descVal = cleanText(r[4]);
+
+                        if (labelVal || imgVal || titleVal || descVal) {
+                            loadedFlyers.push({
+                                label: labelVal || titleVal || 'Flyer ' + (idx + 1),
+                                img: imgVal,
+                                title: titleVal,
+                                subtitle: subVal,
+                                desc: descVal
+                            });
+                        }
                     });
                     dynamicFlyers = loadedFlyers;
                     renderFlyerButtons();
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Flyer sheet fetch error:", e);
+            }
             if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         }
 
@@ -931,15 +943,25 @@
                     if (key === 'flyers') {
                         let loadedFlyers = [];
                         parsedCsv.forEach((r, idx) => {
-                            if (idx === 0 && (r[0] || '').toLowerCase().includes('label')) return; 
-                            if (!r[0]) return;
-                            loadedFlyers.push({
-                                label: cleanText(r[0]),
-                                img: cleanText(r[1]),
-                                title: cleanText(r[2]),
-                                subtitle: cleanText(r[3]),
-                                desc: cleanText(r[4])
-                            });
+                            if (!r || r.length === 0) return;
+                            let firstCell = cleanText(r[0] || '').toLowerCase();
+                            if (firstCell.includes('label') || firstCell.includes('tag') || firstCell === 'name') return;
+                            
+                            let labelVal = cleanText(r[0]);
+                            let imgVal = cleanText(r[1]);
+                            let titleVal = cleanText(r[2]);
+                            let subVal = cleanText(r[3]);
+                            let descVal = cleanText(r[4]);
+
+                            if (labelVal || imgVal || titleVal || descVal) {
+                                loadedFlyers.push({
+                                    label: labelVal || titleVal || 'Flyer ' + (idx + 1),
+                                    img: imgVal,
+                                    title: titleVal,
+                                    subtitle: subVal,
+                                    desc: descVal
+                                });
+                            }
                         });
                         dynamicFlyers = loadedFlyers;
                         if (document.getElementById('masterToolbarSuite') && !document.getElementById('masterToolbarSuite').classList.contains('hidden')) {
