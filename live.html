@@ -23,26 +23,40 @@
 </head>
 <body class="flex flex-col min-h-screen overflow-x-hidden bg-slate-900">
 
-    <!-- AV COCKPIT PREVIEW MODAL -->
-    <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 sm:p-10 text-center overflow-y-auto">
+    <!-- AV COCKPIT PREVIEW MODAL (Top Logo + 3-Part Horizontal Split: Left Data / Center Flyer / Right Data) -->
+    <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
         <button id="cockpitEndBroadcastBtn" onclick="hideCockpitSplash()" class="fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50">
             <i class="fas fa-times"></i> Close Preview
         </button>
         
-        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-6 flex-shrink-0 mt-12 sm:mt-0">
-            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
+        <!-- Top Centered Conference Logo -->
+        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-4 flex-shrink-0 mt-8 sm:mt-0">
+            <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
         
-        <!-- Framed Image Container -->
-        <div id="cockpitFlyerImageContainer" class="hidden mb-6 max-w-2xl w-full flex-shrink-0 flex items-center justify-center">
-            <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
-                <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[55vh] max-w-full object-contain rounded-2xl mx-auto">
+        <!-- 3-Part Showcase Grid (Widescreen 16:9 Optimized) -->
+        <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-center gap-6 my-auto">
+            <!-- Left Wing: Heading & Subtitle -->
+            <div id="cockpitFlyerLeftWing" class="flex-1 text-left flex flex-col justify-center max-w-md">
+                <h1 id="cockpitSplashTitle" class="text-2xl sm:text-4xl font-black text-white leading-tight mb-3"></h1>
+                <p id="cockpitSplashSub" class="text-indigo-400 font-bold text-base sm:text-xl uppercase tracking-widest"></p>
+            </div>
+
+            <!-- Center Pillar: Framed Vertical Image -->
+            <div id="cockpitFlyerImageContainer" class="hidden flex-shrink-0 flex items-center justify-center max-w-lg">
+                <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
+                    <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[60vh] max-w-full object-contain rounded-2xl mx-auto">
+                </div>
+            </div>
+
+            <!-- Right Wing: Description & Additional Details -->
+            <div id="cockpitFlyerRightWing" class="flex-1 text-left flex flex-col justify-center max-w-md">
+                <div id="cockpitFlyerDescBox" class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-inner">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2"><i class="fas fa-info-circle mr-1.5 text-indigo-400"></i> Details & Information</span>
+                    <p id="cockpitSplashDesc" class="text-slate-200 text-sm sm:text-base leading-relaxed"></p>
+                </div>
             </div>
         </div>
-
-        <h1 id="cockpitSplashTitle" class="text-2xl sm:text-4xl lg:text-5xl font-black text-white max-w-3xl leading-tight mb-3"></h1>
-        <p id="cockpitSplashSub" class="text-indigo-400 font-bold text-base sm:text-xl uppercase tracking-widest mb-3"></p>
-        <p id="cockpitSplashDesc" class="text-slate-300 text-sm sm:text-base max-w-2xl leading-relaxed"></p>
     </div>
 
     <!-- Auth Gate -->
@@ -290,10 +304,10 @@
             if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
                 let fIdMatch = url.match(/[-\w]{25,}/);
                 if (fIdMatch && fIdMatch[0]) {
-                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
+                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1200`;
                 }
             }
-            return url;
+            return encodeURI(url);
         }
 
         function renderFlyerButtons() {
@@ -357,9 +371,16 @@
             let titleEl = document.getElementById('cockpitSplashTitle');
             let subEl = document.getElementById('cockpitSplashSub');
             let descEl = document.getElementById('cockpitSplashDesc');
+            let leftWing = document.getElementById('cockpitFlyerLeftWing');
+            let rightWing = document.getElementById('cockpitFlyerRightWing');
             let btn = document.getElementById('cockpitEndBroadcastBtn');
 
-            if (flyerObj.img) {
+            let hasImg = !!flyerObj.img;
+            let hasTitle = !!flyerObj.title;
+            let hasSub = !!flyerObj.subtitle;
+            let hasDesc = !!flyerObj.desc;
+
+            if (hasImg) {
                 imgEl.src = resolveDirectImageUrl(flyerObj.img);
                 imgContainer.classList.remove('hidden');
             } else {
@@ -369,6 +390,18 @@
             titleEl.innerText = flyerObj.title || '';
             subEl.innerText = flyerObj.subtitle || '';
             descEl.innerText = flyerObj.desc || '';
+
+            if (hasTitle || hasSub) {
+                leftWing.classList.remove('hidden');
+            } else {
+                leftWing.classList.add('hidden');
+            }
+
+            if (hasDesc) {
+                rightWing.classList.remove('hidden');
+            } else {
+                rightWing.classList.add('hidden');
+            }
 
             if (isLiveBroadcast) {
                 btn.innerHTML = '<i class="fas fa-times-circle"></i> END TV BROADCAST';
@@ -688,10 +721,16 @@
 
                     if (breakRegex.test(topic.toLowerCase())) {
                         let text = topic;
-                        if (topic.toLowerCase().includes("registration")) text = "Registration";
-                        else if (topic.toLowerCase().includes("lunch")) text = "Lunch";
-                        else if (topic.toLowerCase().includes("coffee") || topic.toLowerCase().includes("tea")) text = "Tea / Coffee Break";
-                        else if (topic.toLowerCase().includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                        let targetText = topic.toLowerCase();
+                        if (/\b(tea|coffee)\b/i.test(targetText)) {
+                            text = "Tea / Coffee Break";
+                        } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
+                            text = "Lunch Break";
+                        } else if (targetText.includes("registration")) {
+                            text = "Registration";
+                        } else if (targetText.includes("gbm")) {
+                            text = "Annual General Body Meeting (GBM)";
+                        }
                         events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
                     } else {
                         events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
@@ -702,10 +741,17 @@
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
-                    if (row_text.includes("registration")) text = "Registration";
-                    else if (row_text.includes("lunch")) text = "Lunch";
-                    else if (/\btea\b|\bcoffee\b/.test(row_text) && !row_text.includes("sponsor") && !row_text.includes("ad")) text = "Tea / Coffee Break";
-                    else if (row_text.includes("gbm")) text = "Annual General Body Meeting (GBM)";
+                    let targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
+
+                    if (/\b(tea|coffee)\b/i.test(targetText)) {
+                        text = "Tea / Coffee Break";
+                    } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
+                        text = "Lunch Break";
+                    } else if (/\bregistration\b/i.test(targetText)) {
+                        text = "Registration";
+                    } else if (/\bgbm\b/i.test(targetText)) {
+                        text = "Annual General Body Meeting (GBM)";
+                    }
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
@@ -981,7 +1027,7 @@
                     let isRecommended = cleanActiveSymp && (cleanSymp.includes(cleanActiveSymp) || cleanActiveSymp.includes(cleanSymp));
                     let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
                     let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
-                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-900 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
+                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
 
                     dashHtml += `
                         <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
