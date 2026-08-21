@@ -364,7 +364,16 @@
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: adLink });
+                    events.push({ 
+                        type: 'break', 
+                        title: text, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        speaker: '', 
+                        hall: hallTitle, 
+                        parent_session: '', 
+                        adLink: adLink 
+                    });
                     return;
                 }
 
@@ -395,7 +404,16 @@
                     let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
+                    events.push({ 
+                        type: 'session', 
+                        isOration: isOration, 
+                        time: time_raw, 
+                        display_time: convertTo12HourFormat(time_raw), 
+                        title: topic, 
+                        speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
+                        hall: hallTitle, 
+                        parent_session: current_session 
+                    });
                     return;
                 }
 
@@ -405,7 +423,17 @@
                     if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
                     let display_time = convertTo12HourFormat(time_raw);
                     let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: display_time, tag: (isQA && !colTitle) ? "Discussion" : col3, title: displayTitle, speaker: speaker, hall: hallTitle, parent_session: current_session });
+                    events.push({ 
+                        type: 'presentation', 
+                        isHandsOn: isHandsOn, 
+                        time: time_raw, 
+                        display_time: display_time, 
+                        tag: (isQA && !colTitle) ? "Discussion" : col3, 
+                        title: displayTitle, 
+                        speaker: speaker, 
+                        hall: hallTitle, 
+                        parent_session: current_session 
+                    });
                 }
             });
             return events;
@@ -569,7 +597,7 @@
 
             overlay.classList.remove('hidden');
 
-            // 1. Dynamic Flyer / Pre-loaded Slide Object Payload (Flush Edge Layout)
+            // 1. Dynamic Flyer / Pre-loaded Slide Object Payload (Flush Edge Layout with Large Headers)
             if (stateName.startsWith('splash_flyer:')) {
                 try {
                     let flyerObj = JSON.parse(stateName.replace('splash_flyer:', ''));
@@ -582,7 +610,7 @@
                         return;
                     }
 
-                    // Center Image Pillar (Never overlaps text)
+                    // Center Image Pillar
                     let imgHtml = resolvedImg ? `
                         <div class="flex-shrink-0 flex items-center justify-center px-4 max-w-[36vw] z-10">
                             <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
@@ -591,7 +619,7 @@
                         </div>
                     ` : '';
 
-                    // Left Wing: Starts directly from left edge, styled as large bold headings
+                    // Left Wing: Starts directly from left edge as large bold headings
                     let leftHtml = (flyerObj.title || flyerObj.subtitle) ? `
                         <div class="flex-1 min-w-0 text-left flex flex-col justify-center pl-2 sm:pl-6 pr-4">
                             ${flyerObj.title ? `<h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-4 drop-shadow-md break-words">${flyerObj.title}</h1>` : ''}
@@ -599,10 +627,9 @@
                         </div>
                     ` : '<div class="flex-1"></div>';
 
-                    // Right Wing: Aligns to right edge, styled as a prominent large announcement
+                    // Right Wing: Direct large text with no redundant label wrapper
                     let rightHtml = flyerObj.desc ? `
                         <div class="flex-1 min-w-0 text-left sm:text-right flex flex-col justify-center pr-2 sm:pr-6 pl-4">
-                            <span class="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-widest block mb-2"><i class="fas fa-bullhorn mr-2 text-amber-400"></i> Notice & Info</span>
                             <h2 class="text-2xl sm:text-4xl lg:text-5xl font-black text-amber-300 leading-tight tracking-tight drop-shadow-md break-words">${flyerObj.desc}</h2>
                         </div>
                     ` : '<div class="flex-1"></div>';
