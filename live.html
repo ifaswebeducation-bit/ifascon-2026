@@ -25,12 +25,12 @@
 
     <!-- AV COCKPIT SPLASH SCREEN OVERLAY PREVIEW -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-center p-6 sm:p-10 text-center overflow-y-auto">
-        <!-- AV Cockpit Only: Quick End Broadcast Button -->
-        <button onclick="pushSplashGlobal('live')" class="fixed top-6 right-6 bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50">
-            <i class="fas fa-times-circle"></i> END BROADCAST
+        <!-- Dynamic Top Right Button (Either Close Preview or End Broadcast) -->
+        <button id="cockpitEndBroadcastBtn" onclick="hideCockpitSplash()" class="fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50">
+            <i class="fas fa-times"></i> Close Preview
         </button>
         
-        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-6 flex-shrink-0">
+        <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-6 flex-shrink-0 mt-12 sm:mt-0">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-24 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
         <div id="cockpitFlyerImageContainer" class="hidden mb-6 max-w-lg w-full flex-shrink-0">
@@ -101,11 +101,11 @@
             </div>
         </div>
 
-        <!-- Row 3: Pre-loaded Google Sheet Flyer Templates -->
+        <!-- Row 3: Pre-loaded PowerPoint / Graphic Slides (Hardcoded + Sheets) -->
         <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 pt-2 overflow-hidden">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                    <i class="fas fa-images mr-1.5"></i>Pre-loaded Template Slides (From Sheets):
+                    <i class="fas fa-images mr-1.5"></i>Pre-loaded Template Slides & Flyers:
                 </span>
                 <span class="text-[10px] text-slate-400 italic">Click to broadcast to all screens instantly</span>
             </div>
@@ -120,7 +120,7 @@
                 <span class="text-xs font-black text-pink-400 uppercase tracking-widest flex items-center">
                     <i class="fas fa-magic mr-1.5"></i> Live On-the-Fly Flyer Builder
                 </span>
-                <span class="text-[10px] text-slate-400 italic">Push emergency announcements directly</span>
+                <span class="text-[10px] text-slate-400 italic">Preview or Push emergency announcements directly</span>
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
@@ -128,9 +128,14 @@
                 <input type="text" id="flyerTitle" placeholder="Main Title (e.g. New Book Launch)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
                 <input type="text" id="flyerSubtitle" placeholder="Subtitle / Author" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
                 <input type="text" id="flyerDesc" placeholder="Description / Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
-                <button onclick="pushCustomFlyerGlobal()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
-                    <i class="fas fa-paper-plane"></i> Push Flyer
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
+                        <i class="fas fa-paper-plane"></i> Push
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -259,6 +264,156 @@
         };
         const allHallsList = Object.keys(configTitles);
 
+        const hardcodedSlides = [
+            { file: 'AO nextgen.jpeg', label: 'AO Nextgen' },
+            { file: 'Diabetic Foot workshop.jpeg', label: 'Diabetic Foot' },
+            { file: 'Fibulink.jpeg', label: 'Fibulink' },
+            { file: 'Gala dinner.jpeg', label: 'Gala Dinner' },
+            { file: 'GBM.jpeg', label: 'GBM' },
+            { file: 'IFAS Orations.jpeg', label: 'IFAS Orations' },
+            { file: 'IFASCON CME Dinner.jpeg', label: 'CME Dinner' },
+            { file: 'Inauguration.jpeg', label: 'Inauguration' },
+            { file: 'Lunch break 21.jpeg', label: 'Lunch 21st' },
+            { file: 'Lunch break 22.jpeg', label: 'Lunch 22nd' },
+            { file: 'MIS workshop.jpeg', label: 'MIS Workshop' },
+            { file: 'Orthobiologics.jpeg', label: 'Orthobiologics' },
+            { file: 'Valedictory.jpeg', label: 'Valedictory' }
+        ];
+
+        function renderFlyerButtons() {
+            const container = document.getElementById('customSlidesContainer');
+            if(!container) return;
+            let html = '';
+            
+            // Render Original Hardcoded Slides
+            hardcodedSlides.forEach(slide => {
+                let encodedFile = encodeURIComponent(slide.file);
+                html += `
+                    <button onclick="pushTemplateSlide('${slide.file}', '${slide.label}')" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-slate-600 hover:border-pink-500 hover:ring-2 hover:ring-pink-500/50 transition flex-shrink-0 group active:scale-95">
+                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/6366f1?text=Template'">
+                        <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent">
+                            <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${slide.label}</span>
+                        </div>
+                    </button>
+                `;
+            });
+
+            // Render Dynamic Google Sheets Flyers
+            if (dynamicFlyers.length > 0) {
+                dynamicFlyers.forEach((flyer, idx) => {
+                    let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : 'https://via.placeholder.com/150x100/1e293b/3b82f6?text=' + encodeURIComponent(flyer.label);
+                    html += `
+                        <button onclick="pushTemplateFlyer(${idx})" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-blue-600 hover:border-sky-500 hover:ring-2 hover:ring-sky-500/50 transition flex-shrink-0 group active:scale-95">
+                            <img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/3b82f6?text=No+Image'">
+                            <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-blue-900/80 to-transparent">
+                                <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${flyer.label}</span>
+                            </div>
+                        </button>
+                    `;
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        async function pushTemplateSlide(filename, label) {
+            let imgUrl = resolveDirectImageUrl(filename);
+            let flyerObj = { img: imgUrl, title: '', subtitle: '', desc: '' };
+            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
+            
+            logAction(`BROADCAST: Pushed Template Slide [${label}]`);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            
+            applyCockpitFlyerSplash(flyerObj, true);
+        }
+
+        async function pushTemplateFlyer(idx) {
+            let flyer = dynamicFlyers[idx];
+            let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
+            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
+            
+            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label}]`);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            
+            applyCockpitFlyerSplash(flyerObj, true);
+        }
+
+        function applyCockpitFlyerSplash(flyerObj, isLiveBroadcast) {
+            let overlay = document.getElementById('cockpitSplashOverlay');
+            let imgContainer = document.getElementById('cockpitFlyerImageContainer');
+            let imgEl = document.getElementById('cockpitFlyerImgEl');
+            let titleEl = document.getElementById('cockpitSplashTitle');
+            let subEl = document.getElementById('cockpitSplashSub');
+            let descEl = document.getElementById('cockpitSplashDesc');
+            let btn = document.getElementById('cockpitEndBroadcastBtn');
+
+            if (flyerObj.img) {
+                imgEl.src = resolveDirectImageUrl(flyerObj.img);
+                imgContainer.classList.remove('hidden');
+            } else {
+                imgContainer.classList.add('hidden');
+            }
+
+            titleEl.innerText = flyerObj.title || '';
+            subEl.innerText = flyerObj.subtitle || '';
+            descEl.innerText = flyerObj.desc || '';
+
+            if (isLiveBroadcast) {
+                btn.innerHTML = '<i class="fas fa-times-circle"></i> END BROADCAST';
+                btn.className = "fixed top-6 right-6 bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50";
+                btn.onclick = function() { pushSplashGlobal('live'); hideCockpitSplash(); };
+            } else {
+                btn.innerHTML = '<i class="fas fa-times"></i> Close Preview';
+                btn.className = "fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50";
+                btn.onclick = hideCockpitSplash;
+            }
+
+            overlay.classList.remove('hidden');
+        }
+
+        function hideCockpitSplash() {
+            document.getElementById('cockpitSplashOverlay').classList.add('hidden');
+        }
+
+        function previewCustomFlyer() {
+            let rawImg = document.getElementById('flyerImageUrl').value.trim();
+            let img = resolveDirectImageUrl(rawImg);
+            let title = document.getElementById('flyerTitle').value.trim();
+            let subtitle = document.getElementById('flyerSubtitle').value.trim();
+            let desc = document.getElementById('flyerDesc').value.trim();
+
+            if (!img && !title && !desc) {
+                alert('Please provide at least an image or some text to preview.');
+                return;
+            }
+            applyCockpitFlyerSplash({ img, title, subtitle, desc }, false);
+        }
+
+        async function pushCustomFlyerGlobal() {
+            let rawImg = document.getElementById('flyerImageUrl').value.trim();
+            let img = resolveDirectImageUrl(rawImg);
+            let title = document.getElementById('flyerTitle').value.trim();
+            let subtitle = document.getElementById('flyerSubtitle').value.trim();
+            let desc = document.getElementById('flyerDesc').value.trim();
+
+            if (!img && !title && !desc) {
+                alert('Please provide at least an image or some text to broadcast.');
+                return;
+            }
+
+            let flyerObj = { img, title, subtitle, desc };
+            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
+            
+            logAction(`BROADCAST: Pushed Custom Flyer [${title || 'Image'}]`);
+            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
+            
+            applyCockpitFlyerSplash(flyerObj, true);
+            
+            document.getElementById('flyerImageUrl').value = '';
+            document.getElementById('flyerTitle').value = '';
+            document.getElementById('flyerSubtitle').value = '';
+            document.getElementById('flyerDesc').value = '';
+        }
+
         function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
@@ -275,18 +430,6 @@
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
             return str;
-        }
-
-        function resolveDirectImageUrl(url) {
-            if (!url) return "";
-            url = url.trim();
-            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-                let fIdMatch = url.match(/[-\w]{25,}/);
-                if (fIdMatch && fIdMatch[0]) {
-                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1000`;
-                }
-            }
-            return url;
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -362,6 +505,8 @@
             document.getElementById('masterToolbarSuite').classList.remove('hidden');
             document.getElementById('adminHallNav').classList.remove('hidden');
 
+            renderSlideButtons();
+
             if (myRole === 'av_operator') {
                 let quizSec = document.getElementById('quizControlSection');
                 if (quizSec) quizSec.classList.add('hidden');
@@ -419,60 +564,21 @@
             logAction(`BROADCAST: Pushed Delegate Splash Screen [${splashState}]`);
             let payload = splashState === 'live' ? 'splash_live' : ('splash_' + splashState);
             await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
-            if (splashState !== 'live') alert(`Pushed state [${splashState}] to all delegates!`);
-        }
-
-        async function pushCustomFlyerGlobal() {
-            let rawImg = document.getElementById('flyerImageUrl').value.trim();
-            let img = resolveDirectImageUrl(rawImg);
-            let title = document.getElementById('flyerTitle').value.trim();
-            let subtitle = document.getElementById('flyerSubtitle').value.trim();
-            let desc = document.getElementById('flyerDesc').value.trim();
-
-            if (!img && !title && !desc) {
-                alert('Please provide at least an image or some text to broadcast.');
-                return;
-            }
-
-            let payload = 'splash_flyer:' + JSON.stringify({ img, title, subtitle, desc });
-            logAction(`BROADCAST: Pushed Custom Flyer [${title || 'Image'}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
-            alert('Custom Flyer successfully pushed to all screens!');
             
-            document.getElementById('flyerImageUrl').value = '';
-            document.getElementById('flyerTitle').value = '';
-            document.getElementById('flyerSubtitle').value = '';
-            document.getElementById('flyerDesc').value = '';
-        }
-
-        function renderFlyerButtons() {
-            const container = document.getElementById('customSlidesContainer');
-            if(!container) return;
-            let html = '';
-            if (dynamicFlyers.length === 0) {
-                html = '<span class="text-slate-500 text-xs italic py-2">No templates found in Flyers sheet.</span>';
-            } else {
-                dynamicFlyers.forEach((flyer, idx) => {
-                    let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : 'https://via.placeholder.com/150x100/1e293b/6366f1?text=' + encodeURIComponent(flyer.label);
-                    html += `
-                        <button onclick="pushTemplateFlyer(${idx})" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-slate-600 hover:border-pink-500 hover:ring-2 hover:ring-pink-500/50 transition flex-shrink-0 group active:scale-95">
-                            <img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/6366f1?text=No+Image'">
-                            <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent">
-                                <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${flyer.label}</span>
-                            </div>
-                        </button>
-                    `;
-                });
+            if (splashState !== 'live') {
+                let flyerObj = { img: '', title: '', subtitle: '', desc: '' };
+                if (splashState === 'pre_conf') {
+                    flyerObj.title = "1 day to go for the 38th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                    flyerObj.subtitle = "See you tomorrow!";
+                } else if (splashState === 'post_day1') {
+                    flyerObj.title = "Wait for the main conference which starts tomorrow at 8am";
+                    flyerObj.subtitle = "IFASCON 2026";
+                } else if (splashState === 'post_day2') {
+                    flyerObj.title = "The conference resumes at 8:00 a.m. tomorrow";
+                    flyerObj.subtitle = "IFASCON 2026";
+                }
+                applyCockpitFlyerSplash(flyerObj, true);
             }
-            container.innerHTML = html;
-        }
-
-        async function pushTemplateFlyer(idx) {
-            let flyer = dynamicFlyers[idx];
-            let payload = 'splash_flyer:' + JSON.stringify({ img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc });
-            logAction(`BROADCAST: Pushed Template Flyer [${flyer.label}]`);
-            await supabaseClient.from('hall_states').update({ force_leaderboard: payload }).in('hall_id', allHallsList);
-            alert(`Template flyer "${flyer.label}" pushed to all screens!`);
         }
 
         async function fetchMathLeaderboard(type) {
@@ -666,7 +772,7 @@
                 }
             });
 
-            // Automatic Chronological Sorting by Start Time
+            // Clean Automatic Time Sort
             events.sort((a, b) => {
                 let mA = parseTimeToMinutes(a.time) || 0;
                 let mB = parseTimeToMinutes(b.time) || 0;
@@ -1065,10 +1171,7 @@
                             </div>`;
                     }
                 } else if (currentEvent.type === 'break') {
-                    let lowTitle = currentEvent.title.toLowerCase();
-                    let isSocietyMeeting = /\b(gbm|general body|inauguration|valedictory|ec meeting|executive committee)\b/i.test(lowTitle);
-
-                    if (currentEvent.adLink && !isSocietyMeeting) {
+                    if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -1083,18 +1186,11 @@
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
+                        const lowTitle = currentEvent.title.toLowerCase();
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (isSocietyMeeting) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
-
-                        let societyLogoHtml = currentEvent.sponsorLogo ? `
-                            <div class="mb-6 flex justify-center">
-                                <div class="bg-white p-3 rounded-2xl shadow-xl inline-block">
-                                    <img src="${resolveDirectImageUrl(currentEvent.sponsorLogo)}" class="h-20 sm:h-28 w-auto object-contain" alt="Society Logo">
-                                </div>
-                            </div>
-                        ` : '';
+                        else if (/\b(gbm|general body|inauguration|valedictory|ec meeting)\b/i.test(lowTitle)) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
@@ -1138,10 +1234,7 @@
                                     <span class="animate-live ${bStyle} px-6 py-2.5 rounded-full text-sm sm:text-base font-black uppercase tracking-widest flex items-center shadow-lg"><span class="w-2.5 h-2.5 bg-current rounded-full mr-2.5"></span> LIVE NOW</span>
                                     ${handsOnBadge}
                                 </div>
-                                <div class="flex items-center gap-3">
-                                    ${sponsorHtml}
-                                    <span class="text-xl sm:text-2xl px-6 py-2.5 font-bold text-slate-300 bg-slate-900/60 rounded-xl border border-slate-700/50 shadow-inner"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
-                                </div>
+                                <span class="text-xl sm:text-2xl px-6 py-2.5 font-bold text-slate-300 bg-slate-900/60 rounded-xl border border-slate-700/50 shadow-inner"><i class="far fa-clock mr-2 text-indigo-400"></i>${currentEvent.display_time}</span>
                             </div>
                             ${pSess}
                             <h1 class="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
@@ -1199,22 +1292,14 @@
                     let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
                     
-                    let timerEl = document.getElementById('quizCountdownTimer');
-                    if (timerEl) {
-                        if (secondsLeft <= 0) {
-                            timerEl.innerHTML = `<i class="fas fa-stopwatch mr-2"></i>Time Up!`;
-                            if (!window.cockpitExpiredTriggered) {
-                                window.cockpitExpiredTriggered = true;
-                                updateLiveDisplay(true);
-                            }
-                        } else {
-                            window.cockpitExpiredTriggered = false;
-                            timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
-                        }
+                    if (secondsLeft <= 0) {
+                        if (!window.quizExpiredRendered) { window.quizExpiredRendered = true; updateLiveDisplay(true); }
+                    } else {
+                        window.quizExpiredRendered = false;
+                        let timerEl = document.getElementById('quizCountdownTimer');
+                        if (timerEl && timerEl.dataset.expired === "false") { timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`; }
                     }
-                } else { 
-                    window.cockpitExpiredTriggered = false; 
-                }
+                } else { window.quizExpiredRendered = false; }
             }, 1000);
         }
 
@@ -1239,6 +1324,8 @@
         window.pushSplashGlobal = pushSplashGlobal;
         window.pushCustomFlyerGlobal = pushCustomFlyerGlobal;
         window.pushTemplateFlyer = pushTemplateFlyer;
+        window.previewCustomFlyer = previewCustomFlyer;
+        window.hideCockpitSplash = hideCockpitSplash;
     </script>
 </body>
 </html>
