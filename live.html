@@ -25,9 +25,15 @@
 
     <!-- AV COCKPIT PREVIEW MODAL (Top Logo + 3-Part Horizontal Split: Left Data / Center Flyer / Right Data) -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
-        <button id="cockpitEndBroadcastBtn" onclick="hideCockpitSplash()" class="fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50">
-            <i class="fas fa-times"></i> Close Preview
-        </button>
+        
+        <div class="fixed top-6 right-6 flex items-center gap-3 z-50">
+            <button id="cockpitDirectPushBtn" onclick="pushCurrentPreviewLive()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-pink-400/50">
+                <i class="fas fa-paper-plane"></i> Push to TV Screens
+            </button>
+            <button id="cockpitEndBroadcastBtn" onclick="hideCockpitSplash()" class="bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50">
+                <i class="fas fa-times"></i> Close Preview
+            </button>
+        </div>
         
         <!-- Top Centered Conference Logo -->
         <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-4 flex-shrink-0 mt-8 sm:mt-0">
@@ -35,26 +41,23 @@
         </div>
         
         <!-- 3-Part Showcase Grid (Widescreen 16:9 Optimized) -->
-        <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-center gap-6 my-auto">
+        <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-between gap-6 my-auto px-4">
             <!-- Left Wing: Heading & Subtitle -->
-            <div id="cockpitFlyerLeftWing" class="flex-1 text-left flex flex-col justify-center max-w-md">
-                <h1 id="cockpitSplashTitle" class="text-2xl sm:text-4xl font-black text-white leading-tight mb-3"></h1>
-                <p id="cockpitSplashSub" class="text-indigo-400 font-bold text-base sm:text-xl uppercase tracking-widest"></p>
+            <div id="cockpitFlyerLeftWing" class="flex-1 min-w-0 text-left flex flex-col justify-center max-w-md">
+                <h1 id="cockpitSplashTitle" class="text-3xl sm:text-5xl font-black text-white leading-tight mb-3 drop-shadow-md break-words"></h1>
+                <p id="cockpitSplashSub" class="text-indigo-400 font-extrabold text-xl sm:text-2xl uppercase tracking-widest break-words"></p>
             </div>
 
             <!-- Center Pillar: Framed Vertical Image -->
-            <div id="cockpitFlyerImageContainer" class="hidden flex-shrink-0 flex items-center justify-center max-w-lg">
+            <div id="cockpitFlyerImageContainer" class="hidden flex-shrink-0 flex items-center justify-center max-w-[36vw] z-10">
                 <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
-                    <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[60vh] max-w-full object-contain rounded-2xl mx-auto">
+                    <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[60vh] max-w-full object-contain rounded-2xl mx-auto block">
                 </div>
             </div>
 
             <!-- Right Wing: Description & Additional Details -->
-            <div id="cockpitFlyerRightWing" class="flex-1 text-left flex flex-col justify-center max-w-md">
-                <div id="cockpitFlyerDescBox" class="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-inner">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2"><i class="fas fa-info-circle mr-1.5 text-indigo-400"></i> Details & Information</span>
-                    <p id="cockpitSplashDesc" class="text-slate-200 text-sm sm:text-base leading-relaxed"></p>
-                </div>
+            <div id="cockpitFlyerRightWing" class="flex-1 min-w-0 text-left sm:text-right flex flex-col justify-center max-w-md">
+                <h2 id="cockpitSplashDesc" class="text-2xl sm:text-4xl font-black text-amber-300 leading-tight tracking-tight drop-shadow-md break-words"></h2>
             </div>
         </div>
     </div>
@@ -122,10 +125,15 @@
         <!-- Row 3: Pre-loaded Template Slides & Google Sheet Flyers -->
         <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 pt-2 overflow-hidden">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                    <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
-                </span>
-                <span class="text-[10px] text-slate-400 italic">Click card to broadcast to all TV screens</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
+                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
+                    </span>
+                    <button onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 shadow transition">
+                        <i class="fas fa-sync-alt" id="refreshFlyersIcon"></i> Sync Sheet
+                    </button>
+                </div>
+                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push instantly</span>
             </div>
             <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scroll">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
@@ -298,6 +306,8 @@
             { file: 'Valedictory.jpeg', label: 'Valedictory' }
         ];
 
+        let activePreviewFlyerObj = null;
+
         function resolveDirectImageUrl(url) {
             if (!url) return "";
             url = url.trim();
@@ -315,34 +325,69 @@
             if(!container) return;
             let html = '';
             
-            // 1. Render Local GitHub Image Files
+            // 1. Render Local GitHub Image Files with Preview on Card + Fast Push
             hardcodedSlides.forEach(slide => {
                 let encodedFile = encodeURIComponent(slide.file);
                 html += `
-                    <button onclick="pushTemplateSlide('${slide.file}', '${slide.label}')" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-slate-600 hover:border-pink-500 hover:ring-2 hover:ring-pink-500/50 transition flex-shrink-0 group active:scale-95">
-                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/6366f1?text=Template'">
-                        <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-slate-900/80 to-transparent">
-                            <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${slide.label}</span>
+                    <div class="relative w-36 h-22 rounded-2xl overflow-hidden shadow-md border border-slate-700 bg-slate-950 flex-shrink-0 group">
+                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/150x100/1e293b/6366f1?text=Template'">
+                        
+                        <!-- Top Action Buttons -->
+                        <div class="absolute top-1.5 right-1.5 flex gap-1 z-20">
+                            <button onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" title="Preview" class="bg-slate-800/90 hover:bg-slate-700 text-sky-400 p-1.5 rounded-lg text-[10px] shadow transition active:scale-95 border border-slate-600/60">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button onclick="pushTemplateSlide('${slide.file}', '${slide.label}')" title="Push to TV" class="bg-pink-600 hover:bg-pink-500 text-white p-1.5 rounded-lg text-[10px] shadow transition active:scale-95">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
                         </div>
-                    </button>
+
+                        <!-- Card Body Label (Click to Preview) -->
+                        <button onclick="previewTemplateSlide('${slide.file}', '${slide.label}')" class="absolute inset-0 flex items-end justify-start p-2 bg-gradient-to-t from-slate-950 via-slate-900/70 to-transparent text-left w-full h-full z-10">
+                            <span class="text-[11px] font-black text-white leading-tight drop-shadow truncate w-24">${slide.label}</span>
+                        </button>
+                    </div>
                 `;
             });
 
-            // 2. Render Dynamic Google Sheets Flyers
+            // 2. Render Dynamic Google Sheets Flyers with Preview + Push
             if (dynamicFlyers.length > 0) {
                 dynamicFlyers.forEach((flyer, idx) => {
                     let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
                     html += `
-                        <button onclick="pushTemplateFlyer(${idx})" class="relative w-32 h-20 rounded-xl overflow-hidden shadow-md border border-blue-600 hover:border-sky-500 hover:ring-2 hover:ring-sky-500/50 transition flex-shrink-0 group active:scale-95">
-                            ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
-                            <div class="absolute inset-0 flex items-end justify-center p-1.5 bg-gradient-to-t from-slate-950 via-blue-900/80 to-transparent">
-                                <span class="text-[10px] font-black text-white leading-tight drop-shadow-md truncate w-full text-center">${flyer.label}</span>
+                        <div class="relative w-36 h-22 rounded-2xl overflow-hidden shadow-md border border-blue-600/60 bg-slate-950 flex-shrink-0 group">
+                            ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
+                            
+                            <!-- Top Action Buttons -->
+                            <div class="absolute top-1.5 right-1.5 flex gap-1 z-20">
+                                <button onclick="previewTemplateFlyer(${idx})" title="Preview" class="bg-slate-800/90 hover:bg-slate-700 text-sky-400 p-1.5 rounded-lg text-[10px] shadow transition active:scale-95 border border-slate-600/60">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="pushTemplateFlyer(${idx})" title="Push to TV" class="bg-emerald-600 hover:bg-emerald-500 text-white p-1.5 rounded-lg text-[10px] shadow transition active:scale-95">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
                             </div>
-                        </button>
+
+                            <!-- Card Body Label (Click to Preview) -->
+                            <button onclick="previewTemplateFlyer(${idx})" class="absolute inset-0 flex items-end justify-start p-2 bg-gradient-to-t from-slate-950 via-blue-950/80 to-transparent text-left w-full h-full z-10">
+                                <span class="text-[11px] font-black text-white leading-tight drop-shadow truncate w-24">${flyer.label}</span>
+                            </button>
+                        </div>
                     `;
                 });
             }
             container.innerHTML = html;
+        }
+
+        function previewTemplateSlide(filename, label) {
+            let flyerObj = { img: filename, title: '', subtitle: '', desc: '' };
+            applyCockpitFlyerSplash(flyerObj, false);
+        }
+
+        function previewTemplateFlyer(idx) {
+            let flyer = dynamicFlyers[idx];
+            let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
+            applyCockpitFlyerSplash(flyerObj, false);
         }
 
         async function pushTemplateSlide(filename, label) {
@@ -364,7 +409,16 @@
             applyCockpitFlyerSplash(flyerObj, true);
         }
 
+        async function pushCurrentPreviewLive() {
+            if (!activePreviewFlyerObj) return;
+            let payload = 'splash_flyer:' + JSON.stringify(activePreviewFlyerObj);
+            logAction(`BROADCAST: Pushed Current Previewed Flyer to Door TVs`);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
+            applyCockpitFlyerSplash(activePreviewFlyerObj, true);
+        }
+
         function applyCockpitFlyerSplash(flyerObj, isLiveBroadcast) {
+            activePreviewFlyerObj = flyerObj;
             let overlay = document.getElementById('cockpitSplashOverlay');
             let imgContainer = document.getElementById('cockpitFlyerImageContainer');
             let imgEl = document.getElementById('cockpitFlyerImgEl');
@@ -373,7 +427,8 @@
             let descEl = document.getElementById('cockpitSplashDesc');
             let leftWing = document.getElementById('cockpitFlyerLeftWing');
             let rightWing = document.getElementById('cockpitFlyerRightWing');
-            let btn = document.getElementById('cockpitEndBroadcastBtn');
+            let btnEnd = document.getElementById('cockpitEndBroadcastBtn');
+            let btnDirectPush = document.getElementById('cockpitDirectPushBtn');
 
             let hasImg = !!flyerObj.img;
             let hasTitle = !!flyerObj.title;
@@ -404,13 +459,15 @@
             }
 
             if (isLiveBroadcast) {
-                btn.innerHTML = '<i class="fas fa-times-circle"></i> END TV BROADCAST';
-                btn.className = "fixed top-6 right-6 bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50";
-                btn.onclick = function() { pushSplashGlobal('live'); hideCockpitSplash(); };
+                btnDirectPush.classList.add('hidden');
+                btnEnd.innerHTML = '<i class="fas fa-times-circle"></i> END TV BROADCAST';
+                btnEnd.className = "bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50";
+                btnEnd.onclick = function() { pushSplashGlobal('live'); hideCockpitSplash(); };
             } else {
-                btn.innerHTML = '<i class="fas fa-times"></i> Close Preview';
-                btn.className = "fixed top-6 right-6 bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl z-50 text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50";
-                btn.onclick = hideCockpitSplash;
+                btnDirectPush.classList.remove('hidden');
+                btnEnd.innerHTML = '<i class="fas fa-times"></i> Close Preview';
+                btnEnd.className = "bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50";
+                btnEnd.onclick = hideCockpitSplash;
             }
 
             overlay.classList.remove('hidden');
@@ -418,6 +475,7 @@
 
         function hideCockpitSplash() {
             document.getElementById('cockpitSplashOverlay').classList.add('hidden');
+            activePreviewFlyerObj = null;
         }
 
         function previewCustomFlyer() {
@@ -623,6 +681,34 @@
                 }
                 applyCockpitFlyerSplash(flyerObj, true);
             }
+        }
+
+        async function fetchFlyersOnly() {
+            const icon = document.getElementById('refreshFlyersIcon');
+            if(icon) icon.classList.add('animate-spin');
+            try {
+                // Cache-busting parameter to pull fresh Google Sheets data instantly
+                const res = await fetch(sheetLinks.flyers + '&_cb=' + Date.now());
+                if(res.ok) {
+                    const csvText = await res.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
+                    let loadedFlyers = [];
+                    parsedCsv.forEach((r, idx) => {
+                        if (idx === 0 && (r[0] || '').toLowerCase().includes('label')) return; 
+                        if (!r[0]) return;
+                        loadedFlyers.push({
+                            label: cleanText(r[0]),
+                            img: cleanText(r[1]),
+                            title: cleanText(r[2]),
+                            subtitle: cleanText(r[3]),
+                            desc: cleanText(r[4])
+                        });
+                    });
+                    dynamicFlyers = loadedFlyers;
+                    renderFlyerButtons();
+                }
+            } catch(e) {}
+            if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         }
 
         async function fetchMathLeaderboard(type) {
@@ -838,7 +924,8 @@
             for (const [key, link] of Object.entries(sheetLinks)) {
                 if(!link || link.trim() === '') continue;
                 try {
-                    const response = await fetch(link);
+                    // Cache-bust every CSV pull
+                    const response = await fetch(link + '&_cb=' + Date.now());
                     if(!response.ok) continue;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
@@ -1094,7 +1181,11 @@
         }
 
         function getLiveStatus(events) {
-            const playableEvents = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
+            const playableEvents = events.filter(e => {
+                if (e.type === 'presentation' || e.type === 'break') return true;
+                if (e.isOration && (e.speaker || '').trim() !== '') return true; 
+                return false;
+            });
             if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
             
             if (manualOverrideIndex !== null) {
@@ -1339,7 +1430,10 @@
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
             if (tickerTimer) clearInterval(tickerTimer);
             
-            liveUpdateTimer = setInterval(() => { if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); }, 15000);
+            liveUpdateTimer = setInterval(() => { 
+                if (manualOverrideIndex === null || manualOverrideIndex >= 0) updateLiveDisplay(false); 
+                fetchFlyersOnly(); // Auto-refreshes flyer sheet every 30s in the background
+            }, 30000);
             
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
@@ -1388,7 +1482,11 @@
         window.pushCustomFlyerGlobal = pushCustomFlyerGlobal;
         window.pushTemplateFlyer = pushTemplateFlyer;
         window.pushTemplateSlide = pushTemplateSlide;
+        window.previewTemplateFlyer = previewTemplateFlyer;
+        window.previewTemplateSlide = previewTemplateSlide;
         window.previewCustomFlyer = previewCustomFlyer;
+        window.pushCurrentPreviewLive = pushCurrentPreviewLive;
+        window.fetchFlyersOnly = fetchFlyersOnly;
         window.hideCockpitSplash = hideCockpitSplash;
     </script>
 </body>
