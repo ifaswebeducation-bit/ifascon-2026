@@ -12,7 +12,7 @@
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .glass-header { background: #ffffff; border-bottom: 1px solid #e2e8f0; backdrop-filter: blur(10px); }
         .tab-btn.active { color: #4f46e5; border-top-color: #4f46e5; background-color: #f1f5f9; }
-        .workshop-btn.active { background-color: #e11d48; color: #ffffff; border-color: #be123c; shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3); }
+        .workshop-btn.active { background-color: #e11d48; color: #ffffff; border-color: #be123c; box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.3); }
         
         /* Hide scrollbar for bottom nav but keep functionality */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -95,7 +95,7 @@
         };
 
         let appData = {};
-        const CACHE_KEY = 'ifascon_schedule_cache_v12'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_v15'; 
         const container = document.getElementById('contentContainer');
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearSearch');
@@ -103,6 +103,31 @@
         const downloadBtn = document.getElementById('downloadBtn');
         let currentTab = 'ao_seminar';
         let activeWorkshopTrack = 'diabetic'; 
+
+        // Helper functions for time sorting
+        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
+            let isPM = clean.includes('pm');
+            let isAM = clean.includes('am');
+            
+            let timePart = clean.replace(/[^\d:.]/g, '');
+            let parts = timePart.split(/[:.]/);
+            if (parts.length < 2) return null;
+            
+            let hours = parseInt(parts[0], 10);
+            let minutes = parseInt(parts[1], 10);
+            if (isNaN(hours) || isNaN(minutes)) return null;
+            
+            if (isPM && hours < 12) hours += 12;
+            if (isAM && hours === 12) hours = 0;
+            // Fix implicit PM (e.g., 2:00 without AM/PM is usually 14:00)
+            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
+            
+            return hours * 60 + minutes;
+        }
 
         async function initializeApp() {
             const cachedData = localStorage.getItem(CACHE_KEY);
@@ -147,15 +172,16 @@
                                 allAoEvents.forEach(ev => {
                                     const matchString = `${ev.title} ${ev.time} ${ev.parent_session}`.toLowerCase();
                                     
+                                    // Trigger workshop section if we hit the 16:15 slot or workshop explicitly
                                     if (/\b(workshop|16:15|16\.15)\b/i.test(matchString) || matchString.includes('16:15') || matchString.includes('16.15')) {
                                         isWorkshopSection = true;
                                     }
 
                                     if (isWorkshopSection) {
                                         ev.hall = "Workshops";
-                                        if (matchString.includes('diabetic') || matchString.includes('nebula')) {
+                                        if (matchString.includes('diabetic') || matchString.includes('nebula') || matchString.includes('charcot') || matchString.includes('amputation') || matchString.includes('beam') || matchString.includes('flipper')) {
                                             currentTrack = 'diabetic';
-                                        } else if (matchString.includes('mis') || matchString.includes('arthrex')) {
+                                        } else if (matchString.includes('mis') || matchString.includes('arthrex') || matchString.includes('calcaneum') || matchString.includes('zadek') || matchString.includes('hallux')) {
                                             currentTrack = 'mis';
                                         }
                                         ev.workshopTrack = currentTrack;
@@ -236,7 +262,6 @@
                     if (!col1 && !col2 && !col0) isSession = true; 
                     else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
                     else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                    // ADDED "ao seminar" here so it gets treated as a parent session
                     else if (row_text.includes('symposium') || row_text.includes('session') || row_text.includes('workshop') || row_text.includes('ao seminar')) isSession = true;
                     else if (row_text.includes('oration')) { isSession = true; isOration = true; }
                 }
@@ -268,6 +293,14 @@
                     events.push({ type: 'presentation', time: time_display, tag: displayTag, title: displayTitle, speaker: speaker, hall: hallTitle, searchable: `${displayTitle} ${speaker} ${displayTag}`.toLowerCase(), parent_session: current_session });
                 }
             });
+
+            // --- THE FIX: Chronological Time Sorting ---
+            events.sort((a, b) => {
+                let mA = parseTimeToMinutes(a.time) || 0;
+                let mB = parseTimeToMinutes(b.time) || 0;
+                return mA - mB;
+            });
+
             return events;
         }
 
