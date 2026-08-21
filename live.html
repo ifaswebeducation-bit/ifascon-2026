@@ -271,6 +271,8 @@
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+        const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
+
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
@@ -325,7 +327,6 @@
             if(!container) return;
             let html = '';
             
-            // 1. Render Hardcoded Slides
             hardcodedSlides.forEach(slide => {
                 let encodedFile = encodeURIComponent(slide.file);
                 html += `
@@ -348,7 +349,6 @@
                 `;
             });
 
-            // 2. Render Google Sheets Flyers
             if (dynamicFlyers && dynamicFlyers.length > 0) {
                 dynamicFlyers.forEach((flyer, idx) => {
                     let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
@@ -789,7 +789,6 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
-            const breakRegex = /\b(break|lunch|banquet|gbm|valedictory|inauguration|registration|tea|coffee|sponsor|commercial|ad|video|ec meeting)\b/;
             let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
@@ -809,32 +808,38 @@
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
-                if (isHallC) {
-                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col2 || "");
-                    let topic = col3;
-                    if (!topic && !time_raw) return; 
-                    if (!topic) topic = "Session"; 
-                    let display_time = convertTo12HourFormat(time_raw);
+                let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
 
-                    if (breakRegex.test(topic.toLowerCase())) {
-                        let text = topic;
-                        let targetText = topic.toLowerCase();
-                        if (/\b(tea|coffee)\b/i.test(targetText)) {
-                            text = "Tea / Coffee Break";
-                        } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
-                            text = "Lunch Break";
-                        } else if (targetText.includes("registration")) {
-                            text = "Registration";
-                        } else if (targetText.includes("gbm")) {
-                            text = "Annual General Body Meeting (GBM)";
-                        }
-                        events.push({ type: 'break', title: text, time: time_raw, display_time: display_time, speaker: '', hall: hallTitle, parent_session: '', adLink: '' });
-                    } else {
-                        events.push({ type: 'presentation', time: time_raw, display_time: display_time, tag: '', title: topic, speaker: '', hall: hallTitle, parent_session: '' });
-                    }
+                // 1. CEREMONIES & OFFICIAL MEETINGS (Always Playable with Society Logo Support)
+                if (isCeremonyOrMeeting) {
+                    let text = colTitle || col3 || col0 || "Official Session";
+                    if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
+                    else if (/\bvaledict/i.test(row_text)) text = colTitle || col3 || "Valedictory Function";
+                    else if (/\bgbm\b/i.test(row_text)) text = "Annual General Body Meeting (GBM)";
+                    else if (/\bec meeting|executive committee\b/i.test(row_text)) text = "Executive Committee (EC) Meeting";
+                    else if (/\bbanquet|gala dinner\b/i.test(row_text)) text = "Gala Dinner & Banquet";
+
+                    let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                    let display_time = convertTo12HourFormat(time_raw);
+                    let dignitaries = [colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "tbd"].includes(c.toLowerCase())).join(", ");
+
+                    events.push({
+                        type: 'break',
+                        isCeremony: true,
+                        title: text,
+                        time: time_raw,
+                        display_time: display_time,
+                        speaker: dignitaries,
+                        hall: hallTitle,
+                        parent_session: text,
+                        adLink: r.find(c => c.toLowerCase().includes('http')) || "",
+                        societyLogo: SOCIETY_LOGO_URL
+                    });
                     return;
                 }
 
+                // 2. BREAKS & ADS
+                const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
                     let text = colTitle || col3 || col0;
@@ -846,8 +851,6 @@
                         text = "Lunch Break";
                     } else if (/\bregistration\b/i.test(targetText)) {
                         text = "Registration";
-                    } else if (/\bgbm\b/i.test(targetText)) {
-                        text = "Annual General Body Meeting (GBM)";
                     }
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
@@ -855,6 +858,7 @@
                     let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
                     events.push({ 
                         type: 'break', 
+                        isCeremony: false,
                         title: text, 
                         time: time_raw, 
                         display_time: display_time, 
@@ -866,6 +870,7 @@
                     return;
                 }
 
+                // 3. REGULAR SCIENTIFIC SESSIONS & PRESENTATIONS
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
@@ -1047,7 +1052,7 @@
             const playable = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
 
             playable.forEach((ev, playableIndex) => {
-                let prefix = ev.type === 'break' ? '☕ ' : (ev.type === 'session' ? '📚 ' : '🎤 ');
+                let prefix = ev.type === 'break' ? (ev.isCeremony ? '🏛️ ' : '☕ ') : (ev.type === 'session' ? '📚 ' : '🎤 ');
                 if (ev.adLink) prefix = '▶️ [MEDIA] ';
                 select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
                 if (ev.adLink) {
@@ -1236,9 +1241,6 @@
                 if (evStart !== null && evEnd !== null) {
                     if (currentMins >= evStart && currentMins < evEnd) {
                         currentEvent = ev; 
-                        if (ev.type === 'break' && i > 0 && playableEvents[i-1].type !== 'break') { 
-                            currentEvent = playableEvents[i-1]; 
-                        }
                         if (i + 1 < playableEvents.length) {
                             nextEvent = playableEvents[i + 1]; 
                         }
@@ -1339,7 +1341,24 @@
                             </div>`;
                     }
                 } else if (currentEvent.type === 'break') {
-                    if (currentEvent.adLink) {
+                    if (currentEvent.isCeremony) {
+                        let societyBadge = currentEvent.societyLogo ? `
+                            <div class="mb-6 flex justify-center">
+                                <div class="bg-white p-3 rounded-full shadow-2xl inline-block border-2 border-slate-700">
+                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-24 sm:h-32 w-24 sm:w-32 object-contain rounded-full" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '<i class="fas fa-landmark text-7xl mb-6 text-indigo-400 animate-pulse drop-shadow"></i>';
+
+                        nowPlayingHtml = `
+                            <div class="text-center py-16 bg-slate-800/80 rounded-3xl border-2 border-indigo-500/50 my-8 shadow-2xl px-6">
+                                ${societyBadge}
+                                <h2 class="text-4xl sm:text-6xl font-black text-white uppercase tracking-widest leading-tight mb-4">${currentEvent.title}</h2>
+                                ${currentEvent.speaker ? `<p class="text-xl sm:text-2xl text-amber-300 font-extrabold mb-4"><i class="fas fa-users mr-2"></i>Dignitaries: ${currentEvent.speaker}</p>` : ''}
+                                <p class="text-2xl text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
+                            </div>
+                        `;
+                    } else if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
@@ -1358,7 +1377,6 @@
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
-                        else if (/\b(gbm|general body|inauguration|valedictory|ec meeting)\b/i.test(lowTitle)) { breakIcon = "fa-landmark"; iconColor = "text-indigo-400"; }
 
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
