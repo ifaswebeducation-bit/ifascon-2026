@@ -92,8 +92,8 @@
 
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible:</span>
-                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Push Day 2 Halls (23A, B, C)</button>
+                <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate App:</span>
+                <span class="bg-indigo-900/60 text-indigo-200 px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40">Locked to Day 2</span>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
@@ -179,6 +179,7 @@
                         <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2.5 py-1.5 rounded-lg outline-none font-bold">
                             <option value="day2_cum">Day 2: Cumulative (All Halls)</option>
                             <option value="grand">Grand Overall Leaderboard</option>
+                            <option value="day1_cum">Day 1: Cumulative (Historical)</option>
                             <option value="23a">Day 2: Hall A</option>
                             <option value="23b">Day 2: Hall B</option>
                             <option value="23c">Day 2: Hall C</option>
@@ -238,7 +239,7 @@
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
-        // Removed Day 1 sheets entirely to hide them from the app
+        // Day 2 Sheets Only for UI - Supabase handles full math
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
@@ -255,8 +256,18 @@
         const allHallsList = Object.keys(configTitles);
 
         const hardcodedSlides = [
+            { file: 'AO nextgen.jpeg', label: 'AO Nextgen' },
+            { file: 'Diabetic Foot workshop.jpeg', label: 'Diabetic Foot' },
             { file: 'Fibulink.jpeg', label: 'Fibulink' },
+            { file: 'Gala dinner.jpeg', label: 'Gala Dinner' },
+            { file: 'GBM.jpeg', label: 'GBM' },
             { file: 'IFAS Orations.jpeg', label: 'IFAS Orations' },
+            { file: 'IFASCON CME Dinner.jpeg', label: 'CME Dinner' },
+            { file: 'Inauguration.jpeg', label: 'Inauguration' },
+            { file: 'Lunch break 21.jpeg', label: 'Lunch 21st' },
+            { file: 'Lunch break 22.jpeg', label: 'Lunch 22nd' },
+            { file: 'MIS workshop.jpeg', label: 'MIS Workshop' },
+            { file: 'Orthobiologics.jpeg', label: 'Orthobiologics' },
             { file: 'Valedictory.jpeg', label: 'Valedictory' }
         ];
 
@@ -484,7 +495,7 @@
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
-            return str;
+            return '23a';
         }
 
         function convertTo12HourFormat(timeStr) {
@@ -526,6 +537,7 @@
         
         let manualOverrideIndex = null;
         let quizStartTimeStamp = null;
+        let localQuizStart = null;
         let lastRenderHash = ""; 
         let liveUpdateTimer = null;
         let tickerTimer = null;
@@ -706,6 +718,9 @@
                     let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
+                    if (targetType === 'day1_cum') {
+                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
+                    }
                     if (targetType === 'day2_cum') {
                         return dHall.includes('23');
                     }
@@ -716,6 +731,7 @@
                 if (targetType === '23a') titleText = "Day 2: Hall A Standings";
                 else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
                 else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative (Historical)";
                 else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
                 else titleText = "Grand Overall Standings";
 
@@ -789,6 +805,7 @@
                 return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${name} <span class="text-slate-400 font-mono text-base">(••••${last4})</span></div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
             }).join('');
         }
+        
         function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
 
         async function pushLeaderboardGlobal(type) {
@@ -947,254 +964,6 @@
             return events;
         }
 
-        async function fetchLiveSchedule() {
-            let fetchedData = {};
-            let quizzesLoaded = [];
-            for (const [key, link] of Object.entries(sheetLinks)) {
-                if(!link || link.trim() === '') continue;
-                try {
-                    const response = await fetch(link + '&_cb=' + Date.now());
-                    if(!response.ok) continue;
-                    const csvText = await response.text();
-                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
-                    
-                    if (key === 'flyers') {
-                        let loadedFlyers = [];
-                        parsedCsv.forEach((r, idx) => {
-                            if (!r || r.length === 0) return;
-                            let firstCell = cleanText(r[0] || '').toLowerCase();
-                            if (firstCell.includes('label') || firstCell.includes('tag') || firstCell === 'name') return;
-                            
-                            let labelVal = cleanText(r[0]);
-                            let imgVal = cleanText(r[1]);
-                            let titleVal = cleanText(r[2]);
-                            let subVal = cleanText(r[3]);
-                            let descVal = cleanText(r[4]);
-
-                            if (labelVal || imgVal || titleVal || descVal) {
-                                loadedFlyers.push({
-                                    label: labelVal || titleVal || 'Flyer ' + (idx + 1),
-                                    img: imgVal,
-                                    title: titleVal,
-                                    subtitle: subVal,
-                                    desc: descVal
-                                });
-                            }
-                        });
-                        dynamicFlyers = loadedFlyers;
-                        if (document.getElementById('masterToolbarSuite') && !document.getElementById('masterToolbarSuite').classList.contains('hidden')) {
-                            renderFlyerButtons();
-                        }
-                        continue;
-                    }
-
-                    if (key === 'quizzes') {
-                        let colOffset = 0;
-                        if (parsedCsv.length > 1) {
-                            let firstRow = parsedCsv[1];
-                            let cell0 = cleanText(firstRow[0]);
-                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
-                        }
-                        parsedCsv.forEach((r, idx) => {
-                            if (idx === 0 || !r || r.length < 3) return;
-                            let rawHall = cleanText(r[0 + colOffset]);
-                            let rawSymp = cleanText(r[1 + colOffset]);
-                            let rawTitle = cleanText(r[2 + colOffset]);
-                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
-
-                            quizzesLoaded.push({ 
-                                hall_id: normalizeHallId(rawHall), 
-                                symposium: rawSymp || 'General', 
-                                title: rawTitle, 
-                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
-                                correct: cleanText(r[7 + colOffset]), 
-                                type: 'quiz' 
-                            });
-                        });
-                    } else { 
-                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
-                    }
-                } catch(err) { console.error(err); }
-            }
-            
-            if(Object.keys(fetchedData).length === 0) {
-                document.getElementById('loadingState').innerHTML = `<p class="text-white text-xl">Network error downloading schedule.</p>`;
-                return;
-            }
-
-            appData = fetchedData;
-            globalQuizzes = quizzesLoaded;
-            
-            let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
-            let dd = document.getElementById('symposiumFilter');
-            if (dd) {
-                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
-                symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
-            }
-
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('staticHeader').classList.remove('hidden');
-            initLiveKiosk();
-        }
-
-        function populateEventJump() {
-            let select = document.getElementById('eventJumpSelect');
-            let adsContainer = document.getElementById('sponsorAdsContainer');
-            if (!appData[liveHall]) return;
-            let events = appData[liveHall].events;
-            
-            select.innerHTML = '<option value="">-- Select an event to jump timeline directly --</option>';
-            let adsHtml = '';
-            const playable = events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
-
-            playable.forEach((ev, playableIndex) => {
-                let prefix = ev.type === 'break' ? (ev.isCeremony ? '🏛️ ' : '☕ ') : (ev.type === 'session' ? '📚 ' : '🎤 ');
-                if (ev.adLink) prefix = '▶️ [MEDIA] ';
-                select.innerHTML += `<option value="${playableIndex}">${ev.display_time} - ${prefix}${ev.title}</option>`;
-                if (ev.adLink) {
-                    adsHtml += `<button onclick="jumpToEvent(${playableIndex})" class="bg-purple-900/30 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-3 py-1.5 rounded-lg text-xs font-bold transition text-left truncate max-w-[200px] shadow-lg"><i class="fas fa-play mr-2"></i> ${ev.title}</button>`;
-                }
-            });
-            if(adsHtml === '') adsHtml = '<span class="text-slate-500 text-xs italic py-1">No sponsor media scheduled here.</span>';
-            adsContainer.innerHTML = adsHtml;
-        }
-
-        async function jumpToEvent(idx) {
-            if(idx === "") return;
-            manualOverrideIndex = parseInt(idx);
-            updateLiveDisplay(true);
-            logAction(`Timeline JUMP: Forced play of Index ${idx}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
-            document.getElementById('eventJumpSelect').value = "";
-        }
-
-        function renderQuizCockpit(activeSympName = "") {
-            let container = document.getElementById('quizButtonsContainer');
-            if (!container) return;
-            let filterEl = document.getElementById('symposiumFilter');
-            let filter = filterEl ? cleanText(filterEl.value) : 'ALL';
-            let searchEl = document.getElementById('quizSearch');
-            let search = searchEl ? cleanText(searchEl.value).toLowerCase() : '';
-            let targetHall = cleanText(liveHall).toLowerCase().replace(/[^a-z0-9]/g, '');
-
-            let hallQuizzes = globalQuizzes.filter(q => {
-                if (!q.hall_id) return true;
-                let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (qHall === targetHall || qHall === 'all') return true;
-                if (targetHall.includes('23a') && (qHall === '23a' || qHall === 'halla' || qHall === 'a')) return true;
-                if (targetHall.includes('23b') && (qHall === '23b' || qHall === 'hallb' || qHall === 'b')) return true;
-                if (targetHall.includes('23c') && (qHall === '23c' || qHall === 'hallc' || qHall === 'c')) return true;
-                return false;
-            });
-
-            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
-                hallQuizzes = [...globalQuizzes];
-            }
-
-            if (filterEl) {
-                let currentVal = filterEl.value;
-                let availableSymps = [...new Set(hallQuizzes.map(q => cleanText(q.symposium)))].filter(Boolean);
-                let currentOptions = Array.from(filterEl.options).map(o => o.value);
-                let isMatch = availableSymps.length === (currentOptions.length - 1) && availableSymps.every(s => currentOptions.includes(s));
-                if (!isMatch) {
-                    let optsHtml = `<option value="ALL">All Symposiums</option>`;
-                    availableSymps.forEach(s => { optsHtml += `<option value="${s}">${s}</option>`; });
-                    filterEl.innerHTML = optsHtml;
-                    filterEl.value = currentOptions.includes(currentVal) ? currentVal : 'ALL';
-                    filter = filterEl.value;
-                }
-            }
-
-            let displayQuizzes = hallQuizzes;
-            if (filter && filter !== 'ALL') {
-                let cleanFilter = cleanText(filter).toLowerCase();
-                displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanFilter);
-            }
-            if (search) {
-                displayQuizzes = displayQuizzes.filter(q => cleanText(q.title).toLowerCase().includes(search) || cleanText(q.symposium).toLowerCase().includes(search));
-            }
-
-            if (displayQuizzes.length > 0) {
-                let groups = {};
-                displayQuizzes.forEach(q => {
-                    let symp = cleanText(q.symposium) || 'General Symposium';
-                    if (!groups[symp]) groups[symp] = [];
-                    groups[symp].push(q);
-                });
-
-                let dashHtml = '';
-                let cleanActiveSymp = cleanText(activeSympName).toLowerCase();
-                for (let [symp, qs] of Object.entries(groups)) {
-                    let cleanSymp = cleanText(symp).toLowerCase();
-                    let isRecommended = cleanActiveSymp && (cleanSymp.includes(cleanActiveSymp) || cleanActiveSymp.includes(cleanSymp));
-                    let blockStyle = isRecommended ? "border-amber-500 bg-amber-500/10 shadow-[0_0_15px_rgba(245,158,11,0.15)] order-first" : "border-slate-700 bg-slate-800/40";
-                    let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
-                    let badge = isRecommended ? `<span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
-
-                    dashHtml += `
-                        <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
-                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div>
-                            <div class="flex flex-col gap-2">`;
-                    qs.forEach(q => {
-                        let globalIdx = globalQuizzes.indexOf(q);
-                        let safeTitle = encodeURIComponent(q.title);
-                        dashHtml += `<button onclick="launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${safeTitle}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
-                    });
-                    dashHtml += `   </div></div>`;
-                }
-                container.innerHTML = dashHtml;
-            } else {
-                container.innerHTML = `<div class="col-span-full text-slate-500 text-sm italic p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-center shadow-inner">No questions found. Check CSV or clear search filter.</div>`;
-            }
-        }
-
-        async function launchQuizByGlobalIndex(idx, title) {
-            manualOverrideIndex = -(idx + 1);
-            let isoTime = new Date().toISOString();
-            quizStartTimeStamp = isoTime; 
-            updateLiveDisplay(true);
-            logAction(`Launched Quiz: ${title}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
-        }
-
-        async function terminateActiveQuiz() {
-            manualOverrideIndex = null; 
-            quizStartTimeStamp = null; 
-            updateLiveDisplay(true);
-            logAction("Cleared active quiz on screen");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
-        }
-
-        async function resumeAutoSync() {
-            manualOverrideIndex = null; 
-            quizStartTimeStamp = null; 
-            updateLiveDisplay(true);
-            logAction("Resumed Auto-Sync mode");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
-        }
-
-        async function manualShift(step) {
-            const data = appData[liveHall]; if (!data) return;
-            const playableEvents = data.events.filter(e => e.type === 'presentation' || e.type === 'break' || (e.isOration && (e.speaker || '').trim() !== ''));
-            if (manualOverrideIndex === null || manualOverrideIndex < 0) {
-                const { currentEvent } = getLiveStatus(data.events);
-                manualOverrideIndex = playableEvents.indexOf(currentEvent);
-                if (manualOverrideIndex === -1) manualOverrideIndex = 0;
-            }
-            let newIndex = manualOverrideIndex + step;
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= playableEvents.length) newIndex = playableEvents.length - 1;
-            manualOverrideIndex = newIndex;
-            updateLiveDisplay(true);
-            logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
-        }
-
-        async function forceLeaderboardLocal(type) {
-            logAction(`Forced Leaderboard TV output: ${type}`);
-            await supabaseClient.from('hall_states').update({ active_leaderboard: type, active_splash: 'live' }).eq('hall_id', liveHall);
-        }
-
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -1270,6 +1039,7 @@
             liveHall = normalizedNew; 
             manualOverrideIndex = null; 
             quizStartTimeStamp = null; 
+            localQuizStart = null;
             lastRenderHash = ""; 
             try { 
                 const newUrl = new URL(window.location); 
@@ -1303,8 +1073,8 @@
             if (currentEvent) {
                 if (currentEvent.type === 'quiz') {
                     let secondsLeft = 45;
-                    if (quizStartTimeStamp) {
-                        let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                    if (localQuizStart) {
+                        let diff = Math.floor((Date.now() - localQuizStart) / 1000);
                         secondsLeft = Math.max(0, 45 - diff);
                     }
 
@@ -1339,17 +1109,17 @@
                     }
                 } else if (currentEvent.type === 'break') {
                     if (currentEvent.isCeremony) {
-                        let societyBadge = currentEvent.societyLogo ? `
+                        let societyLogoHtml = currentEvent.societyLogo ? `
                             <div class="mb-6 flex justify-center">
                                 <div class="inline-block">
-                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-36 w-auto object-contain block mx-auto drop-shadow-2xl" alt="Society Logo">
+                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-40 w-auto object-contain block mx-auto drop-shadow-2xl" alt="Society Logo">
                                 </div>
                             </div>
-                        ` : '<i class="fas fa-landmark text-7xl mb-6 text-indigo-400 animate-pulse drop-shadow"></i>';
+                        ` : '<i class="fas fa-landmark text-8xl mb-8 text-indigo-400 animate-pulse drop-shadow-2xl"></i>';
 
                         nowPlayingHtml = `
                             <div class="text-center py-16 bg-slate-800/80 rounded-3xl border-2 border-indigo-500/50 my-8 shadow-2xl px-6">
-                                ${societyBadge}
+                                ${societyLogoHtml}
                                 <h2 class="text-4xl sm:text-6xl font-black text-white uppercase tracking-widest leading-tight mb-4">${currentEvent.title}</h2>
                                 ${currentEvent.speaker ? `<p class="text-xl sm:text-2xl text-amber-300 font-extrabold mb-4"><i class="fas fa-users mr-2"></i>Dignitaries: ${currentEvent.speaker}</p>` : ''}
                                 <p class="text-2xl text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
@@ -1381,8 +1151,6 @@
                     let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
                     let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
                     
-                    let sponsorHtml = '';
-
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-1.5 text-sm rounded-full font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
                         ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-4 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2.5"></i>${currentEvent.parent_session}</div>` 
@@ -1443,13 +1211,28 @@
         function initLiveKiosk() {
             populateEventJump();
             supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single().then(({ data }) => {
-                if (data) { manualOverrideIndex = data.override_index; quizStartTimeStamp = data.quiz_start_time; }
+                if (data) { 
+                    manualOverrideIndex = data.override_index; 
+                    if (data.quiz_start_time) {
+                        localQuizStart = Date.now();
+                    }
+                    quizStartTimeStamp = data.quiz_start_time; 
+                }
                 updateLiveDisplay(true);
             });
 
             supabaseClient.channel('custom-live-channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { manualOverrideIndex = payload.new.override_index; quizStartTimeStamp = payload.new.quiz_start_time; updateLiveDisplay(true); }
+                    (payload) => { 
+                        manualOverrideIndex = payload.new.override_index; 
+                        if (payload.new.quiz_start_time && payload.new.quiz_start_time !== quizStartTimeStamp) {
+                            localQuizStart = Date.now();
+                        } else if (!payload.new.quiz_start_time) {
+                            localQuizStart = null;
+                        }
+                        quizStartTimeStamp = payload.new.quiz_start_time; 
+                        updateLiveDisplay(true); 
+                    }
                 ).subscribe();
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
@@ -1464,8 +1247,8 @@
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-                if (manualOverrideIndex !== null && manualOverrideIndex < 0 && quizStartTimeStamp) {
-                    let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                if (manualOverrideIndex !== null && manualOverrideIndex < 0 && localQuizStart) {
+                    let diff = Math.floor((Date.now() - localQuizStart) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
                     
                     let timerEl = document.getElementById('quizCountdownTimer');
@@ -1502,7 +1285,6 @@
         window.hideLeaderboard = hideLeaderboard;
         window.updateLiveDisplay = updateLiveDisplay;
         window.initLiveKiosk = initLiveKiosk;
-        window.broadcastVisibleHalls = broadcastVisibleHalls;
         window.pushSplashGlobal = pushSplashGlobal;
         window.pushCustomFlyerGlobal = pushCustomFlyerGlobal;
         window.pushTemplateFlyer = pushTemplateFlyer;
@@ -1513,6 +1295,7 @@
         window.pushCurrentPreviewLive = pushCurrentPreviewLive;
         window.fetchFlyersOnly = fetchFlyersOnly;
         window.hideCockpitSplash = hideCockpitSplash;
+        window.forceReloadTVs = forceReloadTVs;
     </script>
 </body>
 </html>
