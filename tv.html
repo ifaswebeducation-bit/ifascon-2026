@@ -222,7 +222,7 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v300';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v500';
 
         let activeHalls = [];
         let hallArrows = {};
@@ -232,7 +232,7 @@
             hall2: { id: null, remoteIndex: null, quizStart: null, lastHash: "", expiredRendered: false }
         };
 
-        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -267,23 +267,26 @@
             if (/[aApP][mM]/.test(timeStr)) { return timeStr; }
             return timeStr.replace(/\b([01]?[0-9]|2[0-3])[:.]([0-5][0-9])(?:[:.][0-9]{2})?\b/g, function(match, p1, p2) {
                 let h = parseInt(p1, 10);
-                return (h % 12 || 12) + ':' + p2 + ' ' + (h >= 12 ? 'PM' : 'AM');
+                let ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12; h = h ? h : 12; 
+                let paddedH = h < 10 ? '0' + h : h;
+                return paddedH + ':' + p2 + ' ' + ampm;
             });
         }
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
-            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
+            let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+            let clean = cleanStr.split('-')[0].trim();
+            
             let isPM = clean.includes('pm');
             let isAM = clean.includes('am');
             
-            let timePart = clean.replace(/[^\d:.]/g, '');
-            let parts = timePart.split(/[:.]/);
-            if (parts.length < 2) return null;
+            let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
+            if (!timeMatch) return null;
             
-            let hours = parseInt(parts[0], 10);
-            let minutes = parseInt(parts[1], 10);
-            if (isNaN(hours) || isNaN(minutes)) return null;
+            let hours = parseInt(timeMatch[1], 10);
+            let minutes = parseInt(timeMatch[2], 10);
             
             if (isPM && hours < 12) hours += 12;
             if (isAM && hours === 12) hours = 0;
@@ -322,7 +325,6 @@
 
                 let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
 
-                // 1. CEREMONIES & OFFICIAL MEETINGS
                 if (isCeremonyOrMeeting) {
                     let text = colTitle || col3 || col0 || "Official Session";
                     if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
@@ -350,7 +352,6 @@
                     return;
                 }
 
-                // 2. BREAKS & ADS
                 const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
@@ -382,7 +383,6 @@
                     return;
                 }
 
-                // 3. REGULAR SCIENTIFIC SESSIONS & PRESENTATIONS
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
@@ -442,6 +442,7 @@
                     });
                 }
             });
+
             return events;
         }
 
@@ -457,14 +458,15 @@
         async function fetchSchedule() {
             let fetchedData = {};
             let quizzesLoaded = [];
-            for (const [key, link] of Object.entries(sheetLinks)) {
-                if (!link || link.trim() === '') continue;
+            
+            const fetchPromises = Object.entries(sheetLinks).map(async ([key, link]) => {
+                if(!link || link.trim() === '') return;
                 try {
-                    const response = await fetch(link);
-                    if (!response.ok) continue;
+                    const response = await fetch(link + '&_cb=' + Date.now());
+                    if(!response.ok) return;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
-                    
+
                     if (key === 'quizzes') {
                         let colOffset = 0;
                         if (parsedCsv.length > 1) {
@@ -472,12 +474,15 @@
                             let cell0 = cleanText(firstRow[0]);
                             if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
                         }
+
                         parsedCsv.forEach((r, idx) => {
                             if (idx === 0 || !r || r.length < 3) return;
                             let rawHall = cleanText(r[0 + colOffset]);
                             let rawSymp = cleanText(r[1 + colOffset]);
                             let rawTitle = cleanText(r[2 + colOffset]);
+
                             if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
+
                             quizzesLoaded.push({ 
                                 type: 'quiz', 
                                 hall_id: normalizeHallId(rawHall), 
@@ -492,6 +497,7 @@
                         parsedCsv.forEach((r, idx) => {
                             let rowStr = r.join(' ').toLowerCase();
                             if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
+
                             if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
                                 misRows.push(r);
                             } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
@@ -507,8 +513,11 @@
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
-                } catch(e) {}
-            }
+                } catch(err) {}
+            });
+
+            await Promise.allSettled(fetchPromises);
+            
             if (Object.keys(fetchedData).length > 0) {
                 appData = fetchedData;
                 globalQuizzes = quizzesLoaded;
@@ -518,36 +527,97 @@
 
         async function fetchMathLeaderboard(type) {
             try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                const { data, error } = await supabaseClient
+                    .from('quiz_responses')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
                 if (error) throw error;
-                let filteredData = data;
-                let titleText = "";
-                if (type === '22a') { filteredData = data.filter(d => d.hall_id === '22a'); titleText = "Day 1: Hall A Standings"; }
-                else if (type === '22b') { filteredData = data.filter(d => d.hall_id === '22b'); titleText = "Day 1: Hall B Standings"; }
-                else if (type === '22c') { filteredData = data.filter(d => d.hall_id === '22c'); titleText = "Day 1: Hall C Standings"; }
-                else if (type === 'day1_cum') { filteredData = data.filter(d => ['22a','22b','22c'].includes(d.hall_id)); titleText = "Day 1 Cumulative Standings"; }
-                else if (type === '23a') { filteredData = data.filter(d => d.hall_id === '23a'); titleText = "Day 2: Hall A Standings"; }
-                else if (type === '23b') { filteredData = data.filter(d => d.hall_id === '23b'); titleText = "Day 2: Hall B Standings"; }
-                else if (type === '23c') { filteredData = data.filter(d => d.hall_id === '23c'); titleText = "Day 2: Hall C Standings"; }
-                else if (type === 'day2_cum') { filteredData = data.filter(d => ['23a','23b','23c'].includes(d.hall_id)); titleText = "Day 2 Cumulative Standings"; }
-                else { titleText = "Grand Overall Standings"; }
+                if (!data || !Array.isArray(data) || data.length === 0) {
+                    return { sorted: [], titleText: "Leaderboard", names: {} };
+                }
+
+                let targetType = String(type || 'grand').toLowerCase().trim();
+                let titleText = "Live Leaderboard";
+
+                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
+                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
+                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
+                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
+                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
+                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
+                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
+                else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
+                else titleText = "Grand Overall Standings";
+
+                let filteredData = data.filter(d => {
+                    if (targetType === 'grand' || targetType === 'all') return true;
+
+                    let rawHall = d.hall_id;
+                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let tHall = targetType.replace(/[^a-z0-9]/g, '');
+
+                    if (targetType === 'day1_cum') {
+                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
+                    }
+                    if (targetType === 'day2_cum') {
+                        return dHall.includes('23');
+                    }
+                    
+                    return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
+                });
 
                 let scores = {};
                 let names = {};
+
                 filteredData.forEach(r => { 
-                    scores[r.phone] = 0; 
-                    if (r.name && !names[r.phone]) names[r.phone] = r.name;
+                    let p = cleanText(r.phone);
+                    if (!p) return;
+                    if (scores[p] === undefined) scores[p] = 0;
+                    if (r.name && cleanText(r.name) && !names[p]) {
+                        names[p] = cleanText(r.name);
+                    }
                 }); 
+
                 let qGroups = {};
                 filteredData.forEach(r => {
-                    if (!r.is_correct) return;
-                    let key = r.hall_id + "_" + r.question; 
+                    let p = cleanText(r.phone);
+                    if (!p) return;
+
+                    let val = r.is_correct;
+                    let isCor = false;
+                    if (val === true || val === 1 || val === '1') isCor = true;
+                    if (typeof val === 'string' && (val.toLowerCase() === 'true' || val.toLowerCase() === 't')) isCor = true;
+
+                    if (!isCor) return;
+
+                    let key = String(r.hall_id || '') + "_" + String(r.question || ''); 
                     if (!qGroups[key]) qGroups[key] = [];
-                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
+                    if (!qGroups[key].some(x => cleanText(x.phone) === p)) { 
+                        qGroups[key].push(r); 
+                    }
                 });
-                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 1); }); });
-                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText, names };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
+
+                Object.values(qGroups).forEach(responses => {
+                    responses.forEach((r, idx) => { 
+                        let p = cleanText(r.phone);
+                        let pts = Math.max(10 - idx, 2);
+                        scores[p] = (scores[p] || 0) + pts; 
+                    });
+                });
+
+                let sorted = Object.entries(scores)
+                    .filter(item => item[1] > 0)
+                    .sort((a,b) => b[1] - a[1]);
+
+                return { sorted, titleText, names };
+            } catch(e) { 
+                console.error("Leaderboard Error:", e);
+                return { sorted: [], titleText: "Standings", names: {} }; 
+            }
         }
 
         async function showTVLeaderboard(type) {
@@ -603,7 +673,6 @@
 
             overlay.classList.remove('hidden');
 
-            // 1. Dynamic Flyer / Pre-loaded Slide Object Payload (Flush Edge Layout with Large Headers)
             if (stateName.startsWith('splash_flyer:')) {
                 try {
                     let flyerObj = JSON.parse(stateName.replace('splash_flyer:', ''));
@@ -616,7 +685,6 @@
                         return;
                     }
 
-                    // Center Image Pillar
                     let imgHtml = resolvedImg ? `
                         <div class="flex-shrink-0 flex items-center justify-center px-4 max-w-[36vw] z-10">
                             <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
@@ -625,7 +693,6 @@
                         </div>
                     ` : '';
 
-                    // Left Wing: Starts directly from left edge as large bold headings
                     let leftHtml = (flyerObj.title || flyerObj.subtitle) ? `
                         <div class="flex-1 min-w-0 text-left flex flex-col justify-center pl-2 sm:pl-6 pr-4">
                             ${flyerObj.title ? `<h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-4 drop-shadow-md break-words">${flyerObj.title}</h1>` : ''}
@@ -633,7 +700,6 @@
                         </div>
                     ` : '<div class="flex-1"></div>';
 
-                    // Right Wing: Direct large text with no redundant label wrapper
                     let rightHtml = flyerObj.desc ? `
                         <div class="flex-1 min-w-0 text-left sm:text-right flex flex-col justify-center pr-2 sm:pr-6 pl-4">
                             <h2 class="text-2xl sm:text-4xl lg:text-5xl font-black text-amber-300 leading-tight tracking-tight drop-shadow-md break-words">${flyerObj.desc}</h2>
@@ -642,12 +708,9 @@
 
                     overlay.className = "absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-between p-6 sm:p-8 text-center transition-opacity duration-300 overflow-hidden";
                     contentDiv.innerHTML = `
-                        <!-- Top Centered Conference Logo -->
                         <div class="bg-white/95 p-3 rounded-2xl shadow-2xl mb-4 flex-shrink-0">
                             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain">
                         </div>
-
-                        <!-- 3-Part Non-Overlapping Grid -->
                         <div class="w-full flex-1 flex flex-row items-center justify-between gap-2 sm:gap-6 my-auto px-2 sm:px-6">
                             ${leftHtml}
                             ${imgHtml}
@@ -658,14 +721,12 @@
                 } catch(e) {}
             }
 
-            // 2. Direct Image Extensions (.jpeg, .jpg, .png)
             if (stateName.toLowerCase().endsWith('.jpeg') || stateName.toLowerCase().endsWith('.jpg') || stateName.toLowerCase().endsWith('.png')) {
                 overlay.className = "absolute inset-0 bg-black z-[400] flex items-center justify-center p-0 transition-opacity duration-300";
                 contentDiv.innerHTML = `<img src="${resolveDirectImageUrl(stateName)}" class="w-full h-full object-contain" onerror="this.src='https://via.placeholder.com/1920x1080?text=Slide+Not+Found'">`;
                 return;
             }
 
-            // 3. Preset Text Splashes
             let cleanState = stateName.replace('splash_', '');
             overlay.className = "absolute inset-0 bg-slate-950 z-[400] flex flex-col items-center justify-center p-8 text-center transition-opacity duration-300";
             let titleText = "IFASCON 2026", subText = "Welcome";
@@ -704,7 +765,6 @@
             });
             if (playableEvents.length === 0) return { currentEvent: null, nextEvent: null };
 
-            // 1. Check Hall-Specific Manual Remote Override (from Cockpit)
             if (remoteIndex !== null && remoteIndex !== undefined) {
                 if (remoteIndex < 0 && globalQuizzes.length > 0) {
                     return {
@@ -718,7 +778,6 @@
                 };
             }
 
-            // 2. Real-Time Clock Progression
             const now = new Date();
             const currentMins = now.getHours() * 60 + now.getMinutes();
             let currentEvent = null;
@@ -730,7 +789,8 @@
                 let evEnd = null;
 
                 if (ev.time && ev.time.includes('-')) {
-                    let parts = ev.time.split('-');
+                    let cleanStr = cleanText(ev.time).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+                    let parts = cleanStr.split('-');
                     if (parts.length > 1) {
                         evEnd = parseTimeToMinutes(parts[1]);
                     }
@@ -755,8 +815,14 @@
             }
 
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[0];
-                nextEvent = playableEvents[1] || null;
+                let lastEvStart = parseTimeToMinutes(playableEvents[playableEvents.length-1].time);
+                if (lastEvStart && currentMins > lastEvStart) {
+                    currentEvent = playableEvents[playableEvents.length - 1];
+                    nextEvent = null;
+                } else {
+                    currentEvent = playableEvents[0];
+                    nextEvent = playableEvents[1] || null;
+                }
             }
 
             return { currentEvent, nextEvent };
