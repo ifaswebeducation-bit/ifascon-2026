@@ -25,6 +25,7 @@
 
     <!-- AV COCKPIT PREVIEW MODAL -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
+        
         <div class="fixed top-6 right-6 flex items-center gap-3 z-50">
             <button id="cockpitDirectPushBtn" onclick="pushCurrentPreviewLive()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-pink-400/50">
                 <i class="fas fa-paper-plane"></i> Push to TV Screens
@@ -118,13 +119,13 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers:
+                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
                     </span>
                     <button type="button" onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95">
                         <i class="fas fa-sync-alt" id="refreshFlyersIcon"></i> Sync Sheet
                     </button>
                 </div>
-                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push</span>
+                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push instantly</span>
             </div>
             <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 custom-scroll min-h-[7rem]">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
@@ -138,14 +139,19 @@
                 </span>
                 <span class="text-[10px] text-slate-400 italic">Preview locally or push full-screen directly</span>
             </div>
+            
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
                 <input type="url" id="flyerImageUrl" placeholder="Photo URL (Google Drive / Imgur link)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner lg:col-span-2">
-                <input type="text" id="flyerTitle" placeholder="Main Heading" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerTitle" placeholder="Main Heading (e.g. Special Announcement)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
                 <input type="text" id="flyerSubtitle" placeholder="Date, Time, or Hall Venue" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
-                <input type="text" id="flyerDesc" placeholder="Description / Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerDesc" placeholder="Description / Sponsor Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
                 <div class="flex gap-2">
-                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50"><i class="fas fa-eye"></i> Preview</button>
-                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs"><i class="fas fa-paper-plane"></i> Push TV</button>
+                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
+                        <i class="fas fa-paper-plane"></i> Push TV
+                    </button>
                 </div>
             </div>
         </div>
@@ -714,7 +720,6 @@
             if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         }
 
-        // FULL MATCHING SPEED-SCORING ENGINE
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient
@@ -835,7 +840,7 @@
         async function pushLeaderboardGlobal(type) {
             logAction(`BROADCAST: Pushed Leaderboard '${type}' to ALL halls`);
             showLeaderboard(type);
-            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type, active_splash: 'live' }).in('hall_id', allHallsList);
         }
 
         async function clearLeaderboardGlobal() {
@@ -867,7 +872,6 @@
 
                 let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
 
-                // 1. CEREMONIES & OFFICIAL MEETINGS (Always Playable with Society Logo Support)
                 if (isCeremonyOrMeeting) {
                     let text = colTitle || col3 || col0 || "Official Session";
                     if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
@@ -895,7 +899,6 @@
                     return;
                 }
 
-                // 2. BREAKS & ADS
                 const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
                 let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
                 if (isBreakOrAd) {
@@ -927,7 +930,6 @@
                     return;
                 }
 
-                // 3. REGULAR SCIENTIFIC SESSIONS & PRESENTATIONS
                 let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
                 let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
                 let isSession = false, isOration = false;
@@ -1125,7 +1127,7 @@
             manualOverrideIndex = parseInt(idx);
             updateLiveDisplay(true);
             logAction(`Timeline JUMP: Forced play of Index ${idx}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
             document.getElementById('eventJumpSelect').value = "";
         }
 
@@ -1221,7 +1223,7 @@
             quizStartTimeStamp = isoTime; 
             updateLiveDisplay(true);
             logAction(`Launched Quiz: ${title}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: isoTime, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
         }
 
         async function terminateActiveQuiz() {
@@ -1229,7 +1231,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Cleared active quiz on screen");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
         }
 
         async function resumeAutoSync() {
@@ -1237,7 +1239,7 @@
             quizStartTimeStamp = null; 
             updateLiveDisplay(true);
             logAction("Resumed Auto-Sync mode");
-            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: null, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
         }
 
         async function manualShift(step) {
@@ -1254,12 +1256,12 @@
             manualOverrideIndex = newIndex;
             updateLiveDisplay(true);
             logAction(`Timeline Shift: Manually moved to Index ${newIndex}`);
-            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none' }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ override_index: manualOverrideIndex, quiz_start_time: null, active_leaderboard: 'none', active_splash: 'live' }).eq('hall_id', liveHall);
         }
 
         async function forceLeaderboardLocal(type) {
             logAction(`Forced Leaderboard TV output: ${type}`);
-            await supabaseClient.from('hall_states').update({ active_leaderboard: type }).eq('hall_id', liveHall);
+            await supabaseClient.from('hall_states').update({ active_leaderboard: type, active_splash: 'live' }).eq('hall_id', liveHall);
         }
 
         function getLiveStatus(events) {
