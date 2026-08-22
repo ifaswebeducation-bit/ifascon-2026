@@ -144,7 +144,8 @@
         };
         const allHallsList = Object.keys(configTitles);
 
-        function cleanText(val) { return val ? val.toString().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -412,7 +413,6 @@
             });
         }
 
-        // PRECISE TIME PARSER (Regex based - Never treats notes as extra minutes)
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
             let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
@@ -574,6 +574,7 @@
                     });
                 }
             });
+
             return events;
         }
 
@@ -717,7 +718,27 @@
             if (overlay) overlay.classList.add('hidden');
         }
 
-        // FULL MATCHING TIMELINE FINDER
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+            let clean = cleanStr.split('-')[0].trim();
+
+            let isPM = clean.includes('pm');
+            let isAM = clean.includes('am');
+
+            let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
+            if (!timeMatch) return null;
+
+            let hours = parseInt(timeMatch[1], 10);
+            let minutes = parseInt(timeMatch[2], 10);
+
+            if (isPM && hours < 12) hours += 12;
+            if (isAM && hours === 12) hours = 0;
+            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
+
+            return hours * 60 + minutes;
+        }
+
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -794,12 +815,13 @@
                 }
 
                 let titleText = "Live Leaderboard";
-                let targetType = (type || 'grand').toLowerCase().trim();
+                let targetType = String(type || 'grand').toLowerCase().trim();
 
                 let filteredData = data.filter(d => {
-                    if (targetType === 'grand' || targetType === 'all' || !targetType) return true;
+                    if (targetType === 'grand' || targetType === 'all') return true;
 
-                    let dHall = (d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let rawHall = d.hall_id;
+                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
                     if (targetType === 'day1_cum') {
@@ -842,15 +864,14 @@
                     let p = cleanText(r.phone);
                     if (!p) return;
 
-                    let isCor = r.is_correct === true || 
-                                String(r.is_correct).toLowerCase() === 'true' || 
-                                r.is_correct === 1 || 
-                                String(r.is_correct) === '1' ||
-                                String(r.is_correct).toLowerCase() === 't';
+                    let val = r.is_correct;
+                    let isCor = false;
+                    if (val === true || val === 1 || val === '1') isCor = true;
+                    if (typeof val === 'string' && (val.toLowerCase() === 'true' || val.toLowerCase() === 't')) isCor = true;
 
                     if (!isCor) return;
 
-                    let key = (r.hall_id || '') + "_" + (r.question || ''); 
+                    let key = String(r.hall_id || '') + "_" + String(r.question || ''); 
                     if (!qGroups[key]) qGroups[key] = [];
                     if (!qGroups[key].some(x => cleanText(x.phone) === p)) { 
                         qGroups[key].push(r); 
