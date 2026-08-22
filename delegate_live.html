@@ -116,7 +116,6 @@
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
-        // Filtered down to ONLY Quizzes & Day 2 (23a, 23b, 23c)
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
@@ -162,34 +161,7 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
-        let customVisibleHalls = null;
-
-        function parseVisibleHalls(rawVal) {
-            if (!rawVal) return null;
-            if (rawVal === 'ALL' || rawVal === 'all') return allHallsList;
-            let list = [];
-            if (Array.isArray(rawVal)) {
-                list = rawVal.map(h => normalizeHallId(h));
-            } else if (typeof rawVal === 'string') {
-                if (rawVal.trim().startsWith('[') && rawVal.trim().endsWith(']')) {
-                    try { list = JSON.parse(rawVal).map(h => normalizeHallId(h)); } catch(e){}
-                }
-                if (list.length === 0) {
-                    list = rawVal.split(',').map(h => normalizeHallId(h.trim())).filter(Boolean);
-                }
-            }
-            let valid = list.filter(h => allHallsList.includes(h));
-            return valid.length > 0 ? valid : null;
-        }
-
         function getAvailableHalls() {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin') || urlParams.get('all') === 'true') {
-                return allHallsList;
-            }
-            if (customVisibleHalls && customVisibleHalls.length > 0) {
-                return customVisibleHalls;
-            }
             return allHallsList;
         }
 
@@ -569,18 +541,13 @@
             if (!hall_id) return;
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
 
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, visible_halls, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     if (data.quiz_start_time) {
                         localQuizStart = Date.now();
                     }
                     quizStartTimeStamp = data.quiz_start_time;
-
-                    let parsedHalls = parseVisibleHalls(data.visible_halls);
-                    if (parsedHalls && parsedHalls.length > 0) {
-                        customVisibleHalls = parsedHalls;
-                    }
 
                     if (data.active_splash && data.active_splash !== 'live') {
                         applySplashState(data.active_splash);
@@ -609,11 +576,6 @@
                             localQuizStart = null;
                         }
                         quizStartTimeStamp = payload.new.quiz_start_time;
-
-                        let parsedHalls = parseVisibleHalls(payload.new.visible_halls);
-                        if (parsedHalls && parsedHalls.length > 0) {
-                            customVisibleHalls = parsedHalls;
-                        }
 
                         if (payload.new.active_splash && payload.new.active_splash !== 'live') {
                             applySplashState(payload.new.active_splash);
@@ -779,9 +741,13 @@
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all') return true;
 
-                    let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let rawHall = d.hall_id;
+                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
+                    if (targetType === 'day1_cum') {
+                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
+                    }
                     if (targetType === 'day2_cum') {
                         return dHall.includes('23');
                     }
@@ -789,7 +755,14 @@
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
 
-                if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
+                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
+                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
+                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
+                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
+                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
+                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
                 else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
                 else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
                 else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
@@ -1181,17 +1154,13 @@
                     </div>`;
             }
 
-            document.getElementById('dynamicContentWrapper').innerHTML = workshopNotice + html + upNextHtml;
+            document.getElementById('dynamicContentWrapper').innerHTML = html + upNextHtml;
         };
 
         window.initLiveDashboard = function() { 
             supabaseClient.from('hall_states').select('*').then(({ data }) => {
                 if (data && data.length > 0) {
                     let firstRow = data[0];
-                    let parsedHalls = parseVisibleHalls(firstRow.visible_halls);
-                    if (parsedHalls && parsedHalls.length > 0) {
-                        customVisibleHalls = parsedHalls;
-                    }
                     if (firstRow.active_splash && firstRow.active_splash !== 'live') {
                         applySplashState(firstRow.active_splash);
                     } else {
@@ -1214,18 +1183,6 @@
                     let oIdx = payload.new.override_index;
                     let lBoard = payload.new.active_leaderboard;
                     let splash = payload.new.active_splash;
-                    let visHalls = payload.new.visible_halls;
-
-                    let parsedHalls = parseVisibleHalls(visHalls);
-                    if (parsedHalls && parsedHalls.length > 0) {
-                        customVisibleHalls = parsedHalls;
-                        let available = getAvailableHalls();
-                        if (!available.includes(liveHall)) {
-                            liveHall = available[0];
-                            window.subscribeToHall(liveHall);
-                        }
-                        window.updateLiveDisplay(true);
-                    }
 
                     if (splash) {
                         if (splash !== 'live') applySplashState(splash);
@@ -1250,26 +1207,11 @@
             fastHeartbeatTimer = setInterval(async () => {
                 if (!liveHall) return;
                 try {
-                    const { data } = await supabaseClient.from('hall_states').select('override_index, quiz_start_time, visible_halls, active_splash, active_leaderboard').eq('hall_id', liveHall).single();
+                    const { data } = await supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_splash, active_leaderboard').eq('hall_id', liveHall).single();
                     if (data) {
                         if (data.active_splash === 'RELOAD') {
                             window.location.reload(true);
                             return;
-                        }
-
-                        let parsedHalls = parseVisibleHalls(data.visible_halls);
-                        if (parsedHalls && parsedHalls.length > 0) {
-                            let oldStr = (customVisibleHalls || []).join(',');
-                            let newStr = parsedHalls.join(',');
-                            if (oldStr !== newStr) {
-                                customVisibleHalls = parsedHalls;
-                                let available = getAvailableHalls();
-                                if (!available.includes(liveHall)) {
-                                    liveHall = available[0];
-                                    window.subscribeToHall(liveHall);
-                                }
-                                window.updateLiveDisplay(true);
-                            }
                         }
 
                         if (remoteOverrideIndex !== data.override_index || quizStartTimeStamp !== data.quiz_start_time) {
