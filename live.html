@@ -25,7 +25,6 @@
 
     <!-- AV COCKPIT PREVIEW MODAL -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
-        
         <div class="fixed top-6 right-6 flex items-center gap-3 z-50">
             <button id="cockpitDirectPushBtn" onclick="pushCurrentPreviewLive()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-pink-400/50">
                 <i class="fas fa-paper-plane"></i> Push to TV Screens
@@ -35,27 +34,22 @@
             </button>
         </div>
         
-        <!-- Top Centered Conference Logo -->
         <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-4 flex-shrink-0 mt-8 sm:mt-0">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
         
-        <!-- 3-Part Showcase Grid -->
         <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-between gap-6 my-auto px-4">
-            <!-- Left Wing: Heading & Subtitle -->
             <div id="cockpitFlyerLeftWing" class="flex-1 min-w-0 text-left flex flex-col justify-center max-w-md">
                 <h1 id="cockpitSplashTitle" class="text-3xl sm:text-5xl font-black text-white leading-tight mb-3 drop-shadow-md break-words"></h1>
                 <p id="cockpitSplashSub" class="text-indigo-400 font-extrabold text-xl sm:text-2xl uppercase tracking-widest break-words"></p>
             </div>
 
-            <!-- Center Pillar: Framed Vertical Image -->
             <div id="cockpitFlyerImageContainer" class="hidden flex-shrink-0 flex items-center justify-center max-w-[36vw] z-10">
                 <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
                     <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[60vh] max-w-full object-contain rounded-2xl mx-auto block">
                 </div>
             </div>
 
-            <!-- Right Wing: Description & Additional Details -->
             <div id="cockpitFlyerRightWing" class="flex-1 min-w-0 text-left sm:text-right flex flex-col justify-center max-w-md">
                 <h2 id="cockpitSplashDesc" class="text-2xl sm:text-4xl font-black text-amber-300 leading-tight tracking-tight drop-shadow-md break-words"></h2>
             </div>
@@ -76,7 +70,6 @@
     <!-- AV Command Center -->
     <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40">
         
-        <!-- Row 1: Hall Feed Selector & Timeline Navigation -->
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span> (<span id="mgrRoleDisplay" class="text-indigo-400"></span>):</span>
@@ -103,7 +96,6 @@
             </div>
         </div>
 
-        <!-- Row 2: Delegate Navigation Matrix & TV Splash Overrides -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible:</span>
@@ -122,50 +114,42 @@
             </div>
         </div>
 
-        <!-- Row 3: Pre-loaded Template Slides & Google Sheet Flyers -->
         <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 pt-2 overflow-hidden">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
+                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers:
                     </span>
                     <button type="button" onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95">
                         <i class="fas fa-sync-alt" id="refreshFlyersIcon"></i> Sync Sheet
                     </button>
                 </div>
-                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push instantly</span>
+                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push</span>
             </div>
             <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 custom-scroll min-h-[7rem]">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
             </div>
         </div>
 
-        <!-- Row 4: Custom Full-Screen Flyer Creator -->
         <div class="bg-slate-900/90 border border-pink-500/40 rounded-2xl p-3.5 shadow-inner flex flex-col gap-2.5 mt-2">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-black text-pink-400 uppercase tracking-widest flex items-center">
                     <i class="fas fa-magic mr-1.5"></i> Live On-the-Fly Flyer Builder (TV Broadcast)
                 </span>
-                <span class="text-[10px] text-slate-400 italic">Preview locally or push full-screen directly to Door TV kiosks</span>
+                <span class="text-[10px] text-slate-400 italic">Preview locally or push full-screen directly</span>
             </div>
-            
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
                 <input type="url" id="flyerImageUrl" placeholder="Photo URL (Google Drive / Imgur link)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner lg:col-span-2">
-                <input type="text" id="flyerTitle" placeholder="Main Heading (e.g. Special Announcement)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerTitle" placeholder="Main Heading" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
                 <input type="text" id="flyerSubtitle" placeholder="Date, Time, or Hall Venue" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
-                <input type="text" id="flyerDesc" placeholder="Description / Sponsor Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerDesc" placeholder="Description / Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
                 <div class="flex gap-2">
-                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50">
-                        <i class="fas fa-eye"></i> Preview
-                    </button>
-                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
-                        <i class="fas fa-paper-plane"></i> Push TV
-                    </button>
+                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50"><i class="fas fa-eye"></i> Preview</button>
+                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs"><i class="fas fa-paper-plane"></i> Push TV</button>
                 </div>
             </div>
         </div>
 
-        <!-- Row 5: Quick Jump Engine -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800 mt-2">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
             <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
@@ -174,10 +158,8 @@
         </div>
         
         <div class="flex flex-col lg:flex-row gap-6 pt-1">
-            <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
-                <!-- Smart Quiz Launcher -->
                 <div id="quizControlSection" class="flex flex-col gap-2">
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
@@ -192,13 +174,11 @@
                     <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto pr-2 custom-scroll"></div>
                 </div>
 
-                <!-- Sponsor Quick Play Media Buttons -->
                 <div class="flex items-start gap-3 pt-3 border-t border-slate-800 flex-col sm:flex-row">
                     <span class="text-xs font-bold text-purple-400 uppercase tracking-wider pt-1 flex-shrink-0"><i class="fas fa-play-circle mr-1.5"></i>Sponsor Media:</span>
                     <div id="sponsorAdsContainer" class="flex flex-wrap gap-2 w-full"></div>
                 </div>
 
-                <!-- Leaderboard Controls Suite -->
                 <div class="flex items-center gap-2 pt-3 border-t border-slate-800 flex-wrap">
                     <span class="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1"><i class="fas fa-trophy mr-1.5"></i>Hall Board:</span>
                     <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
@@ -226,7 +206,6 @@
                 </div>
             </div>
 
-            <!-- Right Side: Master Audit Log -->
             <div id="adminAuditPanel" class="w-full lg:w-1/3 hidden flex-col">
                 <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2"><i class="fas fa-satellite-dish mr-1"></i> Live Command Feed:</span>
                 <div id="auditLogContainer" class="bg-slate-950 border border-slate-700 rounded-lg p-3 h-48 overflow-y-auto audit-scroll flex flex-col gap-1.5 text-[11px] font-mono text-slate-300 shadow-inner">
@@ -548,17 +527,17 @@
 
         function parseTimeToMinutes(timeStr) {
             if (!timeStr) return null;
-            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
+            let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+            let clean = cleanStr.split('-')[0].trim();
+            
             let isPM = clean.includes('pm');
             let isAM = clean.includes('am');
             
-            let timePart = clean.replace(/[^\d:.]/g, '');
-            let parts = timePart.split(/[:.]/);
-            if (parts.length < 2) return null;
+            let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
+            if (!timeMatch) return null;
             
-            let hours = parseInt(parts[0], 10);
-            let minutes = parseInt(parts[1], 10);
-            if (isNaN(hours) || isNaN(minutes)) return null;
+            let hours = parseInt(timeMatch[1], 10);
+            let minutes = parseInt(timeMatch[2], 10);
             
             if (isPM && hours < 12) hours += 12;
             if (isAM && hours === 12) hours = 0;
@@ -659,7 +638,6 @@
                 }).subscribe();
         }
 
-        // FULL MATCHING BROADCAST ENGINE (String Format to bypass Supabase JSON/Text type mismatch)
         async function broadcastVisibleHalls(hallList) {
             logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
             try {
@@ -1308,7 +1286,8 @@
                 const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = null;
                 if (ev.time && ev.time.includes('-')) {
-                    let parts = ev.time.split('-');
+                    let cleanStr = cleanText(ev.time).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+                    let parts = cleanStr.split('-');
                     if (parts.length > 1) {
                         evEnd = parseTimeToMinutes(parts[1]);
                     }
@@ -1333,8 +1312,14 @@
             }
             
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[0];
-                nextEvent = playableEvents[1] || null;
+                let lastEvStart = parseTimeToMinutes(playableEvents[playableEvents.length-1].time);
+                if (lastEvStart && currentMins > lastEvStart) {
+                    currentEvent = playableEvents[playableEvents.length - 1];
+                    nextEvent = null;
+                } else {
+                    currentEvent = playableEvents[0];
+                    nextEvent = playableEvents[1] || null;
+                }
             }
             
             return { currentEvent, nextEvent };
