@@ -107,9 +107,9 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible:</span>
-                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug (Workshops)</button>
-                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug (Day 1)</button>
-                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug (Day 2)</button>
+                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug</button>
+                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug</button>
+                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug</button>
                 <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis','22a','22b','22c','23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">All 9 Halls</button>
             </div>
 
@@ -659,19 +659,19 @@
                 }).subscribe();
         }
 
-        // FAILSAFE MULTI-FORMAT VISIBLE HALLS BROADCAST
+        // FULL MATCHING BROADCAST ENGINE (String Format to bypass Supabase JSON/Text type mismatch)
         async function broadcastVisibleHalls(hallList) {
             logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
             try {
-                // We broadcast array format and comma-string format for 100% delegate compatibility
                 let commaFormat = hallList.join(',');
-                await supabaseClient.from('hall_states').update({ 
-                    visible_halls: commaFormat
+                const { error } = await supabaseClient.from('hall_states').update({ 
+                    visible_halls: commaFormat 
                 }).in('hall_id', allHallsList);
 
+                if(error) throw error;
                 alert(`Success: Broadcasted active halls [${hallList.join(', ')}] to all delegate screens!`);
             } catch(e) {
-                console.error("Broadcast visible halls error:", e);
+                console.error("Broadcast error:", e);
                 alert("Network error broadcasting to delegate view.");
             }
         }
@@ -736,7 +736,7 @@
             if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         }
 
-        // SPEED-WEIGHTED MATHEMATICAL SCORING ENGINE (DEDUPLICATED & FAST)
+        // FULL MATCHING SPEED-SCORING ENGINE
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient
