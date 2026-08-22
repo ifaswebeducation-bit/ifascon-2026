@@ -21,6 +21,7 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
+    <!-- SPLASH SCREEN OVERLAY -->
     <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-6 text-center transition-all duration-300 overflow-y-auto">
         <div class="bg-white/95 p-3 rounded-2xl shadow-2xl mb-6">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-28 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
@@ -32,6 +33,7 @@
         </div>
     </div>
 
+    <!-- GLOBAL HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
         <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-3xl sm:text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
@@ -40,6 +42,7 @@
         <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
     </div>
 
+    <!-- TOP IDENTITY CONTROL BANNER -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
         <div id="identityLoggedOutState" class="w-full flex flex-wrap items-center gap-2">
             <i class="fas fa-user-circle text-2xl text-slate-500 hidden sm:inline"></i>
@@ -55,6 +58,7 @@
         </div>
     </div>
 
+    <!-- LEADERBOARD MODAL -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="lbTitle" class="text-3xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg text-center"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
         <p id="lbSub" class="text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-6 text-center">Calculating Data...</p>
@@ -62,6 +66,7 @@
         <button onclick="window.hideLeaderboard()" class="mt-6 bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 px-8 py-3 rounded-xl font-bold text-base shadow-lg transition active:scale-95">Close</button>
     </div>
 
+    <!-- MAIN CONTENT VIEWPORT -->
     <main class="flex-1 overflow-y-auto p-4 relative w-full max-w-4xl mx-auto" id="contentContainer">
         <div id="loadingState" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-50">
             <div class="loader mb-4"></div>
@@ -104,6 +109,7 @@
         <div id="dynamicContentWrapper"></div>
     </main>
 
+    <!-- PERSISTENT FOOTER WITH PERSONAL RANKS -->
     <div id="persistentLeaderboard" class="w-full bg-slate-950 border-t border-slate-800 p-3 flex-shrink-0 z-40 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-4 items-center shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.5)]">
         <span class="text-[10px] sm:text-xs font-black text-amber-500 uppercase tracking-widest sticky left-0 bg-slate-950 px-2 py-1 z-10 shadow-[10px_0_10px_-5px_rgba(2,6,23,1)]"><i class="fas fa-trophy mr-1"></i> Your Ranks:</span>
         <span class="text-slate-500 text-xs font-semibold ml-2">Syncing data...</span>
@@ -133,13 +139,13 @@
         function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         
         function normalizeHallId(val) {
-            if (!val) return "";
+            if (!val) return "23a";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
-            return '23a'; 
+            return '23a';
         }
 
         function resolveDirectImageUrl(url) {
@@ -183,7 +189,7 @@
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v800'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v950'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -373,7 +379,6 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
-            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
@@ -385,10 +390,6 @@
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
-
-                if (hallTitle && !isHallC) {
-                    if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
-                }
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
@@ -427,13 +428,9 @@
                     let text = colTitle || col3 || col0;
                     let targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
 
-                    if (/\b(tea|coffee)\b/i.test(targetText)) {
-                        text = "Tea / Coffee Break";
-                    } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
-                        text = "Lunch Break";
-                    } else if (/\bregistration\b/i.test(targetText)) {
-                        text = "Registration";
-                    }
+                    if (/\b(tea|coffee)\b/i.test(targetText)) text = "Tea / Coffee Break";
+                    else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) text = "Lunch Break";
+                    else if (/\bregistration\b/i.test(targetText)) text = "Registration";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
@@ -465,9 +462,7 @@
                 }
 
                 let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
-                if (isHandsOn) {
-                    isSession = false;
-                }
+                if (isHandsOn) isSession = false;
 
                 if (isSession) {
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
@@ -596,12 +591,6 @@
         };
 
         function applySplashState(stateName) {
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin')) {
-                hideSplashState();
-                return;
-            }
-
             let overlay = document.getElementById('delegateSplashOverlay');
             if (!overlay) return;
 
@@ -741,8 +730,7 @@
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all') return true;
 
-                    let rawHall = d.hall_id;
-                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
                     if (targetType === 'day1_cum') {
@@ -916,9 +904,6 @@
             let newHash = (currentEvent ? currentEvent.title + currentEvent.time : "none") + "|" + (nextEvent ? nextEvent.title : "none") + "|" + remoteOverrideIndex;
             if (!forceRender && newHash === lastRenderHash) { return; }
             lastRenderHash = newHash;
-
-            let isWorkshopHall = false;
-            let workshopNotice = '';
 
             let html = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
 
