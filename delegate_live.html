@@ -206,20 +206,21 @@
             if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin') || urlParams.get('all') === 'true') {
                 return allHallsList;
             }
-
             if (customVisibleHalls && customVisibleHalls.length > 0) {
                 return customVisibleHalls;
             }
-
-            // Always provide all halls by default if not constrained
             return allHallsList;
         }
 
+        // Initialize appData with fallback placeholders so navigation NEVER crashes
         let appData = {};
-        let globalQuizzes = [];
+        allHallsList.forEach(h => {
+            appData[h] = { title: configTitles[h], events: [] };
+        });
 
+        let globalQuizzes = [];
         let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '';
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
         let remoteOverrideIndex = null;
         let quizStartTimeStamp = null;
         let tickerTimer = null;
@@ -227,7 +228,7 @@
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v300'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v400'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -327,11 +328,13 @@
         window.fetchLiveSchedule = async function(isBackground = false) {
             let fetchedData = {};
             let quizzesLoaded = [];
-            for (const [key, link] of Object.entries(sheetLinks)) {
-                if(!link || link.trim() === '') continue;
+            
+            // Fetch all sheets in parallel
+            const fetchPromises = Object.entries(sheetLinks).map(async ([key, link]) => {
+                if(!link || link.trim() === '') return;
                 try {
                     const response = await fetch(link + '&_cb=' + Date.now());
-                    if(!response.ok) continue;
+                    if(!response.ok) return;
                     const csvText = await response.text();
                     let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
 
@@ -381,16 +384,15 @@
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
-                } catch(err) {}
-            }
+                } catch(err) { console.error("Sheet error for " + key, err); }
+            });
 
-            if(Object.keys(fetchedData).length === 0) {
-                document.getElementById('loadingText').innerText = "Network Error. Check CSV Links.";
-                return;
-            }
+            await Promise.allSettled(fetchPromises);
 
-            appData = fetchedData;
-            globalQuizzes = quizzesLoaded;
+            // Merge fetched data into appData
+            Object.assign(appData, fetchedData);
+            if (quizzesLoaded.length > 0) globalQuizzes = quizzesLoaded;
+            
             localStorage.setItem(CACHE_KEY, JSON.stringify({ halls: appData, quizzes: globalQuizzes }));
 
             if (!isBackground && document.getElementById('loadingState')) { 
@@ -687,7 +689,7 @@
                 <div class="bg-white/95 p-4 rounded-3xl shadow-2xl mb-8">
                     <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-24 sm:h-32 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
                 </div>
-                <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black text-white max-w-4xl leading-tight mb-6">${titleText}</h1>
+                <h1 class="text-3xl sm:text-5xl font-black text-white max-w-4xl leading-tight mb-6">${titleText}</h1>
                 <p class="text-indigo-400 font-bold text-lg sm:text-2xl uppercase tracking-widest">${subText}</p>
             `;
         }
@@ -774,6 +776,7 @@
             return { currentEvent, nextEvent };
         }
 
+        // FULL MATCHING SPEED-SCORING ENGINE
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient
@@ -957,8 +960,7 @@
                 desktopNav.innerHTML = buttonsHtml;
             }
 
-            const data = appData[liveHall]; 
-            if (!data) return;
+            const data = appData[liveHall] || { title: configTitles[liveHall] || 'Hall Live', events: [] };
 
             document.getElementById('headerSub').innerText = data.title.split(' - ')[0];
             document.getElementById('headerTitle').innerText = data.title.split(' - ')[1] || data.title;
@@ -1207,7 +1209,7 @@
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span></div>
                     </div>`;
             }
 
