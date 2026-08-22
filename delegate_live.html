@@ -212,7 +212,6 @@
             return allHallsList;
         }
 
-        // Initialize appData with fallback placeholders so navigation NEVER crashes
         let appData = {};
         allHallsList.forEach(h => {
             appData[h] = { title: configTitles[h], events: [] };
@@ -228,7 +227,7 @@
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v400'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v500'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -329,7 +328,6 @@
             let fetchedData = {};
             let quizzesLoaded = [];
             
-            // Fetch all sheets in parallel
             const fetchPromises = Object.entries(sheetLinks).map(async ([key, link]) => {
                 if(!link || link.trim() === '') return;
                 try {
@@ -388,8 +386,6 @@
             });
 
             await Promise.allSettled(fetchPromises);
-
-            // Merge fetched data into appData
             Object.assign(appData, fetchedData);
             if (quizzesLoaded.length > 0) globalQuizzes = quizzesLoaded;
             
@@ -414,6 +410,28 @@
                 let paddedH = h < 10 ? '0' + h : h;
                 return paddedH + ':' + p2 + ' ' + ampm;
             });
+        }
+
+        // PRECISE TIME PARSER (Regex based - Never treats notes as extra minutes)
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return null;
+            let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+            let clean = cleanStr.split('-')[0].trim();
+            
+            let isPM = clean.includes('pm');
+            let isAM = clean.includes('am');
+            
+            let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
+            if (!timeMatch) return null;
+            
+            let hours = parseInt(timeMatch[1], 10);
+            let minutes = parseInt(timeMatch[2], 10);
+            
+            if (isPM && hours < 12) hours += 12;
+            if (isAM && hours === 12) hours = 0;
+            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
+            
+            return hours * 60 + minutes;
         }
 
         function parseRawData(rows, hallTitle) {
@@ -699,27 +717,7 @@
             if (overlay) overlay.classList.add('hidden');
         }
 
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            let clean = cleanText(timeStr).split('-')[0].trim().toLowerCase();
-            let isPM = clean.includes('pm');
-            let isAM = clean.includes('am');
-
-            let timePart = clean.replace(/[^\d:.]/g, '');
-            let parts = timePart.split(/[:.]/);
-            if (parts.length < 2) return null;
-
-            let hours = parseInt(parts[0], 10);
-            let minutes = parseInt(parts[1], 10);
-            if (isNaN(hours) || isNaN(minutes)) return null;
-
-            if (isPM && hours < 12) hours += 12;
-            if (isAM && hours === 12) hours = 0;
-            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
-
-            return hours * 60 + minutes;
-        }
-
+        // FULL MATCHING TIMELINE FINDER
         function getLiveStatus(events) {
             const playableEvents = events.filter(e => {
                 if (e.type === 'presentation' || e.type === 'break') return true;
@@ -744,7 +742,8 @@
                 const evStart = parseTimeToMinutes(ev.time);
                 let evEnd = null;
                 if (ev.time && ev.time.includes('-')) {
-                    let parts = ev.time.split('-');
+                    let cleanStr = cleanText(ev.time).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
+                    let parts = cleanStr.split('-');
                     if (parts.length > 1) {
                         evEnd = parseTimeToMinutes(parts[1]);
                     }
@@ -769,14 +768,19 @@
             }
 
             if (!currentEvent && playableEvents.length > 0) {
-                currentEvent = playableEvents[0];
-                nextEvent = playableEvents[1] || null;
+                let lastEvStart = parseTimeToMinutes(playableEvents[playableEvents.length-1].time);
+                if (lastEvStart && currentMins > lastEvStart) {
+                    currentEvent = playableEvents[playableEvents.length - 1];
+                    nextEvent = null;
+                } else {
+                    currentEvent = playableEvents[0];
+                    nextEvent = playableEvents[1] || null;
+                }
             }
 
             return { currentEvent, nextEvent };
         }
 
-        // FULL MATCHING SPEED-SCORING ENGINE
         async function fetchMathLeaderboard(type) {
             try {
                 const { data, error } = await supabaseClient
@@ -1209,7 +1213,7 @@
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
 
@@ -1278,7 +1282,6 @@
                     }
                 }).subscribe();
 
-            // Active 3-second heartbeat fallback poll
             if (fastHeartbeatTimer) clearInterval(fastHeartbeatTimer);
             fastHeartbeatTimer = setInterval(async () => {
                 if (!liveHall) return;
