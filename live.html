@@ -25,7 +25,6 @@
 
     <!-- AV COCKPIT PREVIEW MODAL -->
     <div id="cockpitSplashOverlay" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur-md z-[300] flex flex-col items-center justify-between p-6 sm:p-10 text-center overflow-y-auto">
-        
         <div class="fixed top-6 right-6 flex items-center gap-3 z-50">
             <button id="cockpitDirectPushBtn" onclick="pushCurrentPreviewLive()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-pink-400/50">
                 <i class="fas fa-paper-plane"></i> Push to TV Screens
@@ -35,27 +34,22 @@
             </button>
         </div>
         
-        <!-- Top Centered Conference Logo -->
         <div class="bg-white/95 p-3 sm:p-4 rounded-3xl shadow-2xl mb-4 flex-shrink-0 mt-8 sm:mt-0">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-16 sm:h-20 w-auto object-contain" onerror="this.src='https://via.placeholder.com/150x50?text=IFASCON'">
         </div>
         
-        <!-- 3-Part Showcase Grid -->
         <div id="cockpitFlyerContentWrapper" class="w-full max-w-7xl flex-1 flex flex-col md:flex-row items-center justify-between gap-6 my-auto px-4">
-            <!-- Left Wing: Heading & Subtitle -->
             <div id="cockpitFlyerLeftWing" class="flex-1 min-w-0 text-left flex flex-col justify-center max-w-md">
                 <h1 id="cockpitSplashTitle" class="text-3xl sm:text-5xl font-black text-white leading-tight mb-3 drop-shadow-md break-words"></h1>
                 <p id="cockpitSplashSub" class="text-indigo-400 font-extrabold text-xl sm:text-2xl uppercase tracking-widest break-words"></p>
             </div>
 
-            <!-- Center Pillar: Framed Vertical Image -->
             <div id="cockpitFlyerImageContainer" class="hidden flex-shrink-0 flex items-center justify-center max-w-[36vw] z-10">
                 <div class="bg-black/90 p-2.5 rounded-3xl border-2 border-slate-700 shadow-2xl inline-block max-w-full">
                     <img id="cockpitFlyerImgEl" src="" alt="Flyer" class="max-h-[60vh] max-w-full object-contain rounded-2xl mx-auto block">
                 </div>
             </div>
 
-            <!-- Right Wing: Description & Additional Details -->
             <div id="cockpitFlyerRightWing" class="flex-1 min-w-0 text-left sm:text-right flex flex-col justify-center max-w-md">
                 <h2 id="cockpitSplashDesc" class="text-2xl sm:text-4xl font-black text-amber-300 leading-tight tracking-tight drop-shadow-md break-words"></h2>
             </div>
@@ -76,18 +70,11 @@
     <!-- AV Command Center -->
     <div id="masterToolbarSuite" class="hidden w-full bg-slate-950 border-b border-slate-700 p-4 shadow-2xl flex flex-col gap-3 text-white z-40">
         
-        <!-- Row 1: Hall Feed Selector & Timeline Navigation -->
         <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 border-b border-slate-800 pb-3">
             <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
                 <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2"><i class="fas fa-user-shield mr-1"></i> <span id="mgrNameDisplay"></span> (<span id="mgrRoleDisplay" class="text-indigo-400"></span>):</span>
                 
                 <div id="adminHallNav" class="flex flex-wrap gap-1 hidden">
-                    <button onclick="switchHallFeed('ao_seminar')" data-hall="ao_seminar" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">AO Sem</button>
-                    <button onclick="switchHallFeed('workshop_diabetic')" data-hall="workshop_diabetic" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">Diabetic</button>
-                    <button onclick="switchHallFeed('workshop_mis')" data-hall="workshop_mis" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">MIS</button>
-                    <button onclick="switchHallFeed('22a')" data-hall="22a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22A</button>
-                    <button onclick="switchHallFeed('22b')" data-hall="22b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22B</button>
-                    <button onclick="switchHallFeed('22c')" data-hall="22c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">22C</button>
                     <button onclick="switchHallFeed('23a')" data-hall="23a" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23A</button>
                     <button onclick="switchHallFeed('23b')" data-hall="23b" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23B</button>
                     <button onclick="switchHallFeed('23c')" data-hall="23c" class="feed-btn px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">23C</button>
@@ -103,44 +90,37 @@
             </div>
         </div>
 
-        <!-- Row 2: Delegate Navigation Matrix & TV Splash Overrides -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate Visible:</span>
-                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">21st Aug</button>
-                <button onclick="broadcastVisibleHalls(['22a','22b','22c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">22nd Aug</button>
-                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-slate-800 hover:bg-sky-600 text-white px-2.5 py-1 rounded text-xs font-bold border border-slate-700 transition">23rd Aug</button>
-                <button onclick="broadcastVisibleHalls(['ao_seminar','workshop_diabetic','workshop_mis','22a','22b','22c','23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">All 9 Halls</button>
+                <button onclick="broadcastVisibleHalls(['23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Push Day 2 Halls (23A, B, C)</button>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-amber-400 uppercase tracking-wider"><i class="fas fa-tv mr-1"></i>TV Splash:</span>
                 <button onclick="pushSplashGlobal('live')" class="bg-emerald-900/40 text-emerald-300 hover:bg-emerald-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-emerald-500/40">Clear TV Splash</button>
-                <button onclick="pushSplashGlobal('pre_conf')" class="bg-indigo-900/40 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">1 Day to Go</button>
-                <button onclick="pushSplashGlobal('post_day1')" class="bg-amber-900/40 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Day 2 Notice</button>
-                <button onclick="pushSplashGlobal('post_day2')" class="bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold">Day 3 Notice</button>
+                <button onclick="forceReloadTVs()" class="bg-red-900/40 text-red-300 border border-red-500/40 hover:bg-red-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold shadow-lg ml-2"><i class="fas fa-sync-alt mr-1"></i> Force Refresh TVs</button>
+                <button onclick="pushSplashGlobal('post_day2')" class="bg-purple-900/40 text-purple-300 border border-purple-500/40 hover:bg-purple-600 hover:text-white px-2.5 py-1 rounded text-xs font-bold ml-2">Day 3 Notice</button>
             </div>
         </div>
 
-        <!-- Row 3: Pre-loaded Template Slides & Google Sheet Flyers -->
         <div class="flex flex-col gap-2 pb-3 border-b border-slate-800 pt-2 overflow-hidden">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-pink-400 uppercase tracking-wider flex items-center">
-                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers (TV Only):
+                        <i class="fas fa-images mr-1.5"></i>Pre-loaded Slides & Sheet Flyers:
                     </span>
                     <button type="button" onclick="fetchFlyersOnly()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95">
                         <i class="fas fa-sync-alt" id="refreshFlyersIcon"></i> Sync Sheet
                     </button>
                 </div>
-                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push instantly</span>
+                <span class="text-[10px] text-slate-400 italic">Click card to Preview • Click 🚀 to Push</span>
             </div>
             <div id="customSlidesContainer" class="flex gap-3 overflow-x-auto pb-3 pt-1 custom-scroll min-h-[7rem]">
                 <span class="text-slate-500 text-xs italic py-2">Loading templates...</span>
             </div>
         </div>
 
-        <!-- Row 4: Custom Full-Screen Flyer Creator -->
         <div class="bg-slate-900/90 border border-pink-500/40 rounded-2xl p-3.5 shadow-inner flex flex-col gap-2.5 mt-2">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-black text-pink-400 uppercase tracking-widest flex items-center">
@@ -148,24 +128,18 @@
                 </span>
                 <span class="text-[10px] text-slate-400 italic">Preview locally or push full-screen directly</span>
             </div>
-            
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 text-xs">
                 <input type="url" id="flyerImageUrl" placeholder="Photo URL (Google Drive / Imgur link)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner lg:col-span-2">
-                <input type="text" id="flyerTitle" placeholder="Main Heading (e.g. Special Announcement)" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerTitle" placeholder="Main Heading" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-bold outline-none focus:border-pink-500 shadow-inner">
                 <input type="text" id="flyerSubtitle" placeholder="Date, Time, or Hall Venue" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
-                <input type="text" id="flyerDesc" placeholder="Description / Sponsor Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
+                <input type="text" id="flyerDesc" placeholder="Description / Details" class="bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-pink-500 shadow-inner">
                 <div class="flex gap-2">
-                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50">
-                        <i class="fas fa-eye"></i> Preview
-                    </button>
-                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs">
-                        <i class="fas fa-paper-plane"></i> Push TV
-                    </button>
+                    <button onclick="previewCustomFlyer()" class="w-1/2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs border border-slate-500/50"><i class="fas fa-eye"></i> Preview</button>
+                    <button onclick="pushCustomFlyerGlobal()" class="w-1/2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-black rounded-lg transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 py-2 text-xs"><i class="fas fa-paper-plane"></i> Push TV</button>
                 </div>
             </div>
         </div>
 
-        <!-- Row 5: Quick Jump Engine -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 pb-3 border-b border-slate-800 mt-2">
             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider w-32 flex-shrink-0"><i class="fas fa-search-location mr-1.5 text-indigo-400"></i>Jump to Event:</span>
             <select id="eventJumpSelect" onchange="jumpToEvent(this.value)" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg outline-none font-bold w-full max-w-xl shadow-inner appearance-none">
@@ -174,10 +148,8 @@
         </div>
         
         <div class="flex flex-col lg:flex-row gap-6 pt-1">
-            <!-- Left Side: Quiz & Media -->
             <div class="flex-1 flex flex-col gap-3 border-r border-slate-800 pr-4">
                 
-                <!-- Smart Quiz Launcher -->
                 <div id="quizControlSection" class="flex flex-col gap-2">
                     <div class="flex items-center justify-between flex-wrap gap-2 mb-1">
                         <span class="text-xs font-bold text-rose-400 uppercase tracking-wider"><i class="fas fa-bolt mr-1.5"></i>Smart Quiz Launcher:</span>
@@ -192,13 +164,11 @@
                     <div id="quizButtonsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-32 overflow-y-auto pr-2 custom-scroll"></div>
                 </div>
 
-                <!-- Sponsor Quick Play Media Buttons -->
                 <div class="flex items-start gap-3 pt-3 border-t border-slate-800 flex-col sm:flex-row">
                     <span class="text-xs font-bold text-purple-400 uppercase tracking-wider pt-1 flex-shrink-0"><i class="fas fa-play-circle mr-1.5"></i>Sponsor Media:</span>
                     <div id="sponsorAdsContainer" class="flex flex-wrap gap-2 w-full"></div>
                 </div>
 
-                <!-- Leaderboard Controls Suite -->
                 <div class="flex items-center gap-2 pt-3 border-t border-slate-800 flex-wrap">
                     <span class="text-xs font-bold text-amber-400 uppercase tracking-wider mr-1"><i class="fas fa-trophy mr-1.5"></i>Hall Board:</span>
                     <button onclick="forceLeaderboardLocal(liveHall)" class="bg-amber-600 hover:bg-amber-500 text-slate-950 px-3 py-1.5 rounded-lg font-black shadow active:scale-95 transition text-xs">Force (This Hall)</button>
@@ -207,15 +177,8 @@
                     <div id="adminGlobalBoardControls" class="hidden items-center gap-2 ml-auto flex-wrap mt-2 sm:mt-0">
                         <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider"><i class="fas fa-globe mr-1"></i>All Halls:</span>
                         <select id="boardTypeSelect" class="bg-slate-900 border border-slate-700 text-white text-xs px-2.5 py-1.5 rounded-lg outline-none font-bold">
-                            <option value="day1_cum">Day 1: Cumulative (All Halls)</option>
                             <option value="day2_cum">Day 2: Cumulative (All Halls)</option>
                             <option value="grand">Grand Overall Leaderboard</option>
-                            <option value="ao_seminar">AO Seminar</option>
-                            <option value="workshop_diabetic">Diabetic Foot</option>
-                            <option value="workshop_mis">MIS Workshop</option>
-                            <option value="22a">Day 1: Hall A</option>
-                            <option value="22b">Day 1: Hall B</option>
-                            <option value="22c">Day 1: Hall C</option>
                             <option value="23a">Day 2: Hall A</option>
                             <option value="23b">Day 2: Hall B</option>
                             <option value="23c">Day 2: Hall C</option>
@@ -226,7 +189,6 @@
                 </div>
             </div>
 
-            <!-- Right Side: Master Audit Log -->
             <div id="adminAuditPanel" class="w-full lg:w-1/3 hidden flex-col">
                 <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2"><i class="fas fa-satellite-dish mr-1"></i> Live Command Feed:</span>
                 <div id="auditLogContainer" class="bg-slate-950 border border-slate-700 rounded-lg p-3 h-48 overflow-y-auto audit-scroll flex flex-col gap-1.5 text-[11px] font-mono text-slate-300 shadow-inner">
@@ -276,12 +238,9 @@
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
+        // Removed Day 1 sheets entirely to hide them from the app
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
-            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
-            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
-            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
-            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
             '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv',
@@ -289,25 +248,15 @@
         };
 
         const configTitles = {
-            'ao_seminar': "21st August 2026 - AO Seminar", 'workshop_diabetic': "21st August 2026 - Diabetic Foot", 'workshop_mis': "21st August 2026 - MIS Workshop",
-            '22a': "22nd August 2026 - Hall A", '22b': "22nd August 2026 - Hall B", '22c': "22nd August 2026 - Hall C",
-            '23a': "23rd August 2026 - Hall A", '23b': "23rd August 2026 - Hall B", '23c': "23rd August 2026 - Hall C"
+            '23a': "23rd August 2026 - Hall A", 
+            '23b': "23rd August 2026 - Hall B", 
+            '23c': "23rd August 2026 - Hall C"
         };
         const allHallsList = Object.keys(configTitles);
 
         const hardcodedSlides = [
-            { file: 'AO nextgen.jpeg', label: 'AO Nextgen' },
-            { file: 'Diabetic Foot workshop.jpeg', label: 'Diabetic Foot' },
             { file: 'Fibulink.jpeg', label: 'Fibulink' },
-            { file: 'Gala dinner.jpeg', label: 'Gala Dinner' },
-            { file: 'GBM.jpeg', label: 'GBM' },
             { file: 'IFAS Orations.jpeg', label: 'IFAS Orations' },
-            { file: 'IFASCON CME Dinner.jpeg', label: 'CME Dinner' },
-            { file: 'Inauguration.jpeg', label: 'Inauguration' },
-            { file: 'Lunch break 21.jpeg', label: 'Lunch 21st' },
-            { file: 'Lunch break 22.jpeg', label: 'Lunch 22nd' },
-            { file: 'MIS workshop.jpeg', label: 'MIS Workshop' },
-            { file: 'Orthobiologics.jpeg', label: 'Orthobiologics' },
             { file: 'Valedictory.jpeg', label: 'Valedictory' }
         ];
 
@@ -418,6 +367,14 @@
             applyCockpitFlyerSplash(activePreviewFlyerObj, true);
         }
 
+        async function forceReloadTVs() {
+            if(!confirm("This will force ALL TVs to physically reload their web browser. Continue?")) return;
+            logAction("BROADCAST: Sent Hard Reload command to TVs");
+            await supabaseClient.from('hall_states').update({ active_splash: 'RELOAD' }).in('hall_id', allHallsList);
+            setTimeout(() => { supabaseClient.from('hall_states').update({ active_splash: 'live' }).in('hall_id', allHallsList); }, 4000);
+        }
+        window.forceReloadTVs = forceReloadTVs;
+
         function applyCockpitFlyerSplash(flyerObj, isLiveBroadcast) {
             activePreviewFlyerObj = flyerObj;
             let overlay = document.getElementById('cockpitSplashOverlay');
@@ -523,14 +480,7 @@
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
-            if (str.includes('diabet')) return 'workshop_diabetic';
-            if (str.includes('mis')) return 'workshop_mis';
-            if (str === '22c' || str === 'hallc' || str === 'c22') return '22c';
             if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
-            if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
-            if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
-            if (str.includes('22c')) return '22c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
@@ -571,8 +521,8 @@
         let globalQuizzes = [];
         let dynamicFlyers = [];
         let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
-        if(!liveHall || liveHall === "") liveHall = '22a'; 
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '23a';
+        if(!liveHall || liveHall === "") liveHall = '23a'; 
         
         let manualOverrideIndex = null;
         let quizStartTimeStamp = null;
@@ -756,9 +706,6 @@
                     let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
-                    if (targetType === 'day1_cum') {
-                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
-                    }
                     if (targetType === 'day2_cum') {
                         return dHall.includes('23');
                     }
@@ -766,14 +713,7 @@
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
 
-                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
-                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
-                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
-                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
-                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
-                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
-                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
-                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                if (targetType === '23a') titleText = "Day 2: Hall A Standings";
                 else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
                 else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
                 else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
@@ -782,14 +722,14 @@
                 let scores = {};
                 let names = {};
 
-                filteredData.forEach(r => { 
+                filteredData.forEach(r => {
                     let p = cleanText(r.phone);
                     if (!p) return;
                     if (scores[p] === undefined) scores[p] = 0;
                     if (r.name && cleanText(r.name) && !names[p]) {
                         names[p] = cleanText(r.name);
                     }
-                }); 
+                });
 
                 let qGroups = {};
                 filteredData.forEach(r => {
@@ -803,33 +743,33 @@
 
                     if (!isCor) return;
 
-                    let key = String(r.hall_id || '') + "_" + String(r.question || ''); 
+                    let key = String(r.hall_id || '') + "_" + String(r.question || '');
                     if (!qGroups[key]) qGroups[key] = [];
-                    if (!qGroups[key].some(x => cleanText(x.phone) === p)) { 
-                        qGroups[key].push(r); 
+                    if (!qGroups[key].some(x => cleanText(x.phone) === p)) {
+                        qGroups[key].push(r);
                     }
                 });
 
                 Object.values(qGroups).forEach(responses => {
-                    responses.forEach((r, idx) => { 
+                    responses.forEach((r, idx) => {
                         let p = cleanText(r.phone);
                         let pts = Math.max(10 - idx, 2);
-                        scores[p] = (scores[p] || 0) + pts; 
+                        scores[p] = (scores[p] || 0) + pts;
                     });
                 });
 
                 let sorted = Object.entries(scores)
                     .filter(item => item[1] > 0)
-                    .sort((a,b) => b[1] - a[1]);
+                    .sort((a, b) => b[1] - a[1]);
 
                 if (sorted.length === 0) {
-                    sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+                    sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
                 }
 
                 return { sorted, titleText, names };
-            } catch(e) { 
+            } catch(e) {
                 console.error("Leaderboard Error:", e);
-                return { sorted: [], titleText: "Standings", names: {} }; 
+                return { sorted: [], titleText: "Standings", names: {} };
             }
         }
 
@@ -849,7 +789,6 @@
                 return `<div class="flex justify-between items-center bg-slate-800 p-5 rounded-2xl border border-slate-600 shadow-xl"><div class="text-2xl font-bold text-white"><i class="fas fa-medal mr-4 ${trophy}"></i>${name} <span class="text-slate-400 font-mono text-base">(••••${last4})</span></div><div class="text-3xl font-black text-emerald-400">${item[1]} pts</div></div>`;
             }).join('');
         }
-        
         function hideLeaderboard() { document.getElementById('leaderboardModal').classList.add('hidden'); }
 
         async function pushLeaderboardGlobal(type) {
@@ -1072,23 +1011,6 @@
                                 type: 'quiz' 
                             });
                         });
-                    } else if (key === 'ao') {
-                        let semRows = [], diaRows = [], misRows = [];
-                        parsedCsv.forEach((r, idx) => {
-                            let rowStr = r.join(' ').toLowerCase();
-                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
-                                misRows.push(r);
-                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
-                                diaRows.push(r);
-                            } else {
-                                semRows.push(r);
-                            }
-                        });
-
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else { 
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) }; 
                     }
@@ -1159,15 +1081,9 @@
                 if (!q.hall_id) return true;
                 let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
                 if (qHall === targetHall || qHall === 'all') return true;
-                if (targetHall.includes('22a') && (qHall === '22a' || qHall === 'halla' || qHall === 'a')) return true;
-                if (targetHall.includes('22b') && (qHall === '22b' || qHall === 'hallb' || qHall === 'b')) return true;
-                if (targetHall.includes('22c') && (qHall === '22c' || qHall === 'hallc' || qHall === 'c')) return true;
                 if (targetHall.includes('23a') && (qHall === '23a' || qHall === 'halla' || qHall === 'a')) return true;
                 if (targetHall.includes('23b') && (qHall === '23b' || qHall === 'hallb' || qHall === 'b')) return true;
                 if (targetHall.includes('23c') && (qHall === '23c' || qHall === 'hallc' || qHall === 'c')) return true;
-                if (targetHall.includes('ao') && qHall.includes('ao')) return true;
-                if (targetHall.includes('diabet') && qHall.includes('diabet')) return true;
-                if (targetHall.includes('mis') && qHall.includes('mis')) return true;
                 return false;
             });
 
@@ -1466,16 +1382,6 @@
                     let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
                     
                     let sponsorHtml = '';
-                    let fullSearch = `${currentEvent.title} ${currentEvent.parent_session} ${currentEvent.hall} ${data.title}`.toLowerCase();
-                    let isAO = fullSearch.includes('ao seminar') || fullSearch.includes('ao_seminar');
-
-                    if (isAO) {
-                        sponsorHtml = `
-                            <div class="aspect-square h-14 sm:h-16 rounded-xl overflow-hidden shadow-xl border border-blue-400/40 flex-shrink-0 bg-[#003399]">
-                                <img src="ao trauma.jpg" alt="AO Trauma" class="w-full h-full object-cover block" onerror="this.style.display='none'">
-                            </div>
-                        `;
-                    }
 
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-1.5 text-sm rounded-full font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
