@@ -21,7 +21,6 @@
 </head>
 <body class="flex flex-col h-screen bg-slate-900 overflow-hidden relative">
 
-    <!-- SPLASH SCREEN & CUSTOM SLIDE OVERLAY -->
     <div id="delegateSplashOverlay" class="hidden absolute inset-0 bg-slate-950 z-[300] flex flex-col items-center justify-center p-6 text-center transition-all duration-300 overflow-y-auto">
         <div class="bg-white/95 p-3 rounded-2xl shadow-2xl mb-6">
             <img src="IFASCON chd logo.jpg" alt="IFASCON Logo" class="h-20 sm:h-28 w-auto object-contain" onerror="this.src='https://via.placeholder.com/200x80?text=IFASCON'">
@@ -33,7 +32,6 @@
         </div>
     </div>
 
-    <!-- HIGH-STAKES QUIZ HIJACK OVERLAY -->
     <div id="globalHijackOverlay" class="hidden absolute inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
         <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
         <h2 class="text-3xl sm:text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
@@ -42,7 +40,6 @@
         <button onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
     </div>
 
-    <!-- Top Identity Banner -->
     <div id="identityControlBanner" class="w-full bg-slate-950 border-b border-slate-800 p-3 flex justify-between items-center z-50 flex-shrink-0 shadow-md">
         <div id="identityLoggedOutState" class="w-full flex flex-wrap items-center gap-2">
             <i class="fas fa-user-circle text-2xl text-slate-500 hidden sm:inline"></i>
@@ -58,7 +55,6 @@
         </div>
     </div>
 
-    <!-- Leaderboard Modal -->
     <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6">
         <h2 id="lbTitle" class="text-3xl lg:text-5xl font-black text-amber-500 mb-2 drop-shadow-lg text-center"><i class="fas fa-trophy mr-3"></i>Live Leaders</h2>
         <p id="lbSub" class="text-slate-400 font-bold text-xs sm:text-sm tracking-widest uppercase mb-6 text-center">Calculating Data...</p>
@@ -222,13 +218,17 @@
         let rawHallParam = new URLSearchParams(window.location.search).get('hall');
         let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
         let remoteOverrideIndex = null;
+        
+        // ADDED: localQuizStart to defeat system clock drift
         let quizStartTimeStamp = null;
+        let localQuizStart = null;
+        
         let tickerTimer = null;
         let liveUpdateTimer = null;
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v500'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v700'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -586,6 +586,7 @@
             liveHall = normalizeHallId(newHall);
             remoteOverrideIndex = null;
             quizStartTimeStamp = null;
+            localQuizStart = null;
             lastRenderHash = ""; 
 
             try { 
@@ -606,6 +607,9 @@
             supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, visible_halls, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
+                    if (data.quiz_start_time) {
+                        localQuizStart = Date.now();
+                    }
                     quizStartTimeStamp = data.quiz_start_time;
 
                     let parsedHalls = parseVisibleHalls(data.visible_halls);
@@ -633,6 +637,12 @@
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
                         remoteOverrideIndex = payload.new.override_index; 
+                        
+                        if (payload.new.quiz_start_time && payload.new.quiz_start_time !== quizStartTimeStamp) {
+                            localQuizStart = Date.now();
+                        } else if (!payload.new.quiz_start_time) {
+                            localQuizStart = null;
+                        }
                         quizStartTimeStamp = payload.new.quiz_start_time;
 
                         let parsedHalls = parseVisibleHalls(payload.new.visible_halls);
@@ -716,27 +726,6 @@
         function hideSplashState() {
             let overlay = document.getElementById('delegateSplashOverlay');
             if (overlay) overlay.classList.add('hidden');
-        }
-
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return null;
-            let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
-            let clean = cleanStr.split('-')[0].trim();
-
-            let isPM = clean.includes('pm');
-            let isAM = clean.includes('am');
-
-            let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
-            if (!timeMatch) return null;
-
-            let hours = parseInt(timeMatch[1], 10);
-            let minutes = parseInt(timeMatch[2], 10);
-
-            if (isPM && hours < 12) hours += 12;
-            if (isAM && hours === 12) hours = 0;
-            if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
-
-            return hours * 60 + minutes;
         }
 
         function getLiveStatus(events) {
@@ -833,19 +822,6 @@
                     
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
-
-                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
-                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
-                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
-                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
-                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
-                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
-                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
-                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
-                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
-                else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
-                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
-                else titleText = "Grand Overall Standings";
 
                 let scores = {};
                 let names = {};
@@ -1015,8 +991,8 @@
                     let mySelection = localStorage.getItem('marked_' + cleanKey) || '';
 
                     let secondsLeft = 45;
-                    if (quizStartTimeStamp) {
-                        let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                    if (localQuizStart) {
+                        let diff = Math.floor((Date.now() - localQuizStart) / 1000);
                         secondsLeft = Math.max(0, 45 - diff);
                     }
 
@@ -1234,7 +1210,7 @@
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span></div>
                     </div>`;
             }
 
@@ -1326,6 +1302,11 @@
 
                         if (remoteOverrideIndex !== data.override_index || quizStartTimeStamp !== data.quiz_start_time) {
                             remoteOverrideIndex = data.override_index;
+                            if (data.quiz_start_time && data.quiz_start_time !== quizStartTimeStamp) {
+                                localQuizStart = Date.now();
+                            } else if (!data.quiz_start_time) {
+                                localQuizStart = null;
+                            }
                             quizStartTimeStamp = data.quiz_start_time;
                             window.updateLiveDisplay(true);
                         }
@@ -1345,8 +1326,8 @@
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-                if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && quizStartTimeStamp) {
-                    let diff = Math.floor((new Date() - new Date(quizStartTimeStamp)) / 1000);
+                if (remoteOverrideIndex !== null && remoteOverrideIndex < 0 && localQuizStart) {
+                    let diff = Math.floor((Date.now() - localQuizStart) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
 
                     if (secondsLeft <= 0) {
