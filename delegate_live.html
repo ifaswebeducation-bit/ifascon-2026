@@ -116,24 +116,15 @@
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
+        // Filtered down to ONLY Quizzes & Day 2 (23a, 23b, 23c)
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
-            'ao': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=189655281&single=true&output=csv',
-            '22a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=0&single=true&output=csv',
-            '22b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=660947078&single=true&output=csv',
-            '22c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=127806642&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
             '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
             '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
         };
 
         const configTitles = {
-            'ao_seminar': "21st August 2026 - AO Seminar", 
-            'workshop_diabetic': "21st August 2026 - Diabetic Foot", 
-            'workshop_mis': "21st August 2026 - MIS Workshop",
-            '22a': "22nd August 2026 - Hall A", 
-            '22b': "22nd August 2026 - Hall B", 
-            '22c': "22nd August 2026 - Hall C",
             '23a': "23rd August 2026 - Hall A", 
             '23b': "23rd August 2026 - Hall B", 
             '23c': "23rd August 2026 - Hall C"
@@ -145,18 +136,11 @@
         function normalizeHallId(val) {
             if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (str.includes('ao') || str.includes('sem')) return 'ao_seminar';
-            if (str.includes('diabet')) return 'workshop_diabetic';
-            if (str.includes('mis')) return 'workshop_mis';
-            if (str === '22c' || str === 'hallc' || str === 'c22') return '22c';
             if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
-            if (str.includes('22a') || (str.includes('22') && str.includes('a'))) return '22a';
-            if (str.includes('22b') || (str.includes('22') && str.includes('b'))) return '22b';
-            if (str.includes('22c')) return '22c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
-            return str;
+            return '23a'; 
         }
 
         function resolveDirectImageUrl(url) {
@@ -216,19 +200,18 @@
 
         let globalQuizzes = [];
         let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '22a';
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '23a';
         let remoteOverrideIndex = null;
         
-        // ADDED: localQuizStart to defeat system clock drift
         let quizStartTimeStamp = null;
-        let localQuizStart = null;
+        let localQuizStart = null; 
         
         let tickerTimer = null;
         let liveUpdateTimer = null;
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v700'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v800'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -362,24 +345,6 @@
                                 correct: cleanText(r[7 + colOffset]) 
                             });
                         });
-                    } else if (key === 'ao') {
-                        let semRows = [], diaRows = [], misRows = [];
-                        parsedCsv.forEach((r, idx) => {
-                            let rowStr = r.join(' ').toLowerCase();
-                            if (rowStr.includes('position:absolute') || (rowStr.includes('duration') && rowStr.includes('from'))) return;
-
-                            if (rowStr.includes('mis hallux') || rowStr.includes('calcaneum osteotomy') || rowStr.includes('mis zadek') || rowStr.includes('mis - extended') || rowStr.includes('mis hands-on') || rowStr.includes('getting started with mis')) {
-                                misRows.push(r);
-                            } else if (rowStr.includes('charcot foot') || rowStr.includes('preventing amputations') || rowStr.includes('hind foot and mid foot charcot') || rowStr.includes('beaming in mid foot') || rowStr.includes('flipper technique') || rowStr.includes('beam screw hands-on')) {
-                                diaRows.push(r);
-                            } else {
-                                semRows.push(r);
-                            }
-                        });
-
-                        fetchedData['ao_seminar'] = { title: configTitles['ao_seminar'], events: parseRawData(semRows, "AO Seminar Hall") };
-                        fetchedData['workshop_diabetic'] = { title: configTitles['workshop_diabetic'], events: parseRawData(diaRows, "Diabetic Foot Hall") };
-                        fetchedData['workshop_mis'] = { title: configTitles['workshop_mis'], events: parseRawData(misRows, "MIS Hall") };
                     } else {
                         fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
                     }
@@ -678,6 +643,11 @@
             let overlay = document.getElementById('delegateSplashOverlay');
             if (!overlay) return;
 
+            if (stateName === 'RELOAD') {
+                window.location.reload(true);
+                return;
+            }
+
             overlay.classList.remove('hidden');
 
             if (stateName.startsWith('splash_flyer:')) {
@@ -809,19 +779,21 @@
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all') return true;
 
-                    let rawHall = d.hall_id;
-                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
-                    if (targetType === 'day1_cum') {
-                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
-                    }
                     if (targetType === 'day2_cum') {
                         return dHall.includes('23');
                     }
                     
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
+
+                if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
+                else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
+                else titleText = "Grand Overall Standings";
 
                 let scores = {};
                 let names = {};
@@ -972,13 +944,8 @@
             if (!forceRender && newHash === lastRenderHash) { return; }
             lastRenderHash = newHash;
 
-            let isWorkshopHall = (liveHall === 'workshop_diabetic' || liveHall === 'workshop_mis');
-            let workshopNotice = isWorkshopHall ? `
-                <div class="mb-5 bg-amber-500/15 border border-amber-500/30 rounded-2xl p-3.5 flex items-center justify-center gap-3 text-amber-300 font-bold text-xs sm:text-sm shadow-inner text-center">
-                    <i class="fas fa-random text-amber-400 text-base flex-shrink-0"></i>
-                    <span>Two Parallel Workshops Running Simultaneously — Delegates Can Attend Any 1</span>
-                </div>
-            ` : '';
+            let isWorkshopHall = false;
+            let workshopNotice = '';
 
             let html = `<div class="text-center py-20 bg-slate-800/40 rounded-3xl border border-slate-800 my-8"><i class="fas fa-calendar-check text-5xl mb-4 text-slate-600"></i><h2 class="text-2xl font-bold text-slate-400">No Session Currently Active</h2></div>`;
 
@@ -1210,7 +1177,7 @@
                 upNextHtml = `
                     <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg mb-4">
                         <div class="flex-1"><span class="text-xs font-black uppercase tracking-widest text-amber-400 block mb-1.5 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span><h4 class="text-xl sm:text-2xl font-bold text-slate-200 leading-snug">${nextEvent.title}</h4>${nextEvent.speaker ? `<p class="text-slate-400 font-semibold text-base mt-2 flex items-center"><i class="fas fa-user-md mr-2 text-indigo-400"></i>${nextEvent.speaker}</p>` : ''}</div>
-                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? (nextEvent.isCeremony ? 'Ceremony' : 'Break') : 'Session'}</span></div>
+                        <div class="sm:text-right flex-shrink-0"><span class="inline-block bg-slate-800 text-slate-400 font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 uppercase tracking-wider shadow-inner">${nextEvent.type === 'break' ? 'Break' : 'Session'}</span></div>
                     </div>`;
             }
 
@@ -1285,6 +1252,11 @@
                 try {
                     const { data } = await supabaseClient.from('hall_states').select('override_index, quiz_start_time, visible_halls, active_splash, active_leaderboard').eq('hall_id', liveHall).single();
                     if (data) {
+                        if (data.active_splash === 'RELOAD') {
+                            window.location.reload(true);
+                            return;
+                        }
+
                         let parsedHalls = parseVisibleHalls(data.visible_halls);
                         if (parsedHalls && parsedHalls.length > 0) {
                             let oldStr = (customVisibleHalls || []).join(',');
