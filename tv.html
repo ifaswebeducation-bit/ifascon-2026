@@ -97,7 +97,6 @@
 
         const DELEGATE_APP_URL = "https://ifascon-2026.vercel.app/delegate_live.html";
         
-        // Exclusively Day 2 Data Sources
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
@@ -112,13 +111,12 @@
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v900';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v910';
 
         let liveHall = null;
         let hallArrow = 'none';
         let hallCustomName = null;
         
-        // Single TV State with Clock Drift Immunity
         let tvState = { remoteIndex: null, quizStart: null, localStart: null, lastHash: "", expiredRendered: false };
         let tickerTimer = null;
 
@@ -128,7 +126,7 @@
             if (!val) return "23a";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
-            return '23a'; // Default
+            return '23a';
         }
 
         function resolveDirectImageUrl(url) {
@@ -157,20 +155,13 @@
             if (!timeStr) return null;
             let cleanStr = cleanText(timeStr).toLowerCase().replace(/\s+to\s+/g, '-').replace(/[—–]/g, '-');
             let clean = cleanStr.split('-')[0].trim();
-            
-            let isPM = clean.includes('pm');
-            let isAM = clean.includes('am');
-            
+            let isPM = clean.includes('pm'), isAM = clean.includes('am');
             let timeMatch = clean.match(/(\d{1,2})[:.](\d{2})/);
             if (!timeMatch) return null;
-            
-            let hours = parseInt(timeMatch[1], 10);
-            let minutes = parseInt(timeMatch[2], 10);
-            
+            let hours = parseInt(timeMatch[1], 10), minutes = parseInt(timeMatch[2], 10);
             if (isPM && hours < 12) hours += 12;
             if (isAM && hours === 12) hours = 0;
             if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
-            
             return hours * 60 + minutes;
         }
 
@@ -210,43 +201,21 @@
                     let dignitaries = [colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "tbd"].includes(c.toLowerCase())).join(", ");
 
                     events.push({
-                        type: 'break',
-                        isCeremony: true,
-                        title: text,
-                        time: time_raw,
-                        display_time: display_time,
-                        speaker: dignitaries,
-                        hall: hallTitle,
-                        parent_session: text,
-                        adLink: r.find(c => c.toLowerCase().includes('http')) || ""
+                        type: 'break', isCeremony: true, title: text, time: time_raw, display_time: display_time,
+                        speaker: dignitaries, hall: hallTitle, parent_session: text, adLink: r.find(c => c.toLowerCase().includes('http')) || ""
                     });
                     return;
                 }
 
                 const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
-                let isBreakOrAd = breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session");
-                if (isBreakOrAd) {
-                    let text = colTitle || col3 || col0;
-                    let targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
-
+                if (breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                    let text = colTitle || col3 || col0, targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
                     if (/\b(tea|coffee)\b/i.test(targetText)) text = "Tea / Coffee Break";
                     else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) text = "Lunch Break";
                     else if (/\bregistration\b/i.test(targetText)) text = "Registration";
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    let display_time = convertTo12HourFormat(time_raw);
-                    let adLink = r.find(c => c.toLowerCase().includes('http')) || "";
-                    events.push({ 
-                        type: 'break', 
-                        isCeremony: false,
-                        title: text, 
-                        time: time_raw, 
-                        display_time: display_time, 
-                        speaker: '', 
-                        hall: hallTitle, 
-                        parent_session: '', 
-                        adLink: adLink 
-                    });
+                    events.push({ type: 'break', isCeremony: false, title: text, time: time_raw, display_time: convertTo12HourFormat(time_raw), speaker: '', hall: hallTitle, parent_session: '', adLink: r.find(c => c.toLowerCase().includes('http')) || "" });
                     return;
                 }
 
@@ -272,39 +241,16 @@
                         else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
                         else topic = col3 + ": " + colTitle;
                     }
-                    let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
                     current_session = topic; 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    events.push({ 
-                        type: 'session', 
-                        isOration: isOration, 
-                        time: time_raw, 
-                        display_time: convertTo12HourFormat(time_raw), 
-                        title: topic, 
-                        speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), 
-                        hall: hallTitle, 
-                        parent_session: current_session 
-                    });
+                    events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase())).join(", "), hall: hallTitle, parent_session: current_session });
                     return;
                 }
 
                 if (col1 || colTitle || isQA || isPlenary || col3) {
-                    let speaker = ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker;
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                    if (col0 && !col0.toLowerCase().includes('duration')) { time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim(); }
-                    let display_time = convertTo12HourFormat(time_raw);
-                    let displayTitle = (isQA && !colTitle) ? col3 : (colTitle || col3);
-                    events.push({ 
-                        type: 'presentation', 
-                        isHandsOn: isHandsOn, 
-                        time: time_raw, 
-                        display_time: display_time, 
-                        tag: (isQA && !colTitle) ? "Discussion" : col3, 
-                        title: displayTitle, 
-                        speaker: speaker, 
-                        hall: hallTitle, 
-                        parent_session: current_session 
-                    });
+                    if (col0 && !col0.toLowerCase().includes('duration')) time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim();
+                    events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker, hall: hallTitle, parent_session: current_session });
                 }
             });
 
@@ -341,15 +287,10 @@
                         }
                         parsedCsv.forEach((r, idx) => {
                             if (idx === 0 || !r || r.length < 3) return;
-                            let rawHall = cleanText(r[0 + colOffset]);
-                            let rawSymp = cleanText(r[1 + colOffset]);
-                            let rawTitle = cleanText(r[2 + colOffset]);
+                            let rawHall = cleanText(r[0 + colOffset]), rawSymp = cleanText(r[1 + colOffset]), rawTitle = cleanText(r[2 + colOffset]);
                             if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
                             quizzesLoaded.push({ 
-                                type: 'quiz', 
-                                hall_id: normalizeHallId(rawHall), 
-                                symposium: rawSymp || 'General', 
-                                title: rawTitle, 
+                                type: 'quiz', hall_id: normalizeHallId(rawHall), symposium: rawSymp || 'General', title: rawTitle, 
                                 options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
                                 correct: cleanText(r[7 + colOffset]) 
                             });
@@ -461,11 +402,6 @@
 
             if (!stateName || stateName === 'live' || stateName === 'splash_live' || stateName === 'none') {
                 hideSplashState();
-                return;
-            }
-            
-            if (stateName === 'RELOAD') {
-                window.location.reload(true);
                 return;
             }
 
@@ -833,15 +769,6 @@
             container.innerHTML = singleBrandingHeader + bodyHtml + upNextHtml;
         }
 
-        function isQuizRunning() {
-            if (tvState.remoteIndex === null || tvState.remoteIndex >= 0) return false;
-            if (tvState.localStart) {
-                let diff = Math.floor((Date.now() - tvState.localStart) / 1000);
-                return diff < 45;
-            }
-            return true;
-        }
-
         function refreshDisplays() {
             renderHallPanel();
         }
@@ -873,6 +800,10 @@
             supabaseClient.channel('tv-feed-' + liveHall)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
                     (payload) => {
+                        // Check if this payload is just a leaderboard trigger
+                        let onlyLeaderboardChanged = (payload.new.active_leaderboard !== payload.old.active_leaderboard);
+                        let splashChanged = (payload.new.active_splash !== payload.old.active_splash);
+                        
                         tvState.remoteIndex = payload.new.override_index;
                         
                         if (payload.new.quiz_start_time && payload.new.quiz_start_time !== tvState.quizStart) {
@@ -886,16 +817,19 @@
                         let splashCmd = payload.new.active_splash || payload.new.force_leaderboard;
                         if (splashCmd && splashCmd !== 'live' && splashCmd !== 'splash_live' && splashCmd !== 'none') {
                             applySplashState(splashCmd);
-                        } else {
+                        } else if (splashChanged) {
                             hideSplashState();
                         }
 
                         let boardType = payload.new.active_leaderboard;
                         if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
-                        else hideTVLeaderboard();
+                        else if (onlyLeaderboardChanged) hideTVLeaderboard();
                         
-                        tvState.lastHash = "";
-                        refreshDisplays();
+                        // Prevent background redrawing if ONLY the modal opened
+                        if (!onlyLeaderboardChanged || splashChanged) {
+                            tvState.lastHash = "";
+                            refreshDisplays();
+                        }
                     }
                 ).subscribe();
         }
@@ -923,10 +857,6 @@
                     }
                 }
             }, 1000);
-        }
-
-        function setWizardMode(mode) {
-            // Placeholder: Functionality kept to avoid inline HTML errors if clicked, but visually hidden in new setup
         }
 
         function toggleCustomNameInput() {
@@ -1000,7 +930,6 @@
             refreshDisplays();
             subscribeToHallRealtime();
 
-            // Heartbeat to catch 'RELOAD' and drift
             setInterval(async () => {
                 if (!liveHall) return;
                 try {
