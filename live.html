@@ -56,15 +56,6 @@
         </div>
     </div>
 
-    <!-- GLOBAL HIJACK OVERLAY (For Cockpit warning) -->
-    <div id="globalHijackOverlay" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
-        <h2 class="text-3xl sm:text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
-        <p id="hijackMessage" class="text-lg sm:text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
-        <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-lg font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4 active:scale-95">Jump to Hall & Monitor</button>
-        <button type="button" onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
-    </div>
-
     <!-- Auth Gate -->
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
@@ -102,7 +93,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate App:</span>
-                <button type="button" onclick="window.broadcastVisibleHalls(['23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Push Day 2 Halls (23A, B, C)</button>
+                <button type="button" onclick="window.broadcastVisibleHalls(['23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Broadcast Day 2 Halls (23A, B, C)</button>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
@@ -272,7 +263,34 @@
             { file: 'Valedictory.jpeg', label: 'Valedictory' }
         ];
 
+        let appData = {};
+        let globalQuizzes = [];
+        let dynamicFlyers = [];
+        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
+        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '23a';
+        if(!liveHall || liveHall === "") liveHall = '23a'; 
+
+        let manualOverrideIndex = null;
+        let quizStartTimeStamp = null;
+        let localQuizStart = null;
+        let lastRenderHash = ""; 
+        let liveUpdateTimer = null;
+        let tickerTimer = null;
+        let fastHeartbeatTimer = null;
         let activePreviewFlyerObj = null;
+
+        let myName = "", myRole = "", myAllowedHalls = [];
+
+        function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
+        function normalizeHallId(val) {
+            if (!val) return "23a";
+            let str = String(val).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str.includes('hallb') || str.includes('23b') || str === 'b') return '23b';
+            if (str.includes('hallc') || str.includes('23c') || str === 'c') return '23c';
+            if (str.includes('halla') || str.includes('23a') || str === 'a') return '23a';
+            return '23a';
+        }
 
         function resolveDirectImageUrl(url) {
             if (!url) return "";
@@ -339,7 +357,10 @@
             container.innerHTML = html;
         };
 
-        window.previewTemplateSlide = function(filename, label) { window.applyCockpitFlyerSplash({ img: filename, title: '', subtitle: '', desc: '' }, false); };
+        window.previewTemplateSlide = function(filename, label) { 
+            window.applyCockpitFlyerSplash({ img: filename, title: '', subtitle: '', desc: '' }, false); 
+        };
+
         window.previewTemplateFlyer = function(idx) {
             let flyer = dynamicFlyers[idx];
             if (!flyer) return;
@@ -413,7 +434,10 @@
             overlay.classList.remove('hidden');
         };
 
-        window.hideCockpitSplash = function() { document.getElementById('cockpitSplashOverlay').classList.add('hidden'); activePreviewFlyerObj = null; };
+        window.hideCockpitSplash = function() { 
+            document.getElementById('cockpitSplashOverlay').classList.add('hidden'); 
+            activePreviewFlyerObj = null; 
+        };
 
         window.previewCustomFlyer = function() {
             let img = resolveDirectImageUrl(document.getElementById('flyerImageUrl').value.trim());
@@ -437,16 +461,27 @@
             document.getElementById('flyerImageUrl').value = ''; document.getElementById('flyerTitle').value = ''; document.getElementById('flyerSubtitle').value = ''; document.getElementById('flyerDesc').value = '';
         };
 
-        function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
-        
-        function normalizeHallId(val) {
-            if (!val) return "23a";
-            let str = String(val).toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (str.includes('hallb') || str.includes('23b') || str === 'b') return '23b';
-            if (str.includes('hallc') || str.includes('23c') || str === 'c') return '23c';
-            if (str.includes('halla') || str.includes('23a') || str === 'a') return '23a';
-            return '23a';
-        }
+        window.pushSplashGlobal = async function(splashState) {
+            window.logAction(`BROADCAST: Pushed TV Display Command [${splashState}]`);
+            await supabaseClient.from('hall_states').update({ active_splash: splashState }).in('hall_id', allHallsList);
+            
+            if (splashState !== 'live') {
+                let flyerObj = { img: '', title: '', subtitle: '', desc: '' };
+                if (splashState === 'pre_conf') {
+                    flyerObj.title = "1 day to go for the 39th Annual conference of the Indian Foot and Ankle Society, IFASCON, Chandigarh";
+                    flyerObj.subtitle = "See you tomorrow!";
+                } else if (splashState === 'post_day1') {
+                    flyerObj.title = "Wait for the main conference which starts tomorrow at 8am";
+                    flyerObj.subtitle = "IFASCON 2026";
+                } else if (splashState === 'post_day2') {
+                    flyerObj.title = "The conference resumes at 8:00 a.m. tomorrow";
+                    flyerObj.subtitle = "IFASCON 2026";
+                }
+                window.applyCockpitFlyerSplash(flyerObj, true);
+            } else {
+                window.hideCockpitSplash();
+            }
+        };
 
         function convertTo12HourFormat(timeStr) {
             if (!timeStr) return "";
@@ -556,23 +591,6 @@
             return events;
         }
 
-        let appData = {};
-        let globalQuizzes = [];
-        let dynamicFlyers = [];
-        let rawHallParam = new URLSearchParams(window.location.search).get('hall');
-        let liveHall = rawHallParam ? normalizeHallId(rawHallParam) : '23a';
-        if(!liveHall || liveHall === "") liveHall = '23a'; 
-        
-        let manualOverrideIndex = null;
-        let quizStartTimeStamp = null;
-        let localQuizStart = null;
-        let lastRenderHash = ""; 
-        let liveUpdateTimer = null;
-        let tickerTimer = null;
-        let fastHeartbeatTimer = null;
-
-        let myName = "", myRole = "", myAllowedHalls = [];
-
         window.verifyGatePass = async function() {
             let pin = document.getElementById('gatePassInput').value.trim();
             const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
@@ -675,18 +693,16 @@
                         if (labelVal || imgVal || titleVal || descVal) loadedFlyers.push({ label: labelVal || titleVal || 'Flyer ' + (idx + 1), img: imgVal, title: titleVal, subtitle: subVal, desc: descVal });
                     });
                     dynamicFlyers = loadedFlyers;
-                    if (document.getElementById('masterToolbarSuite') && !document.getElementById('masterToolbarSuite').classList.contains('hidden')) {
-                        window.renderFlyerButtons();
-                    }
+                    window.renderFlyerButtons();
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error("Flyer sheet error:", e);
+            }
             if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
         };
 
         window.fetchLiveSchedule = async function() {
             try {
-                document.getElementById('loadingState').innerHTML = `<div class="loader mb-4"></div><p class="text-slate-400 font-semibold text-lg animate-pulse mt-4">Syncing Engine Schedule Database...</p>`;
-                
                 let fetchedData = {};
                 let quizzesLoaded = [];
                 
