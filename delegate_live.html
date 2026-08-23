@@ -139,13 +139,13 @@
         function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         
         function normalizeHallId(val) {
-            if (!val) return "23a";
+            if (!val) return "";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
             if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
             if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
             if (str.includes('23c')) return '23c';
-            return '23a';
+            return '23a'; 
         }
 
         function resolveDirectImageUrl(url) {
@@ -167,7 +167,34 @@
             return optClean === corClean || corClean === letter || corClean === `option ${letter}` || corClean === `option-${letter}` || corClean === `${letter}.` || corClean === `${letter})`;
         }
 
+        let customVisibleHalls = null;
+
+        function parseVisibleHalls(rawVal) {
+            if (!rawVal) return null;
+            if (rawVal === 'ALL' || rawVal === 'all') return allHallsList;
+            let list = [];
+            if (Array.isArray(rawVal)) {
+                list = rawVal.map(h => normalizeHallId(h));
+            } else if (typeof rawVal === 'string') {
+                if (rawVal.trim().startsWith('[') && rawVal.trim().endsWith(']')) {
+                    try { list = JSON.parse(rawVal).map(h => normalizeHallId(h)); } catch(e){}
+                }
+                if (list.length === 0) {
+                    list = rawVal.split(',').map(h => normalizeHallId(h.trim())).filter(Boolean);
+                }
+            }
+            let valid = list.filter(h => allHallsList.includes(h));
+            return valid.length > 0 ? valid : null;
+        }
+
         function getAvailableHalls() {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true' || localStorage.getItem('mgr_pin') || urlParams.get('all') === 'true') {
+                return allHallsList;
+            }
+            if (customVisibleHalls && customVisibleHalls.length > 0) {
+                return customVisibleHalls;
+            }
             return allHallsList;
         }
 
@@ -189,7 +216,7 @@
         let fastHeartbeatTimer = null;
         let lastRenderHash = "";
 
-        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v950'; 
+        const CACHE_KEY = 'ifascon_schedule_cache_delegate_v99'; 
 
         window.hideLeaderboard = function() {
             const modal = document.getElementById('leaderboardModal');
@@ -379,6 +406,7 @@
 
         function parseRawData(rows, hallTitle) {
             let events = [], current_session = "";
+            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
 
             rows.forEach(r => {
                 while(r.length < 12) r.push("");
@@ -390,6 +418,10 @@
 
                 if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
                 if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
+
+                if (hallTitle && !isHallC) {
+                    if (row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
+                }
 
                 if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
 
@@ -428,9 +460,13 @@
                     let text = colTitle || col3 || col0;
                     let targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
 
-                    if (/\b(tea|coffee)\b/i.test(targetText)) text = "Tea / Coffee Break";
-                    else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) text = "Lunch Break";
-                    else if (/\bregistration\b/i.test(targetText)) text = "Registration";
+                    if (/\b(tea|coffee)\b/i.test(targetText)) {
+                        text = "Tea / Coffee Break";
+                    } else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) {
+                        text = "Lunch Break";
+                    } else if (/\bregistration\b/i.test(targetText)) {
+                        text = "Registration";
+                    }
 
                     let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
                     let display_time = convertTo12HourFormat(time_raw);
@@ -462,7 +498,9 @@
                 }
 
                 let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
-                if (isHandsOn) isSession = false;
+                if (isHandsOn) {
+                    isSession = false;
+                }
 
                 if (isSession) {
                     let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
@@ -536,7 +574,7 @@
             if (!hall_id) return;
             if (window.currentSubscription) supabaseClient.removeChannel(window.currentSubscription);
 
-            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
+            supabaseClient.from('hall_states').select('override_index, quiz_start_time, active_leaderboard, visible_halls, active_splash').eq('hall_id', hall_id).single().then(({ data }) => {
                 if (data) { 
                     remoteOverrideIndex = data.override_index; 
                     if (data.quiz_start_time) {
@@ -544,7 +582,12 @@
                     }
                     quizStartTimeStamp = data.quiz_start_time;
 
-                    if (data.active_splash && data.active_splash !== 'live') {
+                    let parsedHalls = parseVisibleHalls(data.visible_halls);
+                    if (parsedHalls && parsedHalls.length > 0) {
+                        customVisibleHalls = parsedHalls;
+                    }
+
+                    if (data.active_splash && data.active_splash !== 'live' && data.active_splash !== 'none') {
                         applySplashState(data.active_splash);
                     } else {
                         hideSplashState();
@@ -563,6 +606,11 @@
             window.currentSubscription = supabaseClient.channel('delegate-feed-' + hall_id)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${hall_id}` },
                     (payload) => { 
+                        let isOnlyLeaderboard = (payload.new.active_leaderboard !== payload.old.active_leaderboard) && 
+                                                (payload.new.override_index === payload.old.override_index) &&
+                                                (payload.new.quiz_start_time === payload.old.quiz_start_time) &&
+                                                (payload.new.active_splash === payload.old.active_splash);
+
                         remoteOverrideIndex = payload.new.override_index; 
                         
                         if (payload.new.quiz_start_time && payload.new.quiz_start_time !== quizStartTimeStamp) {
@@ -572,25 +620,38 @@
                         }
                         quizStartTimeStamp = payload.new.quiz_start_time;
 
-                        if (payload.new.active_splash && payload.new.active_splash !== 'live') {
+                        let parsedHalls = parseVisibleHalls(payload.new.visible_halls);
+                        if (parsedHalls && parsedHalls.length > 0) {
+                            customVisibleHalls = parsedHalls;
+                        }
+
+                        if (payload.new.active_splash && payload.new.active_splash !== 'live' && payload.new.active_splash !== 'none') {
                             applySplashState(payload.new.active_splash);
-                        } else {
+                        } else if (payload.new.active_splash !== payload.old.active_splash) {
                             hideSplashState();
                         }
 
                         if (payload.new.active_leaderboard && payload.new.active_leaderboard !== 'none') {
                             window.showLeaderboard(payload.new.active_leaderboard);
-                        } else {
+                        } else if (payload.new.active_leaderboard !== payload.old.active_leaderboard) {
                             window.hideLeaderboard();
                         }
 
-                        lastRenderHash = ""; 
-                        window.updateLiveDisplay(true); 
+                        if (!isOnlyLeaderboard) {
+                            lastRenderHash = ""; 
+                            window.updateLiveDisplay(true); 
+                        }
                     }
                 ).subscribe();
         };
 
         function applySplashState(stateName) {
+            let urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('preview') === 'true') {
+                hideSplashState();
+                return;
+            }
+
             let overlay = document.getElementById('delegateSplashOverlay');
             if (!overlay) return;
 
@@ -730,7 +791,8 @@
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all') return true;
 
-                    let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    let rawHall = d.hall_id;
+                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
                     if (targetType === 'day1_cum') {
@@ -1166,18 +1228,8 @@
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states' }, (payload) => {
                     let changedHall = payload.new.hall_id;
                     let oIdx = payload.new.override_index;
-                    let lBoard = payload.new.active_leaderboard;
-                    let splash = payload.new.active_splash;
 
-                    if (splash) {
-                        if (splash !== 'live') applySplashState(splash);
-                        else hideSplashState();
-                    }
-
-                    if (changedHall === liveHall) {
-                        if (lBoard && lBoard !== 'none') showLeaderboard(lBoard);
-                        else hideLeaderboard();
-                    } else {
+                    if (changedHall !== liveHall) {
                         if (oIdx !== null && oIdx < 0) {
                             document.getElementById('hijackMessage').innerText = `A high-stakes quiz is running in another hall!`;
                             document.getElementById('hijackJoinBtn').onclick = () => window.switchDelegateHall(changedHall);
