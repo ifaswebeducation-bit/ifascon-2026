@@ -57,7 +57,7 @@
                         <select id="wizName" onchange="toggleCustomNameInput()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-white font-bold outline-none text-sm">
                             <option value="Hall A">Hall A</option>
                             <option value="Hall B">Hall B</option>
-                            <option value="Jasper Hall">Jasper Hall</option>
+                            <option value="Hall C">Hall C</option>
                             <option value="default">Default Schedule Name</option>
                             <option value="custom">✏️ Custom Name...</option>
                         </select>
@@ -97,26 +97,30 @@
 
         const DELEGATE_APP_URL = "https://ifascon-2026.vercel.app/delegate_live.html";
         
+        // Exclusively Day 2 Data Sources
         const sheetLinks = {
             'quizzes': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTSXW-U_qQZinazbfDmwxFT4VdZ_3OzNaBH29daT9Vm0pzwHu9kVZUTNK5stzUkfvp6gTKbIoM6KH1k/pub?gid=0&single=true&output=csv',
             '23a': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1579973346&single=true&output=csv',
-            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv'
+            '23b': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=239334255&single=true&output=csv',
+            '23c': 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTRQ3g-iv-ZNPmsFq_zInPnhzbraxuMfJNEHsUro3i7C_eNIHWmAc261FSqBcmuNFmDlLVl0-8jKNJ_/pub?gid=1095375546&single=true&output=csv'
         };
 
         const configTitles = {
             '23a': "23rd August 2026 - Hall A", 
-            '23b': "23rd August 2026 - Hall B"
+            '23b': "23rd August 2026 - Hall B",
+            '23c': "23rd August 2026 - Hall C"
         };
 
         let appData = {};
         let globalQuizzes = [];
         let isMuted = true;
-        const CACHE_KEY = 'ifascon_tv_schedule_cache_v910';
+        const CACHE_KEY = 'ifascon_tv_schedule_cache_v99';
 
         let liveHall = null;
         let hallArrow = 'none';
         let hallCustomName = null;
         
+        // Single TV State with Clock Drift Immunity
         let tvState = { remoteIndex: null, quizStart: null, localStart: null, lastHash: "", expiredRendered: false };
         let tickerTimer = null;
 
@@ -125,8 +129,9 @@
         function normalizeHallId(val) {
             if (!val) return "23a";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
             if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
-            return '23a';
+            return '23a'; // Default
         }
 
         function resolveDirectImageUrl(url) {
@@ -312,46 +317,101 @@
 
         async function fetchMathLeaderboard(type) {
             try {
-                const { data, error } = await supabaseClient.from('quiz_responses').select('*').order('created_at', { ascending: true });
+                const { data, error } = await supabaseClient
+                    .from('quiz_responses')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                    
                 if (error) throw error;
-                
-                let targetType = String(type || 'grand').toLowerCase().trim();
-                let titleText = "Live Leaderboard";
+                if (!data || data.length === 0) {
+                    return { sorted: [], titleText: "Leaderboard", names: {} };
+                }
 
-                if (targetType === '23a') titleText = "Day 2: Hall A Standings";
-                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
-                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
-                else titleText = "Grand Overall Standings";
+                let titleText = "Live Leaderboard";
+                let targetType = String(type || 'grand').toLowerCase().trim();
 
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all') return true;
-                    let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                    let rawHall = d.hall_id;
+                    let dHall = String(rawHall || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
-                    if (targetType === 'day2_cum') return dHall.includes('23');
+                    if (targetType === 'day1_cum') {
+                        return dHall.includes('22') || dHall.includes('ao') || dHall.includes('diabet') || dHall.includes('mis');
+                    }
+                    if (targetType === 'day2_cum') {
+                        return dHall.includes('23');
+                    }
+                    
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
 
+                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
+                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
+                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
+                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
+                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
+                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative Standings";
+                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
+                else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
+                else titleText = "Grand Overall Standings";
+
                 let scores = {};
                 let names = {};
+
                 filteredData.forEach(r => { 
                     let p = cleanText(r.phone);
                     if (!p) return;
                     if (scores[p] === undefined) scores[p] = 0;
-                    if (r.name && cleanText(r.name) && !names[p]) names[p] = cleanText(r.name);
+                    if (r.name && cleanText(r.name) && !names[p]) {
+                        names[p] = cleanText(r.name);
+                    }
                 }); 
-                
+
                 let qGroups = {};
                 filteredData.forEach(r => {
-                    if (!r.is_correct) return;
-                    let key = r.hall_id + "_" + r.question; 
+                    let p = cleanText(r.phone);
+                    if (!p) return;
+
+                    let val = r.is_correct;
+                    let isCor = false;
+                    if (val === true || val === 1 || val === '1') isCor = true;
+                    if (typeof val === 'string' && (val.toLowerCase() === 'true' || val.toLowerCase() === 't')) isCor = true;
+
+                    if (!isCor) return;
+
+                    let key = String(r.hall_id || '') + "_" + String(r.question || ''); 
                     if (!qGroups[key]) qGroups[key] = [];
-                    if (!qGroups[key].some(x => x.phone === r.phone)) { qGroups[key].push(r); }
+                    if (!qGroups[key].some(x => cleanText(x.phone) === p)) { 
+                        qGroups[key].push(r); 
+                    }
                 });
-                
-                Object.values(qGroups).forEach(responses => { responses.forEach((r, idx) => { scores[r.phone] += Math.max(10 - idx, 2); }); });
-                return { sorted: Object.entries(scores).sort((a,b) => b[1] - a[1]), titleText, names };
-            } catch(e) { return { sorted: [], titleText: "Error Loading Board", names: {} }; }
+
+                Object.values(qGroups).forEach(responses => {
+                    responses.forEach((r, idx) => { 
+                        let p = cleanText(r.phone);
+                        let pts = Math.max(10 - idx, 2);
+                        scores[p] = (scores[p] || 0) + pts; 
+                    });
+                });
+
+                let sorted = Object.entries(scores)
+                    .filter(item => item[1] > 0)
+                    .sort((a,b) => b[1] - a[1]);
+
+                if (sorted.length === 0) {
+                    sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
+                }
+
+                return { sorted, titleText, names };
+            } catch(e) { 
+                console.error("Leaderboard Error:", e);
+                return { sorted: [], titleText: "Standings", names: {} }; 
+            }
         }
 
         async function showTVLeaderboard(type) {
@@ -769,6 +829,15 @@
             container.innerHTML = singleBrandingHeader + bodyHtml + upNextHtml;
         }
 
+        function isQuizRunning() {
+            if (tvState.remoteIndex === null || tvState.remoteIndex >= 0) return false;
+            if (tvState.localStart) {
+                let diff = Math.floor((Date.now() - tvState.localStart) / 1000);
+                return diff < 45;
+            }
+            return true;
+        }
+
         function refreshDisplays() {
             renderHallPanel();
         }
@@ -800,10 +869,11 @@
             supabaseClient.channel('tv-feed-' + liveHall)
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
                     (payload) => {
-                        // Check if this payload is just a leaderboard trigger
-                        let onlyLeaderboardChanged = (payload.new.active_leaderboard !== payload.old.active_leaderboard);
-                        let splashChanged = (payload.new.active_splash !== payload.old.active_splash);
-                        
+                        let isOnlyLeaderboard = (payload.new.active_leaderboard !== payload.old.active_leaderboard) && 
+                                                (payload.new.override_index === payload.old.override_index) &&
+                                                (payload.new.quiz_start_time === payload.old.quiz_start_time) &&
+                                                (payload.new.active_splash === payload.old.active_splash);
+
                         tvState.remoteIndex = payload.new.override_index;
                         
                         if (payload.new.quiz_start_time && payload.new.quiz_start_time !== tvState.quizStart) {
@@ -817,16 +887,15 @@
                         let splashCmd = payload.new.active_splash || payload.new.force_leaderboard;
                         if (splashCmd && splashCmd !== 'live' && splashCmd !== 'splash_live' && splashCmd !== 'none') {
                             applySplashState(splashCmd);
-                        } else if (splashChanged) {
+                        } else if (payload.new.active_splash !== payload.old.active_splash) {
                             hideSplashState();
                         }
 
                         let boardType = payload.new.active_leaderboard;
                         if (boardType && boardType !== 'none') showTVLeaderboard(boardType);
-                        else if (onlyLeaderboardChanged) hideTVLeaderboard();
+                        else if (payload.new.active_leaderboard !== payload.old.active_leaderboard) hideTVLeaderboard();
                         
-                        // Prevent background redrawing if ONLY the modal opened
-                        if (!onlyLeaderboardChanged || splashChanged) {
+                        if (!isOnlyLeaderboard) {
                             tvState.lastHash = "";
                             refreshDisplays();
                         }
@@ -857,6 +926,10 @@
                     }
                 }
             }, 1000);
+        }
+
+        function setWizardMode(mode) {
+            // Placeholder: Functionality kept to avoid inline HTML errors if clicked, but visually hidden in new setup
         }
 
         function toggleCustomNameInput() {
@@ -930,6 +1003,7 @@
             refreshDisplays();
             subscribeToHallRealtime();
 
+            // Heartbeat to catch 'RELOAD' and drift
             setInterval(async () => {
                 if (!liveHall) return;
                 try {
