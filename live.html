@@ -56,15 +56,6 @@
         </div>
     </div>
 
-    <!-- GLOBAL HIJACK OVERLAY (For Cockpit warning) -->
-    <div id="globalHijackOverlay" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
-        <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
-        <h2 class="text-3xl sm:text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
-        <p id="hijackMessage" class="text-lg sm:text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
-        <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-lg font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4 active:scale-95">Jump to Hall & Monitor</button>
-        <button type="button" onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
-    </div>
-
     <!-- Auth Gate -->
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
@@ -102,7 +93,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800 flex-wrap">
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fas fa-eye mr-1"></i>Delegate App:</span>
-                <span class="bg-indigo-900/60 text-indigo-200 px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40">Locked to Day 2</span>
+                <button type="button" onclick="window.broadcastVisibleHalls(['23a','23b','23c'])" class="bg-indigo-900/60 hover:bg-indigo-600 text-indigo-200 hover:text-white px-2.5 py-1 rounded text-xs font-bold border border-indigo-500/40 transition">Push Day 2 Halls (23A, B, C)</button>
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
@@ -211,7 +202,7 @@
     </div>
 
     <!-- Live Leaderboard Modal -->
-    <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur z-[60] flex flex-col items-center justify-center p-6 z-[400]">
+    <div id="leaderboardModal" class="hidden fixed inset-0 bg-slate-950/98 backdrop-blur z-[60] flex flex-col items-center justify-center p-6 z-[400]">
         <h2 id="tvLbTitle" class="text-4xl lg:text-6xl font-black text-amber-500 mb-2 drop-shadow-lg"><i class="fas fa-trophy mr-4"></i>Top Performers</h2>
         <p id="tvLbSub" class="text-slate-400 font-bold tracking-widest uppercase mb-8">Calculating Live Database Weights...</p>
         <div id="tvLeaderboardList" class="w-full max-w-3xl flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-4 custom-scroll"></div>
@@ -247,7 +238,7 @@
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        window.supabaseClient = supabaseClient; // EXPLICIT BINDING FOR CONSOLE
+        window.supabaseClient = supabaseClient; 
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
@@ -284,166 +275,14 @@
             return encodeURI(url);
         }
 
-        window.renderFlyerButtons = function() {
-            const container = document.getElementById('customSlidesContainer');
-            if(!container) return;
-            let html = '';
-            
-            hardcodedSlides.forEach(slide => {
-                let encodedFile = encodeURIComponent(slide.file);
-                html += `
-                    <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-slate-700 bg-slate-950 flex-shrink-0 group">
-                        <img src="${encodedFile}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.src='https://via.placeholder.com/160x100/1e293b/6366f1?text=Template'">
-                        
-                        <div class="absolute top-2 right-2 flex gap-1.5 z-20">
-                            <button type="button" onclick="window.previewTemplateSlide('${slide.file}', '${slide.label}')" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button type="button" onclick="window.pushTemplateSlide('${slide.file}', '${slide.label}')" title="Push to TV" class="bg-pink-600 hover:bg-pink-500 text-white p-2 rounded-lg text-xs shadow-md transition active:scale-95">
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-
-                        <button type="button" onclick="window.previewTemplateSlide('${slide.file}', '${slide.label}')" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent text-left w-full h-full z-10">
-                            <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${slide.label}</span>
-                        </button>
-                    </div>
-                `;
-            });
-
-            if (dynamicFlyers && dynamicFlyers.length > 0) {
-                dynamicFlyers.forEach((flyer, idx) => {
-                    let thumbUrl = flyer.img ? resolveDirectImageUrl(flyer.img) : '';
-                    html += `
-                        <div class="relative w-44 h-24 min-w-[11rem] rounded-2xl overflow-hidden shadow-lg border border-blue-600/60 bg-slate-950 flex-shrink-0 group">
-                            ${thumbUrl ? `<img src="${thumbUrl}" class="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition" onerror="this.style.display='none'">` : ''}
-                            
-                            <div class="absolute top-2 right-2 flex gap-1.5 z-20">
-                                <button type="button" onclick="window.previewTemplateFlyer(${idx})" title="Preview" class="bg-slate-900/90 hover:bg-slate-800 text-sky-400 p-2 rounded-lg text-xs shadow-md transition active:scale-95 border border-slate-700">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button type="button" onclick="window.pushTemplateFlyer(${idx})" title="Push to TV" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2 rounded-lg text-xs shadow-md transition active:scale-95">
-                                    <i class="fas fa-paper-plane"></i>
-                                </button>
-                            </div>
-
-                            <button type="button" onclick="window.previewTemplateFlyer(${idx})" class="absolute inset-0 flex items-end justify-start p-2.5 bg-gradient-to-t from-slate-950 via-blue-950/80 to-transparent text-left w-full h-full z-10">
-                                <span class="text-xs font-black text-white leading-tight drop-shadow truncate w-28">${flyer.label || flyer.title || 'Sheet Flyer'}</span>
-                            </button>
-                        </div>
-                    `;
-                });
-            }
-            container.innerHTML = html;
-        };
-
-        window.previewTemplateSlide = function(filename, label) { window.applyCockpitFlyerSplash({ img: filename, title: '', subtitle: '', desc: '' }, false); };
-        window.previewTemplateFlyer = function(idx) {
-            let flyer = dynamicFlyers[idx];
-            if (!flyer) return;
-            window.applyCockpitFlyerSplash({ img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc }, false);
-        };
-
-        window.pushTemplateSlide = async function(filename, label) {
-            let flyerObj = { img: filename, title: '', subtitle: '', desc: '' };
-            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
-            window.logAction(`BROADCAST: Pushed Template Slide [${label}] to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
-            window.applyCockpitFlyerSplash(flyerObj, true);
-        };
-
-        window.pushTemplateFlyer = async function(idx) {
-            let flyer = dynamicFlyers[idx];
-            if (!flyer) return;
-            let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
-            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
-            window.logAction(`BROADCAST: Pushed Template Flyer [${flyer.label || flyer.title}] to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
-            window.applyCockpitFlyerSplash(flyerObj, true);
-        };
-
-        window.pushCurrentPreviewLive = async function() {
-            if (!activePreviewFlyerObj) return;
-            let payload = 'splash_flyer:' + JSON.stringify(activePreviewFlyerObj);
-            window.logAction(`BROADCAST: Pushed Current Previewed Flyer to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
-            window.applyCockpitFlyerSplash(activePreviewFlyerObj, true);
-        };
-
-        window.forceReloadTVs = async function() {
-            if(!confirm("This will force ALL TVs to physically reload their web browser. Continue?")) return;
-            window.logAction("BROADCAST: Sent Hard Reload command to TVs");
-            await supabaseClient.from('hall_states').update({ active_splash: 'RELOAD' }).in('hall_id', allHallsList);
-            setTimeout(() => { supabaseClient.from('hall_states').update({ active_splash: 'live' }).in('hall_id', allHallsList); }, 4000);
-        };
-
-        window.applyCockpitFlyerSplash = function(flyerObj, isLiveBroadcast) {
-            activePreviewFlyerObj = flyerObj;
-            let overlay = document.getElementById('cockpitSplashOverlay');
-            let imgContainer = document.getElementById('cockpitFlyerImageContainer');
-            let imgEl = document.getElementById('cockpitFlyerImgEl');
-            let titleEl = document.getElementById('cockpitSplashTitle');
-            let subEl = document.getElementById('cockpitSplashSub');
-            let descEl = document.getElementById('cockpitSplashDesc');
-            let leftWing = document.getElementById('cockpitFlyerLeftWing');
-            let rightWing = document.getElementById('cockpitFlyerRightWing');
-            let btnEnd = document.getElementById('cockpitEndBroadcastBtn');
-            let btnDirectPush = document.getElementById('cockpitDirectPushBtn');
-
-            if (flyerObj.img) { imgEl.src = resolveDirectImageUrl(flyerObj.img); imgContainer.classList.remove('hidden'); } 
-            else { imgContainer.classList.add('hidden'); }
-
-            titleEl.innerText = flyerObj.title || ''; subEl.innerText = flyerObj.subtitle || ''; descEl.innerText = flyerObj.desc || '';
-            if (flyerObj.title || flyerObj.subtitle) leftWing.classList.remove('hidden'); else leftWing.classList.add('hidden');
-            if (flyerObj.desc) rightWing.classList.remove('hidden'); else rightWing.classList.add('hidden');
-
-            if (isLiveBroadcast) {
-                btnDirectPush.classList.add('hidden');
-                btnEnd.innerHTML = '<i class="fas fa-times-circle"></i> END TV BROADCAST';
-                btnEnd.className = "bg-red-600 hover:bg-red-500 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-red-400/50";
-                btnEnd.onclick = function() { window.pushSplashGlobal('live'); window.hideCockpitSplash(); };
-            } else {
-                btnDirectPush.classList.remove('hidden');
-                btnEnd.innerHTML = '<i class="fas fa-times"></i> Close Preview';
-                btnEnd.className = "bg-slate-700 hover:bg-slate-600 text-white font-black px-6 py-3 rounded-2xl shadow-2xl text-sm sm:text-base flex items-center gap-2 transition active:scale-95 border-2 border-slate-500/50";
-                btnEnd.onclick = window.hideCockpitSplash;
-            }
-            overlay.classList.remove('hidden');
-        };
-
-        window.hideCockpitSplash = function() { document.getElementById('cockpitSplashOverlay').classList.add('hidden'); activePreviewFlyerObj = null; };
-
-        window.previewCustomFlyer = function() {
-            let img = resolveDirectImageUrl(document.getElementById('flyerImageUrl').value.trim());
-            let title = document.getElementById('flyerTitle').value.trim();
-            let subtitle = document.getElementById('flyerSubtitle').value.trim();
-            let desc = document.getElementById('flyerDesc').value.trim();
-            if (!img && !title && !desc) { alert('Please provide at least an image or title to preview.'); return; }
-            window.applyCockpitFlyerSplash({ img, title, subtitle, desc }, false);
-        };
-
-        window.pushCustomFlyerGlobal = async function() {
-            let img = resolveDirectImageUrl(document.getElementById('flyerImageUrl').value.trim());
-            let title = document.getElementById('flyerTitle').value.trim(), subtitle = document.getElementById('flyerSubtitle').value.trim(), desc = document.getElementById('flyerDesc').value.trim();
-            if (!img && !title && !desc) { alert('Please provide at least an image or title to broadcast.'); return; }
-
-            let flyerObj = { img, title, subtitle, desc };
-            window.logAction(`BROADCAST: Pushed Custom Flyer [${title || 'Custom Slide'}] to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: 'splash_flyer:' + JSON.stringify(flyerObj) }).in('hall_id', allHallsList);
-            window.applyCockpitFlyerSplash(flyerObj, true);
-            
-            document.getElementById('flyerImageUrl').value = ''; document.getElementById('flyerTitle').value = ''; document.getElementById('flyerSubtitle').value = ''; document.getElementById('flyerDesc').value = '';
-        };
-
         function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
         
         function normalizeHallId(val) {
             if (!val) return "23a";
-            let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (str === '23c' || str === 'hallc' || str === 'c23') return '23c';
-            if (str.includes('23a') || (str.includes('23') && str.includes('a'))) return '23a';
-            if (str.includes('23b') || (str.includes('23') && str.includes('b'))) return '23b';
-            if (str.includes('23c')) return '23c';
+            let str = String(val).toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (str.includes('hallb') || str.includes('23b') || str === 'b') return '23b';
+            if (str.includes('hallc') || str.includes('23c') || str === 'c') return '23c';
+            if (str.includes('halla') || str.includes('23a') || str === 'a') return '23a';
             return '23a';
         }
 
@@ -540,7 +379,8 @@
                         }
                         current_session = topic; 
                         let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                        events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase())).join(", "), hall: hallTitle, parent_session: current_session });
+                        let chairsArr = [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase()));
+                        events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : chairsArr.join(", "), hall: hallTitle, parent_session: current_session });
                         continue;
                     }
 
@@ -572,7 +412,7 @@
 
         window.verifyGatePass = async function() {
             let pin = document.getElementById('gatePassInput').value.trim();
-            const { data } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
+            const { data, error } = await supabaseClient.from('event_managers').select('*').eq('pin', pin).single();
             if (data || pin === "1234") {
                 localStorage.setItem('mgr_pin', pin);
                 localStorage.setItem('mgr_name', data ? data.name : "AV Manager");
@@ -640,6 +480,49 @@
                 }).subscribe();
         };
 
+        window.broadcastVisibleHalls = async function(hallList) {
+            window.logAction(`BROADCAST: Set Delegate Visible Halls -> [${hallList.join(', ')}]`);
+            try {
+                let commaFormat = hallList.join(',');
+                const { error } = await supabaseClient.from('hall_states').update({ 
+                    visible_halls: commaFormat 
+                }).in('hall_id', allHallsList);
+                if(error) throw error;
+                alert(`Success: Broadcasted active halls [${hallList.join(', ')}] to all delegate screens!`);
+            } catch(e) {
+                console.error("Broadcast error:", e);
+                alert("Network error broadcasting to delegate view.");
+            }
+        };
+
+        window.fetchFlyersOnly = async function() {
+            const icon = document.getElementById('refreshFlyersIcon');
+            if(icon) icon.classList.add('animate-spin');
+            try {
+                const res = await fetch(sheetLinks.flyers + '&_cb=' + Date.now());
+                if(res.ok) {
+                    const csvText = await res.text();
+                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
+                    let loadedFlyers = [];
+                    parsedCsv.forEach((r, idx) => {
+                        if (!r || r.length === 0) return;
+                        let firstCell = cleanText(r[0] || '').toLowerCase();
+                        if (firstCell.includes('label') || firstCell.includes('tag') || firstCell === 'name') return;
+                        
+                        let labelVal = cleanText(r[0]), imgVal = cleanText(r[1]), titleVal = cleanText(r[2]), subVal = cleanText(r[3]), descVal = cleanText(r[4]);
+                        if (labelVal || imgVal || titleVal || descVal) {
+                            loadedFlyers.push({ label: labelVal || titleVal || 'Flyer ' + (idx + 1), img: imgVal, title: titleVal, subtitle: subVal, desc: descVal });
+                        }
+                    });
+                    dynamicFlyers = loadedFlyers;
+                    if (document.getElementById('masterToolbarSuite') && !document.getElementById('masterToolbarSuite').classList.contains('hidden')) {
+                        window.renderFlyerButtons();
+                    }
+                }
+            } catch(e) {}
+            if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
+        };
+
         window.fetchLiveSchedule = async function() {
             try {
                 document.getElementById('loadingState').innerHTML = `<div class="loader mb-4"></div><p class="text-slate-400 font-semibold text-lg animate-pulse mt-4">Syncing Engine Schedule Database...</p>`;
@@ -655,7 +538,7 @@
                         const csvText = await response.text();
                         let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
 
-                        if (key === 'flyers') return; // Handled separately
+                        if (key === 'flyers') return;
 
                         if (key === 'quizzes') {
                             let colOffset = 0;
@@ -903,7 +786,8 @@
                     dashHtml += `<div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1"><div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div><div class="flex flex-col gap-2">`;
                     qs.forEach(q => {
                         let globalIdx = globalQuizzes.indexOf(q);
-                        dashHtml += `<button type="button" onclick="window.launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${encodeURIComponent(q.title)}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
+                        let safeTitle = encodeURIComponent(q.title);
+                        dashHtml += `<button type="button" onclick="window.launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${safeTitle}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
                     });
                     dashHtml += `</div></div>`;
                 }
@@ -1099,7 +983,8 @@
                             let ytMatch = link.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
                             if (ytMatch) media = `<iframe class="w-full aspect-video rounded-3xl shadow-2xl border border-slate-700 pointer-events-none" src="https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&showinfo=0&modestbranding=1" frameborder="0" allow="autoplay; encrypted-media"></iframe>`;
                         } else if (link.includes('drive.google.com') || link.includes('docs.google.com')) {
-                            media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${resolveDirectImageUrl(link)}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl" onerror="this.src='${link}'"></div>`;
+                            let dUrl = resolveDirectImageUrl(link);
+                            media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${dUrl}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl" onerror="this.src='${link}'"></div>`;
                         } else { 
                             media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl"></div>`; 
                         }
@@ -1117,12 +1002,23 @@
                 } else {
                     let isHandsOn = currentEvent.isHandsOn || (currentEvent.tag && currentEvent.tag.toLowerCase().includes('hands-on')) || (currentEvent.title && currentEvent.title.toLowerCase().includes('hands-on'));
                     let bStyle = isHandsOn ? "bg-amber-500 text-slate-950" : (currentEvent.isOration ? "bg-rose-600 text-white" : "bg-indigo-600 text-white");
+                    
                     let handsOnBadge = isHandsOn ? `<span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-1.5 text-sm rounded-full font-bold uppercase tracking-wider ml-2 shadow-inner"><i class="fas fa-hand-holding-medical mr-1.5"></i>Hands-on Workshop</span>` : '';
                     let pSess = currentEvent.parent_session && currentEvent.parent_session !== currentEvent.title && !currentEvent.parent_session.toLowerCase().includes('oration') 
                         ? `<div class="text-indigo-400 font-bold uppercase text-base sm:text-xl mb-4 flex items-center tracking-wider"><i class="fas fa-layer-group mr-2.5"></i>${currentEvent.parent_session}</div>` 
                         : '';
-                    let iconHtml = isHandsOn ? `<div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center p-3 flex-shrink-0 border border-amber-500/40 shadow-inner mr-6"><svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512"><path d="M497.9 74.1l-60-60c-18.7-18.7-49.1-18.7-67.9 0L241.8 142.3l-8.5-8.5c-6.2-6.2-16.4-6.2-22.6 0l-33.9 33.9c-6.2 6.2-6.2 16.4 0 22.6l8.5 8.5L25.4 358.6c-33.9 33.9-33.9 88.8 0 122.6s88.8 33.9 122.6 0l160.7-160.7 8.5 8.5c6.2 6.2 16.4 6.2 22.6 0l33.9-33.9c6.2-6.2 6.2-16.4 0-22.6l-8.5-8.5 128.2-128.2c18.7-18.7 18.7-49.1.5-67.7zM113.8 447c-14.7 14.7-38.5 14.7-53.2 0s-14.7-38.5 0-53.2l128-128 53.2 53.2-128 128z"/></svg></div>` 
-                    : `<div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-3xl sm:text-5xl flex-shrink-0 border border-indigo-500/30 shadow-inner mr-6"><i class="fas fa-microphone"></i></div>`;
+
+                    let iconHtml = isHandsOn ? `
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center p-3 flex-shrink-0 border border-amber-500/40 shadow-inner mr-6">
+                            <svg class="w-full h-full text-amber-400 fill-current" viewBox="0 0 512 512">
+                                <path d="M497.9 74.1l-60-60c-18.7-18.7-49.1-18.7-67.9 0L241.8 142.3l-8.5-8.5c-6.2-6.2-16.4-6.2-22.6 0l-33.9 33.9c-6.2 6.2-6.2 16.4 0 22.6l8.5 8.5L25.4 358.6c-33.9 33.9-33.9 88.8 0 122.6s88.8 33.9 122.6 0l160.7-160.7 8.5 8.5c6.2 6.2 16.4 6.2 22.6 0l33.9-33.9c6.2-6.2 6.2-16.4 0-22.6l-8.5-8.5 128.2-128.2c18.7-18.7 18.7-49.1.5-67.7zM113.8 447c-14.7 14.7-38.5 14.7-53.2 0s-14.7-38.5 0-53.2l128-128 53.2 53.2-128 128z"/>
+                            </svg>
+                        </div>
+                    ` : `
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-3xl sm:text-5xl flex-shrink-0 border border-indigo-500/30 shadow-inner mr-6">
+                            <i class="fas fa-microphone"></i>
+                        </div>
+                    `;
 
                     nowPlayingHtml = `
                         <div class="bg-gradient-to-br from-slate-800 to-slate-800/80 border-2 border-slate-700/80 rounded-3xl p-8 sm:p-12 shadow-2xl mb-8">
@@ -1135,7 +1031,15 @@
                             </div>
                             ${pSess}
                             <h1 class="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-white leading-tight mb-8">${currentEvent.title}</h1>
-                            ${currentEvent.speaker ? `<div class="flex items-center bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-slate-700/80 shadow-inner inline-flex max-w-full">${iconHtml}<div><span class="block text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Faculty / Speaker</span><span class="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span></div></div>` : ''}
+                            ${currentEvent.speaker ? `
+                                <div class="flex items-center bg-slate-900/90 p-6 sm:p-8 rounded-3xl border border-slate-700/80 shadow-inner inline-flex max-w-full">
+                                    ${iconHtml}
+                                    <div>
+                                        <span class="block text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-bold mb-1">Faculty / Speaker</span>
+                                        <span class="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white leading-snug">${currentEvent.speaker}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>`;
                 }
             }
