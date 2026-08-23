@@ -56,6 +56,15 @@
         </div>
     </div>
 
+    <!-- GLOBAL HIJACK OVERLAY (For Cockpit warning) -->
+    <div id="globalHijackOverlay" class="hidden fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-6 text-center">
+        <i class="fas fa-bolt text-6xl text-rose-500 mb-6 animate-pulse drop-shadow-lg"></i>
+        <h2 class="text-3xl sm:text-4xl font-black text-white mb-2 uppercase tracking-widest">Live Quiz Triggered!</h2>
+        <p id="hijackMessage" class="text-lg sm:text-xl text-slate-300 font-semibold mb-8">A high-stakes quiz is running in another hall.</p>
+        <button id="hijackJoinBtn" class="w-full max-w-sm bg-rose-600 hover:bg-rose-500 text-white text-lg font-black px-6 py-4 rounded-2xl shadow-[0_0_20px_rgba(225,29,72,0.5)] transition mb-4 active:scale-95">Jump to Hall & Monitor</button>
+        <button type="button" onclick="document.getElementById('globalHijackOverlay').classList.add('hidden')" class="text-slate-400 font-bold border-b border-slate-600 pb-0.5 hover:text-slate-300 transition">Ignore, stay in current hall</button>
+    </div>
+
     <!-- Auth Gate -->
     <div id="authGateFrame" class="fixed inset-0 bg-slate-950 z-[100] flex flex-col items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center">
@@ -238,6 +247,7 @@
         const supabaseUrl = 'https://iiqxxxamsprzhzggsrer.supabase.co';
         const supabaseKey = 'sb_publishable_eYTrqO8dPDZj0mjbv3Csqg_dMrY2h3k';
         const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        window.supabaseClient = supabaseClient; // EXPLICIT BINDING FOR CONSOLE
 
         const SOCIETY_LOGO_URL = "https://drive.google.com/file/d/1QdkLb-uJ_p8Fgo-UbLIVKi5Jnl1It55C/view?usp=drive_link";
 
@@ -269,9 +279,7 @@
             url = url.trim();
             if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
                 let fIdMatch = url.match(/[-\w]{25,}/);
-                if (fIdMatch && fIdMatch[0]) {
-                    return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1200`;
-                }
+                if (fIdMatch && fIdMatch[0]) return `https://drive.google.com/thumbnail?id=${fIdMatch[0]}&sz=w1200`;
             }
             return encodeURI(url);
         }
@@ -338,8 +346,9 @@
 
         window.pushTemplateSlide = async function(filename, label) {
             let flyerObj = { img: filename, title: '', subtitle: '', desc: '' };
+            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             window.logAction(`BROADCAST: Pushed Template Slide [${label}] to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: 'splash_flyer:' + JSON.stringify(flyerObj) }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             window.applyCockpitFlyerSplash(flyerObj, true);
         };
 
@@ -347,15 +356,17 @@
             let flyer = dynamicFlyers[idx];
             if (!flyer) return;
             let flyerObj = { img: resolveDirectImageUrl(flyer.img), title: flyer.title, subtitle: flyer.subtitle, desc: flyer.desc };
+            let payload = 'splash_flyer:' + JSON.stringify(flyerObj);
             window.logAction(`BROADCAST: Pushed Template Flyer [${flyer.label || flyer.title}] to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: 'splash_flyer:' + JSON.stringify(flyerObj) }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             window.applyCockpitFlyerSplash(flyerObj, true);
         };
 
         window.pushCurrentPreviewLive = async function() {
             if (!activePreviewFlyerObj) return;
+            let payload = 'splash_flyer:' + JSON.stringify(activePreviewFlyerObj);
             window.logAction(`BROADCAST: Pushed Current Previewed Flyer to Door TVs`);
-            await supabaseClient.from('hall_states').update({ active_splash: 'splash_flyer:' + JSON.stringify(activePreviewFlyerObj) }).in('hall_id', allHallsList);
+            await supabaseClient.from('hall_states').update({ active_splash: payload }).in('hall_id', allHallsList);
             window.applyCockpitFlyerSplash(activePreviewFlyerObj, true);
         };
 
@@ -425,6 +436,7 @@
         };
 
         function cleanText(val) { return val ? String(val).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim() : ""; }
+        
         function normalizeHallId(val) {
             if (!val) return "23a";
             let str = cleanText(val).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -456,6 +468,90 @@
             if (isAM && hours === 12) hours = 0;
             if (!isPM && !isAM && hours >= 1 && hours <= 7) hours += 12;
             return hours * 60 + minutes;
+        }
+
+        function parseRawData(rows, hallTitle) {
+            let events = [], current_session = "";
+            let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
+
+            for(let i=0; i<rows.length; i++) {
+                try {
+                    let r = rows[i];
+                    while(r.length < 12) r.push("");
+                    r = r.map(x => cleanText(x));
+                    let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
+                    let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
+                    let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
+                    let row_text = r.join(" ").toLowerCase();
+
+                    if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) continue; 
+                    if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) continue;
+                    if (hallTitle && !isHallC && row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) continue;
+                    if (!col0 && !col1 && !col2 && !col3 && !colTitle) continue;
+
+                    let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
+                    if (isCeremonyOrMeeting) {
+                        let text = colTitle || col3 || col0 || "Official Session";
+                        if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
+                        else if (/\bvaledict/i.test(row_text)) text = colTitle || col3 || "Valedictory Function";
+                        else if (/\bgbm\b/i.test(row_text)) text = "Annual General Body Meeting (GBM)";
+                        else if (/\bec meeting|executive committee\b/i.test(row_text)) text = "Executive Committee (EC) Meeting";
+                        else if (/\bbanquet|gala dinner\b/i.test(row_text)) text = "Gala Dinner & Banquet";
+                        
+                        let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                        let dignitaries = [colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "tbd"].includes(c.toLowerCase())).join(", ");
+                        events.push({ type: 'break', isCeremony: true, title: text, time: time_raw, display_time: convertTo12HourFormat(time_raw), speaker: dignitaries, hall: hallTitle, parent_session: text, adLink: r.find(c => c.toLowerCase().includes('http')) || "", societyLogo: SOCIETY_LOGO_URL });
+                        continue;
+                    }
+
+                    const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
+                    if (breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session")) {
+                        let text = colTitle || col3 || col0, targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
+                        if (/\b(tea|coffee)\b/i.test(targetText)) text = "Tea / Coffee Break";
+                        else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) text = "Lunch Break";
+                        else if (/\bregistration\b/i.test(targetText)) text = "Registration";
+
+                        let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                        events.push({ type: 'break', isCeremony: false, title: text, time: time_raw, display_time: convertTo12HourFormat(time_raw), speaker: '', hall: hallTitle, parent_session: '', adLink: r.find(c => c.toLowerCase().includes('http')) || "" });
+                        continue;
+                    }
+
+                    let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
+                    let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
+                    let isSession = false, isOration = false;
+
+                    if (row_text.includes('oration')) { isSession = true; isOration = true; } 
+                    else if (!isQA && !isPlenary) {
+                        if (!col1 && !col2 && !col0) isSession = true; 
+                        else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
+                        else if (col3 && !colTitle && !colSpeaker) isSession = true; 
+                        else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
+                    }
+
+                    let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
+                    if (isHandsOn) isSession = false;
+
+                    if (isSession) {
+                        let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
+                        if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
+                            if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
+                            else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
+                            else topic = col3 + ": " + colTitle;
+                        }
+                        current_session = topic; 
+                        let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                        events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase())).join(", "), hall: hallTitle, parent_session: current_session });
+                        continue;
+                    }
+
+                    if (col1 || colTitle || isQA || isPlenary || col3) {
+                        let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
+                        if (col0 && !col0.toLowerCase().includes('duration')) time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim();
+                        events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker, hall: hallTitle, parent_session: current_session });
+                    }
+                } catch(err) { console.error("Parse Error Row", i, err); }
+            }
+            return events;
         }
 
         let appData = {};
@@ -544,175 +640,72 @@
                 }).subscribe();
         };
 
-        window.fetchFlyersOnly = async function() {
-            const icon = document.getElementById('refreshFlyersIcon');
-            if(icon) icon.classList.add('animate-spin');
-            try {
-                const res = await fetch(sheetLinks.flyers + '&_cb=' + Date.now());
-                if(res.ok) {
-                    const csvText = await res.text();
-                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
-                    let loadedFlyers = [];
-                    parsedCsv.forEach((r, idx) => {
-                        if (!r || r.length === 0) return;
-                        let firstCell = cleanText(r[0] || '').toLowerCase();
-                        if (firstCell.includes('label') || firstCell.includes('tag') || firstCell === 'name') return;
-                        
-                        let labelVal = cleanText(r[0]), imgVal = cleanText(r[1]), titleVal = cleanText(r[2]), subVal = cleanText(r[3]), descVal = cleanText(r[4]);
-                        if (labelVal || imgVal || titleVal || descVal) {
-                            loadedFlyers.push({ label: labelVal || titleVal || 'Flyer ' + (idx + 1), img: imgVal, title: titleVal, subtitle: subVal, desc: descVal });
-                        }
-                    });
-                    dynamicFlyers = loadedFlyers;
-                    if (document.getElementById('masterToolbarSuite') && !document.getElementById('masterToolbarSuite').classList.contains('hidden')) {
-                        window.renderFlyerButtons();
-                    }
-                }
-            } catch(e) {}
-            if(icon) setTimeout(() => icon.classList.remove('animate-spin'), 600);
-        };
-
         window.fetchLiveSchedule = async function() {
-            let fetchedData = {};
-            let quizzesLoaded = [];
-            
-            const fetchPromises = Object.entries(sheetLinks).map(async ([key, link]) => {
-                if(!link || link.trim() === '') return;
-                try {
-                    const response = await fetch(link + '&_cb=' + Date.now());
-                    if(!response.ok) return;
-                    const csvText = await response.text();
-                    let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
+            try {
+                document.getElementById('loadingState').innerHTML = `<div class="loader mb-4"></div><p class="text-slate-400 font-semibold text-lg animate-pulse mt-4">Syncing Engine Schedule Database...</p>`;
+                
+                let fetchedData = {};
+                let quizzesLoaded = [];
+                
+                const fetchPromises = Object.entries(sheetLinks).map(async ([key, link]) => {
+                    if(!link || link.trim() === '') return;
+                    try {
+                        const response = await fetch(link + '&_cb=' + Date.now());
+                        if(!response.ok) return;
+                        const csvText = await response.text();
+                        let parsedCsv = Papa.parse(csvText, { header: false, skipEmptyLines: true }).data;
 
-                    if (key === 'flyers') return;
+                        if (key === 'flyers') return; // Handled separately
 
-                    if (key === 'quizzes') {
-                        let colOffset = 0;
-                        if (parsedCsv.length > 1) {
-                            let firstRow = parsedCsv[1];
-                            let cell0 = cleanText(firstRow[0]);
-                            if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
-                        }
-                        parsedCsv.forEach((r, idx) => {
-                            if (idx === 0 || !r || r.length < 3) return;
-                            let rawHall = cleanText(r[0 + colOffset]), rawSymp = cleanText(r[1 + colOffset]), rawTitle = cleanText(r[2 + colOffset]);
-                            if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
-
-                            quizzesLoaded.push({ 
-                                hall_id: normalizeHallId(rawHall), symposium: rawSymp || 'General', title: rawTitle, 
-                                options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
-                                correct: cleanText(r[7 + colOffset]), type: 'quiz' 
-                            });
-                        });
-                        return;
-                    } 
-
-                    let events = [];
-                    let hallTitle = configTitles[key];
-                    let isHallC = hallTitle && hallTitle.toLowerCase().includes('hall c');
-
-                    parsedCsv.forEach(r => {
-                        while(r.length < 12) r.push("");
-                        r = r.map(x => cleanText(x));
-                        let col0 = r[0], col1 = r[1], col2 = r[2], col3 = r[3];
-                        let colTitle = r[4] || r[5] || "", colSpeaker = r[4] ? r[5] : r[6];
-                        let colChair1 = r[4] ? r[6] : r[7], colChair2 = r[4] ? r[7] : r[8], colChair3 = r[4] ? r[8] : r[9];
-                        let row_text = r.join(" ").toLowerCase();
-
-                        if (row_text.includes("position:absolute") || row_text.includes("docs-drivelogo") || row_text.includes("<!doctype html>")) return; 
-                        if (col0.toLowerCase().includes("duration") && col1.toLowerCase().includes("from")) return;
-                        if (hallTitle && !isHallC && row_text.includes("hall c") && !row_text.includes("hall a") && !row_text.includes("hall b")) return;
-                        if (!col0 && !col1 && !col2 && !col3 && !colTitle) return;
-
-                        let isCeremonyOrMeeting = /\b(inauguration|inaugural|valedictory|gbm|general body|ec meeting|executive committee|banquet|gala dinner)\b/i.test(row_text);
-                        if (isCeremonyOrMeeting) {
-                            let text = colTitle || col3 || col0 || "Official Session";
-                            if (/\binaugur/i.test(row_text)) text = colTitle || col3 || "Inauguration Ceremony";
-                            else if (/\bvaledict/i.test(row_text)) text = colTitle || col3 || "Valedictory Function";
-                            else if (/\bgbm\b/i.test(row_text)) text = "Annual General Body Meeting (GBM)";
-                            else if (/\bec meeting|executive committee\b/i.test(row_text)) text = "Executive Committee (EC) Meeting";
-                            
-                            let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                            events.push({
-                                type: 'break', isCeremony: true, title: text, time: time_raw, display_time: convertTo12HourFormat(time_raw),
-                                speaker: [colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson", "tbd"].includes(c.toLowerCase())).join(", "),
-                                hall: hallTitle, parent_session: text, adLink: r.find(c => c.toLowerCase().includes('http')) || "", societyLogo: SOCIETY_LOGO_URL
-                            });
-                            return;
-                        }
-
-                        const breakRegex = /\b(break|lunch|registration|tea|coffee|sponsor|commercial|ad|video)\b/;
-                        if (breakRegex.test(row_text) && !row_text.includes("symposium") && !row_text.includes("session")) {
-                            let text = colTitle || col3 || col0, targetText = `${colTitle} ${col3} ${col0}`.toLowerCase();
-                            if (/\b(tea|coffee)\b/i.test(targetText)) text = "Tea / Coffee Break";
-                            else if (/\b(lunch|lunch break)\b/i.test(targetText) && !targetText.includes("pre-lunch") && !targetText.includes("pre lunch")) text = "Lunch Break";
-                            else if (/\bregistration\b/i.test(targetText)) text = "Registration";
-
-                            let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                            events.push({ type: 'break', isCeremony: false, title: text, time: time_raw, display_time: convertTo12HourFormat(time_raw), speaker: '', hall: hallTitle, parent_session: '', adLink: r.find(c => c.toLowerCase().includes('http')) || "" });
-                            return;
-                        }
-
-                        let isQA = col3.toLowerCase().includes("q&a") || colTitle.toLowerCase().includes("discussion");
-                        let isPlenary = col3.toLowerCase().includes("plenary") || colTitle.toLowerCase().includes("plenary");
-                        let isSession = false, isOration = false;
-
-                        if (row_text.includes('oration')) { isSession = true; isOration = true; } 
-                        else if (!isQA && !isPlenary) {
-                            if (!col1 && !col2 && !col0) isSession = true; 
-                            else if (!col0 && col1 && col2 && !colTitle) isSession = true; 
-                            else if (col3 && !colTitle && !colSpeaker) isSession = true; 
-                            else if (row_text.includes('symposium') || row_text.includes('session')) isSession = true;
-                        }
-
-                        let isHandsOn = col3.toLowerCase().includes('hands-on') || col3.toLowerCase().includes('demonstration') || colTitle.toLowerCase().includes('hands-on') || colTitle.toLowerCase().includes('demonstration');
-                        if (isHandsOn) isSession = false;
-
-                        let current_session = "";
-                        if (isSession) {
-                            let topic = colTitle || col3 || (isOration ? "Oration" : "Session");
-                            if (colTitle && col3 && colTitle.toLowerCase() !== col3.toLowerCase()) {
-                                if (colTitle.toLowerCase().includes(col3.toLowerCase())) topic = colTitle;
-                                else if (col3.toLowerCase().includes(colTitle.toLowerCase())) topic = col3;
-                                else topic = col3 + ": " + colTitle;
+                        if (key === 'quizzes') {
+                            let colOffset = 0;
+                            if (parsedCsv.length > 1) {
+                                let firstRow = parsedCsv[1];
+                                let cell0 = cleanText(firstRow[0]);
+                                if (/^\d{1,4}$/.test(cell0) || cell0.includes('/')) colOffset = 1;
                             }
-                            current_session = topic; 
-                            let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                            events.push({ type: 'session', isOration: isOration, time: time_raw, display_time: convertTo12HourFormat(time_raw), title: topic, speaker: isOration ? (colSpeaker || "") : [isOration ? "" : colSpeaker, colChair1, colChair2, colChair3].filter(c => c && !["nan", "speaker", "chairperson"].includes(c.toLowerCase())).join(", "), hall: hallTitle, parent_session: current_session });
+                            parsedCsv.forEach((r, idx) => {
+                                if (idx === 0 || !r || r.length < 3) return;
+                                let rawHall = cleanText(r[0 + colOffset]), rawSymp = cleanText(r[1 + colOffset]), rawTitle = cleanText(r[2 + colOffset]);
+                                if (!rawTitle || rawTitle.toLowerCase() === 'question' || rawTitle.toLowerCase() === 'title') return;
+
+                                quizzesLoaded.push({ 
+                                    hall_id: normalizeHallId(rawHall), symposium: rawSymp || 'General', title: rawTitle, 
+                                    options: [cleanText(r[3 + colOffset]), cleanText(r[4 + colOffset]), cleanText(r[5 + colOffset]), cleanText(r[6 + colOffset])].filter(Boolean), 
+                                    correct: cleanText(r[7 + colOffset]), type: 'quiz' 
+                                });
+                            });
                             return;
-                        }
+                        } 
 
-                        if (col1 || colTitle || isQA || isPlenary || col3) {
-                            let time_raw = (col1 && col2) ? `${col1} - ${col2}` : (col1 || col0);
-                            if (col0 && !col0.toLowerCase().includes('duration')) time_raw = time_raw ? `${time_raw} (${col0.trim()})` : col0.trim();
-                            events.push({ type: 'presentation', isHandsOn: isHandsOn, time: time_raw, display_time: convertTo12HourFormat(time_raw), tag: (isQA && !colTitle) ? "Discussion" : col3, title: (isQA && !colTitle) ? col3 : (colTitle || col3), speaker: ["nan", "tbd"].includes(colSpeaker.toLowerCase()) ? "" : colSpeaker, hall: hallTitle, parent_session: current_session });
-                        }
-                    });
+                        fetchedData[key] = { title: configTitles[key], events: parseRawData(parsedCsv, configTitles[key]) };
+                    } catch(err) { console.error("Sheet error:", key, err); }
+                });
 
-                    fetchedData[key] = { title: hallTitle, events: events };
-                } catch(err) { console.error("Fetch Error:", err); }
-            });
+                await Promise.allSettled(fetchPromises);
+                
+                if(Object.keys(fetchedData).length === 0) {
+                    document.getElementById('loadingState').innerHTML = `<p class="text-rose-400 font-bold text-xl mt-4">Network error downloading schedule.</p>`;
+                    return;
+                }
 
-            await Promise.allSettled(fetchPromises);
-            
-            if(Object.keys(fetchedData).length === 0) {
-                document.getElementById('loadingState').innerHTML = `<p class="text-white text-xl">Network error downloading schedule.</p>`;
-                return;
+                appData = fetchedData;
+                globalQuizzes = quizzesLoaded;
+                
+                let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
+                let dd = document.getElementById('symposiumFilter');
+                if (dd) {
+                    dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
+                    symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
+                }
+
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('staticHeader').classList.remove('hidden');
+                window.initLiveKiosk();
+            } catch (error) {
+                console.error("Critical Boot Error:", error);
+                document.getElementById('loadingState').innerHTML = `<p class="text-rose-400 font-bold text-xl mt-4">System Error. Check Console.</p>`;
             }
-
-            appData = fetchedData;
-            globalQuizzes = quizzesLoaded;
-            
-            let symps = [...new Set(globalQuizzes.map(q => q.symposium))].filter(Boolean);
-            let dd = document.getElementById('symposiumFilter');
-            if (dd) {
-                dd.innerHTML = `<option value="ALL">All Symposiums</option>`;
-                symps.forEach(s => { dd.innerHTML += `<option value="${s}">${s}</option>`; });
-            }
-
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('staticHeader').classList.remove('hidden');
-            window.initLiveKiosk();
         };
 
         window.fetchMathLeaderboard = async function(type) {
@@ -726,6 +719,7 @@
 
                 let filteredData = data.filter(d => {
                     if (targetType === 'grand' || targetType === 'all' || !targetType) return true;
+
                     let dHall = String(d.hall_id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                     let tHall = targetType.replace(/[^a-z0-9]/g, '');
 
@@ -734,16 +728,10 @@
                     return dHall === tHall || dHall.includes(tHall) || tHall.includes(dHall);
                 });
 
-                if (targetType === 'ao_seminar' || targetType === 'ao') titleText = "AO Seminar Standings";
-                else if (targetType === 'workshop_diabetic') titleText = "Diabetic Foot Standings";
-                else if (targetType === 'workshop_mis') titleText = "MIS Workshop Standings";
-                else if (targetType === '22a') titleText = "Day 1: Hall A Standings";
-                else if (targetType === '22b') titleText = "Day 1: Hall B Standings";
-                else if (targetType === '22c') titleText = "Day 1: Hall C Standings";
-                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative (Historical)";
-                else if (targetType === '23a') titleText = "Day 2: Hall A Standings";
+                if (targetType === '23a') titleText = "Day 2: Hall A Standings";
                 else if (targetType === '23b') titleText = "Day 2: Hall B Standings";
                 else if (targetType === '23c') titleText = "Day 2: Hall C Standings";
+                else if (targetType === 'day1_cum') titleText = "Day 1 Cumulative (Historical)";
                 else if (targetType === 'day2_cum') titleText = "Day 2 Cumulative Standings";
                 else titleText = "Grand Overall Standings";
 
@@ -777,8 +765,7 @@
                 Object.values(qGroups).forEach(responses => {
                     responses.forEach((r, idx) => {
                         let p = cleanText(r.phone);
-                        let pts = Math.max(10 - idx, 2);
-                        scores[p] = (scores[p] || 0) + pts;
+                        scores[p] += Math.max(10 - idx, 2);
                     });
                 });
 
@@ -869,16 +856,14 @@
             let hallQuizzes = globalQuizzes.filter(q => {
                 if (!q.hall_id) return true;
                 let qHall = cleanText(q.hall_id).toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (qHall === targetHall || qHall === 'all') return true;
-                if (targetHall.includes('23a') && (qHall === '23a' || qHall === 'halla' || qHall === 'a')) return true;
-                if (targetHall.includes('23b') && (qHall === '23b' || qHall === 'hallb' || qHall === 'b')) return true;
-                if (targetHall.includes('23c') && (qHall === '23c' || qHall === 'hallc' || qHall === 'c')) return true;
+                if (qHall === targetHall || qHall === 'all' || qHall === '') return true;
+                if (targetHall.includes('a') && qHall.includes('a')) return true;
+                if (targetHall.includes('b') && qHall.includes('b')) return true;
+                if (targetHall.includes('c') && qHall.includes('c')) return true;
                 return false;
             });
 
-            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) {
-                hallQuizzes = [...globalQuizzes];
-            }
+            if (hallQuizzes.length === 0 && globalQuizzes.length > 0) hallQuizzes = [...globalQuizzes];
 
             if (filterEl) {
                 let currentVal = filterEl.value;
@@ -895,13 +880,8 @@
             }
 
             let displayQuizzes = hallQuizzes;
-            if (filter && filter !== 'ALL') {
-                let cleanFilter = cleanText(filter).toLowerCase();
-                displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanFilter);
-            }
-            if (search) {
-                displayQuizzes = displayQuizzes.filter(q => cleanText(q.title).toLowerCase().includes(search) || cleanText(q.symposium).toLowerCase().includes(search));
-            }
+            if (filter && filter !== 'ALL') displayQuizzes = displayQuizzes.filter(q => cleanText(q.symposium).toLowerCase() === cleanText(filter).toLowerCase());
+            if (search) displayQuizzes = displayQuizzes.filter(q => cleanText(q.title).toLowerCase().includes(search) || cleanText(q.symposium).toLowerCase().includes(search));
 
             if (displayQuizzes.length > 0) {
                 let groups = {};
@@ -920,16 +900,12 @@
                     let headerStyle = isRecommended ? "text-amber-400 font-black" : "text-slate-300 font-bold";
                     let badge = isRecommended ? `<span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ml-2 animate-pulse shadow-md">Live Match</span>` : "";
 
-                    dashHtml += `
-                        <div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1">
-                            <div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div>
-                            <div class="flex flex-col gap-2">`;
+                    dashHtml += `<div class="border rounded-xl p-3 flex flex-col ${blockStyle} col-span-full md:col-span-1 lg:col-span-1"><div class="text-[11px] mb-3 flex items-center justify-between"><span class="${headerStyle} truncate" title="${symp}">${symp}</span> ${badge}</div><div class="flex flex-col gap-2">`;
                     qs.forEach(q => {
                         let globalIdx = globalQuizzes.indexOf(q);
-                        let safeTitle = encodeURIComponent(q.title);
-                        dashHtml += `<button type="button" onclick="window.launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${safeTitle}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
+                        dashHtml += `<button type="button" onclick="window.launchQuizByGlobalIndex(${globalIdx}, decodeURIComponent('${encodeURIComponent(q.title)}'))" class="bg-slate-900 hover:bg-rose-600 border border-slate-600 hover:border-rose-500 text-slate-300 hover:text-white px-3 py-2 rounded-lg text-[11px] font-bold transition text-left truncate w-full shadow-inner"><i class="fas fa-play text-rose-500 mr-2"></i> ${q.title}</button>`;
                     });
-                    dashHtml += `   </div></div>`;
+                    dashHtml += `</div></div>`;
                 }
                 container.innerHTML = dashHtml;
             } else {
@@ -1101,8 +1077,22 @@
                     }
                 } else if (currentEvent.type === 'break') {
                     if (currentEvent.isCeremony) {
-                        let societyBadge = currentEvent.societyLogo ? `<div class="mb-6 flex justify-center"><div class="inline-block"><img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-36 w-auto object-contain block mx-auto drop-shadow-2xl" alt="Society Logo"></div></div>` : '<i class="fas fa-landmark text-7xl mb-6 text-indigo-400 animate-pulse drop-shadow"></i>';
-                        nowPlayingHtml = `<div class="text-center py-16 bg-slate-800/80 rounded-3xl border-2 border-indigo-500/50 my-8 shadow-2xl px-6">${societyBadge}<h2 class="text-4xl sm:text-6xl font-black text-white uppercase tracking-widest leading-tight mb-4">${currentEvent.title}</h2>${currentEvent.speaker ? `<p class="text-xl sm:text-2xl text-amber-300 font-extrabold mb-4"><i class="fas fa-users mr-2"></i>Dignitaries: ${currentEvent.speaker}</p>` : ''}<p class="text-2xl text-slate-300 font-mono font-bold">${currentEvent.display_time}</p></div>`;
+                        let societyLogoHtml = currentEvent.societyLogo ? `
+                            <div class="mb-6 flex justify-center">
+                                <div class="inline-block">
+                                    <img src="${resolveDirectImageUrl(currentEvent.societyLogo)}" class="h-28 sm:h-36 w-auto object-contain block mx-auto drop-shadow-2xl" alt="Society Logo">
+                                </div>
+                            </div>
+                        ` : '<i class="fas fa-landmark text-7xl mb-6 text-indigo-400 animate-pulse drop-shadow"></i>';
+
+                        nowPlayingHtml = `
+                            <div class="text-center py-16 bg-slate-800/80 rounded-3xl border-2 border-indigo-500/50 my-8 shadow-2xl px-6">
+                                ${societyLogoHtml}
+                                <h2 class="text-4xl sm:text-6xl font-black text-white uppercase tracking-widest leading-tight mb-4">${currentEvent.title}</h2>
+                                ${currentEvent.speaker ? `<p class="text-xl sm:text-2xl text-amber-300 font-extrabold mb-4"><i class="fas fa-users mr-2"></i>Dignitaries: ${currentEvent.speaker}</p>` : ''}
+                                <p class="text-2xl text-slate-300 font-mono font-bold">${currentEvent.display_time}</p>
+                            </div>
+                        `;
                     } else if (currentEvent.adLink) {
                         let link = currentEvent.adLink, media = '';
                         if (link.includes('youtube.com') || link.includes('youtu.be')) {
@@ -1113,6 +1103,7 @@
                         } else { 
                             media = `<div class="bg-black/90 p-2 rounded-3xl border border-slate-700 shadow-2xl flex justify-center"><img src="${link}" class="w-full h-auto max-h-[50vh] object-contain rounded-2xl"></div>`; 
                         }
+
                         nowPlayingHtml = `<div class="mb-8 p-6 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl"><div class="flex items-center justify-between mb-4"><span class="bg-amber-500 text-slate-900 px-4 py-1.5 rounded-full text-sm font-black"><i class="fas fa-play-circle mr-2"></i> ${currentEvent.title}</span><span class="text-xl font-bold text-slate-400">${currentEvent.display_time}</span></div>${media}</div>`;
                     } else {
                         let breakIcon = "fa-coffee", iconColor = "text-amber-500";
@@ -1120,6 +1111,7 @@
                         if (lowTitle.includes('lunch')) { breakIcon = "fa-utensils"; iconColor = "text-emerald-500"; }
                         else if (lowTitle.includes('banquet') || lowTitle.includes('dinner')) { breakIcon = "fa-glass-cheers"; iconColor = "text-purple-500"; }
                         else if (lowTitle.includes('registration')) { breakIcon = "fa-id-badge"; iconColor = "text-blue-400"; }
+
                         nowPlayingHtml = `<div class="text-center py-24 bg-slate-800/50 rounded-3xl border border-slate-700 my-8 shadow-inner"><i class="fas ${breakIcon} text-7xl mb-6 ${iconColor} animate-pulse drop-shadow"></i><h2 class="text-4xl font-black text-white uppercase tracking-widest">${currentEvent.title}</h2><p class="text-2xl text-slate-400 mt-3 font-semibold">${currentEvent.display_time}</p></div>`;
                     }
                 } else {
@@ -1151,7 +1143,7 @@
             let upNextHtml = '';
             if (nextEvent && nextEvent.type !== 'quiz') {
                 upNextHtml = `
-                    <div class="bg-slate-900/70 border border-slate-800/90 rounded-3xl p-6 sm:p-8 flex items-center justify-between gap-6 shadow-xl flex-shrink-0 mb-4">
+                    <div class="bg-slate-900/70 border-2 border-slate-800/90 rounded-3xl p-6 sm:p-8 flex items-center justify-between gap-6 shadow-xl flex-shrink-0 mb-4">
                         <div class="flex-1 truncate">
                             <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-amber-400 block mb-2 flex items-center"><i class="fas fa-step-forward mr-2"></i>Coming Up Next &bull; ${nextEvent.display_time}</span>
                             <h4 class="text-2xl sm:text-3xl font-bold text-slate-100 leading-snug truncate">${nextEvent.title}</h4>
@@ -1175,28 +1167,38 @@
                 window.updateLiveDisplay(true);
             });
 
-            supabaseClient.channel('custom-live-channel')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'hall_states', filter: `hall_id=eq.${liveHall}` },
-                    (payload) => { 
-                        manualOverrideIndex = payload.new.override_index; 
-                        if (payload.new.quiz_start_time && payload.new.quiz_start_time !== quizStartTimeStamp) {
-                            localQuizStart = Date.now();
-                        } else if (!payload.new.quiz_start_time) {
-                            localQuizStart = null;
+            if (fastHeartbeatTimer) clearInterval(fastHeartbeatTimer);
+            fastHeartbeatTimer = setInterval(async () => {
+                if (!liveHall) return;
+                try {
+                    const { data } = await supabaseClient.from('hall_states').select('override_index, quiz_start_time').eq('hall_id', liveHall).single();
+                    if (data) {
+                        let changed = false;
+                        if (manualOverrideIndex !== data.override_index) {
+                            manualOverrideIndex = data.override_index;
+                            changed = true;
                         }
-                        quizStartTimeStamp = payload.new.quiz_start_time; 
-                        window.updateLiveDisplay(true); 
+                        if (quizStartTimeStamp !== data.quiz_start_time) {
+                            quizStartTimeStamp = data.quiz_start_time;
+                            if (data.quiz_start_time) localQuizStart = Date.now();
+                            else localQuizStart = null;
+                            changed = true;
+                        }
+                        if (changed) {
+                            lastRenderHash = "";
+                            window.updateLiveDisplay(true);
+                        }
                     }
-                ).subscribe();
+                } catch(e){}
+            }, 3000);
             
             if (liveUpdateTimer) clearInterval(liveUpdateTimer);
-            if (tickerTimer) clearInterval(tickerTimer);
-            
             liveUpdateTimer = setInterval(() => { 
                 if (manualOverrideIndex === null || manualOverrideIndex >= 0) window.updateLiveDisplay(false); 
                 window.fetchFlyersOnly();
             }, 30000);
             
+            if (tickerTimer) clearInterval(tickerTimer);
             tickerTimer = setInterval(() => {
                 let clk = document.getElementById('liveDigitalClock');
                 if(clk) clk.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -1204,7 +1206,6 @@
                 if (manualOverrideIndex !== null && manualOverrideIndex < 0 && localQuizStart) {
                     let diff = Math.floor((Date.now() - localQuizStart) / 1000);
                     let secondsLeft = Math.max(0, 45 - diff);
-                    
                     let timerEl = document.getElementById('quizCountdownTimer');
                     if (timerEl) {
                         if (secondsLeft <= 0) {
@@ -1218,7 +1219,7 @@
                             timerEl.innerHTML = `<i class="fas fa-hourglass-half mr-2 animate-spin"></i>${secondsLeft}s`;
                         }
                     }
-                } else { window.quizExpiredRendered = false; }
+                } else { window.cockpitExpiredTriggered = false; }
             }, 1000);
         };
 
